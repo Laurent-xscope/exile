@@ -1,28 +1,39 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #140D08;
+  --foreground: #F5E6D3;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+@theme {
+  --font-serif: var(--font-spectral), Georgia, Cambria, "Times New Roman", serif;
+  --font-display: var(--font-cinzel), Georgia, serif;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-quest-bg: #140D08;
+  --color-quest-surface: #24160E;
+  --color-quest-elevated: #331F14;
+  --color-quest-border: #4A2E1F;
+  --color-quest-border-light: #5C3D2E;
+  --color-quest-gold: #CA8A04;
+  --color-quest-gold-hover: #D97706;
+  --color-quest-gold-light: #EAB308;
+  --color-quest-parchment: #F5E6D3;
+  --color-quest-muted: #BFA98A;
+  --color-quest-dark-muted: #7E6351;
+  --color-quest-crimson: #991B1B;
+  --color-quest-crimson-light: #B91C1C;
+  --color-quest-forest: #16A34A;
+  --color-quest-forest-dark: #14532D;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-quest-bg, #140D08);
+  color: var(--color-quest-parchment, #F5E6D3);
+  font-family: var(--font-spectral), Georgia, Cambria, serif;
+}
+
+h1, h2, h3, h4, .font-heading {
+  font-family: var(--font-cinzel), Georgia, serif;
 }
 
 /* 3D Flashcard transforms */
@@ -43,3 +54,21 @@ body {
   transform: rotateY(180deg);
 }
 
+/* Clean scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #1A0F0A;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #4A2E1F;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #CA8A04;
+}

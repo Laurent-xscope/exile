@@ -1,22 +1,23 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Cinzel, Spectral } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const cinzel = Cinzel({
+  variable: "--font-cinzel",
   subsets: ["latin"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const spectral = Spectral({
+  variable: "--font-spectral",
+  weight: ["400", "500", "600", "700"],
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "exile.org | Asesmen Cerdas & Diagnostik Kurikulum Merdeka Bali",
+  title: "exile.org — Evaluasi & Asesmen Basa Bali Kurikulum Merdeka",
   description:
-    "Platform evaluasi formatif berbasis AI dengan siklus belajar tertutup untuk Kurikulum Merdeka dan muatan lokal budaya Bali.",
+    "Platform evaluasi formatif terstruktur untuk guru dan siswa di Bali. Menyusun bahan ajar, kartu latihan, dan kuis kelas dengan deteksi miskonsepsi.",
 };
 
 export default function RootLayout({
@@ -26,12 +27,23 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
+      lang="id"
+      className={`${cinzel.variable} ${spectral.variable} h-full antialiased dark`}
     >
-      <body className="min-h-full flex flex-col bg-zinc-950 text-zinc-100 selection:bg-indigo-500/30 selection:text-indigo-200">
+      <body className="min-h-full flex flex-col bg-[#140D08] text-[#F5E6D3] font-serif selection:bg-[#CA8A04]/30 selection:text-[#F5E6D3]">
         {children}
-        <Toaster theme="dark" richColors position="top-right" />
+        <Toaster
+          theme="dark"
+          richColors
+          position="top-right"
+          toastOptions={{
+            style: {
+              background: "#24160E",
+              color: "#F5E6D3",
+              border: "1px solid #4A2E1F",
+            },
+          }}
+        />
       </body>
     </html>
   );

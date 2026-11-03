@@ -3,20 +3,15 @@
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
-  Zap,
-  Flame,
-  CheckCircle2,
-  XCircle,
-  Trophy,
-  Sparkles,
-  Clock,
-  ArrowRight,
-  HelpCircle,
-  Loader2,
-  Share2,
-} from "lucide-react";
+  RiBookOpenLine,
+  RiTimeLine,
+  RiCheckLine,
+  RiCloseLine,
+  RiTrophyLine,
+  RiFireLine,
+} from "@remixicon/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 
@@ -137,7 +132,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
         // Trigger finish confetti
         if (data.status === "finished") {
           confetti({
-            particleCount: 80,
+            particleCount: 60,
             spread: 70,
             origin: { y: 0.6 },
           });
@@ -156,7 +151,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
     return () => clearInterval(interval);
   }, [roomCode, lastQuestionId]);
 
-  // Countdown timer effect for active question
+  // Countdown timer effect
   useEffect(() => {
     if (
       !roomState?.currentQuestion ||
@@ -210,22 +205,20 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
 
       setHasAnsweredCurrentQ(true);
 
-      // If correct, trigger instant celebratory confetti
       if (isCorrect) {
         confetti({
-          particleCount: 50,
+          particleCount: 40,
           spread: 60,
           origin: { y: 0.7 },
         });
         setLastSubmissionResult({
           isCorrect: true,
           scoreAwarded,
-          explanation: "Jawabanmu tepat! Kamu memahami konsep dengan sangat baik.",
+          explanation: "Pilihanmu tepat! Kamu memahami konteks kesantunan dengan benar.",
         });
-        toast.success(`+${scoreAwarded} Poin! Benar!`);
+        toast.success(`+${scoreAwarded} poin diperoleh`);
       } else {
-        // If wrong, request instant AI micro-explanation for closed-loop learning
-        toast.error("Waduh, belum tepat!");
+        toast.error("Pilihan belum tepat");
         try {
           const explainRes = await fetch("/api/ai/explain-error", {
             method: "POST",
@@ -233,7 +226,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             body: JSON.stringify({
               question: currentQ.question,
               selectedOption: optionLabel,
-              correctOption: "A", // Backend validates actual key
+              correctOption: "A",
               options: currentQ.options,
               conceptTag: currentQ.conceptTag,
             }),
@@ -241,7 +234,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
           const explainData = await explainRes.json();
           const feedback =
             explainData.explanation?.explanation ||
-            "Pilihan ini keliru karena aturan kesantunan bahasa membedakan kata untuk diri sendiri dan orang terhormat.";
+            "Pilihan ini kurang pas karena kata untuk diri sendiri berbeda dengan kata untuk orang yang dihormati.";
 
           setLastSubmissionResult({
             isCorrect: false,
@@ -253,12 +246,12 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             isCorrect: false,
             scoreAwarded: 0,
             microFeedback:
-              "Perhatikan tingkatan kata: Alus Singgih (ASI) meninggikan orang lain, Alus Sor (ASO) merendahkan diri sendiri.",
+              "Ingat kaidah: Alus Singgih digunakan memuliakan orang lain, Alus Sor untuk merendahkan diri sendiri.",
           });
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal submit jawaban";
+      const msg = err instanceof Error ? err.message : "Gagal mengirim jawaban";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -270,205 +263,198 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   const myStreak = myEntry?.streak || 0;
   const myRank = myEntry?.rank || "-";
 
-  const optionColorStyles = [
+  const optionStyles = [
     {
-      bg: "from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500",
-      border: "border-red-500/50",
-      letterBg: "bg-red-800/80 text-white",
+      card: "bg-[#24160E] hover:bg-[#331F14] border-[#4A2E1F] hover:border-[#CA8A04]",
+      badge: "bg-[#331F14] text-[#CA8A04] border border-[#4A2E1F]",
     },
     {
-      bg: "from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500",
-      border: "border-blue-500/50",
-      letterBg: "bg-blue-800/80 text-white",
+      card: "bg-[#24160E] hover:bg-[#331F14] border-[#4A2E1F] hover:border-[#CA8A04]",
+      badge: "bg-[#331F14] text-[#CA8A04] border border-[#4A2E1F]",
     },
     {
-      bg: "from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500",
-      border: "border-amber-500/50",
-      letterBg: "bg-amber-800/80 text-white",
+      card: "bg-[#24160E] hover:bg-[#331F14] border-[#4A2E1F] hover:border-[#CA8A04]",
+      badge: "bg-[#331F14] text-[#CA8A04] border border-[#4A2E1F]",
     },
     {
-      bg: "from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500",
-      border: "border-emerald-500/50",
-      letterBg: "bg-emerald-800/80 text-white",
+      card: "bg-[#24160E] hover:bg-[#331F14] border-[#4A2E1F] hover:border-[#CA8A04]",
+      badge: "bg-[#331F14] text-[#CA8A04] border border-[#4A2E1F]",
     },
   ];
 
   if (loading && !roomState) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400 gap-4">
-        <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-        <p className="text-sm">Menghubungkan ke Game Arena exile.org...</p>
+      <div className="min-h-screen bg-[#140D08] flex flex-col items-center justify-center text-[#BFA98A] gap-3">
+        <span className="w-5 h-5 border-2 border-[#CA8A04]/30 border-t-[#CA8A04] rounded-full animate-spin" />
+        <p className="text-xs">Menyambungkan ke ruang kuis...</p>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between selection:bg-indigo-500/30 selection:text-indigo-200">
-      {/* Top HUD Bar */}
-      <header className="border-b border-zinc-800/80 bg-zinc-950/90 backdrop-blur sticky top-0 z-30">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
+    <main className="min-h-screen bg-[#140D08] text-[#F5E6D3] flex flex-col justify-between">
+      {/* Top Header Bar */}
+      <header className="border-b border-[#331F14] bg-[#1A0F0A]/95 sticky top-0 z-30 backdrop-blur-sm">
+        <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-indigo-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-indigo-500/20">
-              <Zap className="w-4 h-4 text-white" />
+            <div className="w-7 h-7 rounded bg-[#2C1A10] border border-[#CA8A04]/40 flex items-center justify-center text-[#CA8A04]">
+              <RiBookOpenLine className="w-3.5 h-3.5" />
             </div>
             <div>
-              <p className="font-bold text-sm text-white flex items-center gap-2">
+              <p className="font-semibold text-xs text-[#F5E6D3] flex items-center gap-2">
                 {nickname}
                 {myStreak > 1 && (
-                  <span className="text-[11px] font-mono px-2 py-0.5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center gap-1">
-                    <Flame className="w-3 h-3" /> {myStreak}x
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-[#CA8A04]/15 text-[#CA8A04] border border-[#CA8A04]/30 flex items-center gap-0.5">
+                    <RiFireLine className="w-3 h-3" /> {myStreak}x berturut-turut
                   </span>
                 )}
               </p>
-              <p className="text-[10px] text-zinc-400 font-mono">
-                PIN: <span className="text-zinc-200">{roomCode}</span> • Peringkat #{myRank}
+              <p className="text-[11px] text-[#BFA98A]">
+                PIN: {roomCode} • Peringkat #{myRank}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="px-3.5 py-1.5 rounded-xl bg-zinc-900 border border-zinc-800 text-right">
-              <p className="text-[10px] uppercase font-bold text-zinc-400">Poin</p>
-              <p className="text-base font-black font-mono text-indigo-400 leading-none">
-                {myScore.toLocaleString()}
-              </p>
-            </div>
+          <div className="px-3 py-1 rounded bg-[#24160E] border border-[#4A2E1F] text-right">
+            <span className="text-[10px] text-[#BFA98A] block">Total nilai</span>
+            <span className="text-sm font-semibold text-[#CA8A04]">
+              {myScore.toLocaleString()}
+            </span>
           </div>
         </div>
       </header>
 
-      {/* Main Arena Content */}
-      <div className="max-w-3xl mx-auto px-4 py-6 w-full flex-1 flex flex-col justify-center">
+      {/* Main Play Area */}
+      <div className="max-w-2xl mx-auto px-4 py-8 w-full flex-1 flex flex-col justify-center">
         {/* State 1: Room Waiting */}
         {roomState?.status === "waiting" && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-12 px-6 bg-zinc-900/60 border border-zinc-800 rounded-3xl backdrop-blur shadow-2xl space-y-6"
+            className="text-center py-10 px-6 bg-[#1A0F0A] border border-[#331F14] rounded-lg shadow-sm space-y-4"
           >
-            <div className="w-16 h-16 mx-auto rounded-3xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400 animate-pulse">
-              <Sparkles className="w-8 h-8" />
+            <div className="w-12 h-12 mx-auto rounded bg-[#2C1A10] border border-[#CA8A04]/40 flex items-center justify-center text-[#CA8A04]">
+              <RiBookOpenLine className="w-6 h-6" />
             </div>
 
             <div>
-              <h2 className="text-2xl font-black text-white mb-2">Kamu Sudah Masuk!</h2>
-              <p className="text-zinc-400 text-sm max-w-sm mx-auto">
-                Tunggu Guru <strong className="text-zinc-200">{roomState.hostName}</strong> memulai kuis di layar utama.
+              <h2 className="text-lg font-heading font-bold text-[#F5E6D3] mb-1">
+                Kamu sudah bergabung di ruang kuis
+              </h2>
+              <p className="text-xs text-[#BFA98A] max-w-sm mx-auto leading-relaxed">
+                Tunggu Bapak/Ibu Guru <strong className="text-[#F5E6D3]">{roomState.hostName}</strong> memulai pertanyaan dari layar utama.
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-zinc-950 border border-zinc-800 text-xs font-mono text-zinc-400">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              Tersambung ke Room {roomCode}
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded bg-[#140D08] border border-[#331F14] text-xs text-[#BFA98A]">
+              <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
+              Terhubung ke room {roomCode}
             </div>
           </motion.div>
         )}
 
         {/* State 2: Active Question Playing */}
         {roomState?.status === "active" && roomState.currentQuestion && (
-          <div className="space-y-6">
+          <div className="space-y-5">
             {/* Question Progress & Timer */}
-            <div className="flex items-center justify-between text-xs font-semibold text-zinc-400">
-              <span className="px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 font-mono">
-                Soal {(roomState.currentQuestionIndex || 0) + 1} dari {roomState.totalQuestions}
+            <div className="flex items-center justify-between text-xs text-[#BFA98A]">
+              <span className="px-2.5 py-1 rounded bg-[#1A0F0A] border border-[#331F14]">
+                Pertanyaan {(roomState.currentQuestionIndex || 0) + 1} dari {roomState.totalQuestions}
               </span>
 
-              <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-zinc-900 border border-zinc-800 font-mono">
-                <Clock className="w-3.5 h-3.5 text-amber-400" />
-                <span className={timeLeft <= 5 ? "text-red-400 font-bold" : "text-zinc-200"}>
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#1A0F0A] border border-[#331F14]">
+                <RiTimeLine className="w-3.5 h-3.5 text-[#CA8A04]" />
+                <span className={timeLeft <= 5 ? "text-[#F87171] font-semibold" : "text-[#D6C5B2]"}>
                   {timeLeft} detik
                 </span>
               </div>
             </div>
 
             {/* Question Box */}
-            <div className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-6 sm:p-8 backdrop-blur shadow-xl relative overflow-hidden">
+            <div className="bg-[#1A0F0A] border border-[#331F14] rounded-lg p-5 sm:p-6 shadow-sm space-y-2">
               {roomState.currentQuestion.conceptTag && (
-                <span className="inline-block text-[11px] font-semibold text-indigo-400 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-3">
+                <span className="inline-block text-xs text-[#CA8A04] px-2 py-0.5 rounded bg-[#24160E] border border-[#4A2E1F]">
                   {roomState.currentQuestion.conceptTag}
                 </span>
               )}
 
-              <h2 className="text-lg sm:text-xl font-bold text-white leading-relaxed">
+              <h2 className="text-base sm:text-lg font-medium text-[#F5E6D3] leading-relaxed">
                 {roomState.currentQuestion.question}
               </h2>
             </div>
 
             {/* 4 Interactive Option Buttons or Feedback Result */}
             {!hasAnsweredCurrentQ ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {roomState.currentQuestion.options.map((option, idx) => {
-                  const style = optionColorStyles[idx % optionColorStyles.length];
+                  const style = optionStyles[idx % optionStyles.length];
                   return (
-                    <motion.button
+                    <button
                       key={option.label}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
                       onClick={() => handleSelectOption(option.label)}
                       disabled={submitting}
-                      className={`p-5 rounded-2xl bg-gradient-to-r ${style.bg} ${style.border} border shadow-lg text-left transition relative flex items-start gap-4 disabled:opacity-50`}
+                      className={`p-4 rounded-lg border text-left transition flex items-start gap-3 disabled:opacity-50 ${style.card}`}
                     >
                       <span
-                        className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-sm shrink-0 shadow ${style.letterBg}`}
+                        className={`w-7 h-7 rounded flex items-center justify-center font-bold text-xs shrink-0 ${style.badge}`}
                       >
                         {option.label}
                       </span>
-                      <span className="text-white font-bold text-sm sm:text-base leading-snug mt-1">
+                      <span className="text-[#F5E6D3] text-sm leading-snug pt-0.5 font-medium">
                         {option.text}
                       </span>
-                    </motion.button>
+                    </button>
                   );
                 })}
               </div>
             ) : (
-              /* Instant Feedback Screen with AI Micro-Explanation */
+              /* Instant Feedback Screen */
               <motion.div
-                initial={{ opacity: 0, scale: 0.96 }}
+                initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className={`p-6 sm:p-8 rounded-3xl border backdrop-blur shadow-2xl ${
+                className={`p-6 rounded-lg border shadow-sm ${
                   lastSubmissionResult?.isCorrect
-                    ? "bg-emerald-950/30 border-emerald-500/40"
-                    : "bg-rose-950/30 border-rose-500/40"
+                    ? "bg-[#14532D]/15 border-[#16A34A]/40"
+                    : "bg-[#451A1A]/20 border-[#991B1B]/40"
                 }`}
               >
-                <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-3 mb-3">
                   {lastSubmissionResult?.isCorrect ? (
-                    <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                      <CheckCircle2 className="w-7 h-7" />
+                    <div className="w-9 h-9 rounded bg-[#16A34A]/20 border border-[#16A34A]/40 flex items-center justify-center text-[#22C55E]">
+                      <RiCheckLine className="w-5 h-5" />
                     </div>
                   ) : (
-                    <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
-                      <XCircle className="w-7 h-7" />
+                    <div className="w-9 h-9 rounded bg-[#991B1B]/20 border border-[#991B1B]/40 flex items-center justify-center text-[#F87171]">
+                      <RiCloseLine className="w-5 h-5" />
                     </div>
                   )}
 
                   <div>
-                    <h3 className="text-xl font-black text-white">
+                    <h3 className="text-base font-heading font-bold text-[#F5E6D3]">
                       {lastSubmissionResult?.isCorrect
-                        ? "Luar Biasa! Jawaban Tepat!"
-                        : "Waduh, Belum Tepat!"}
+                        ? "Pilihanmu tepat!"
+                        : "Pilihan belum tepat"}
                     </h3>
-                    <p className="text-xs text-zinc-300 font-mono">
+                    <p className="text-xs text-[#BFA98A]">
                       {lastSubmissionResult?.isCorrect
-                        ? `+${lastSubmissionResult.scoreAwarded} Poin bertambah!`
-                        : "0 Poin. Simak penjelasan di bawah:"}
+                        ? `+${lastSubmissionResult.scoreAwarded} poin bertambah.`
+                        : "Simak penjelasan konsep di bawah ini:"}
                     </p>
                   </div>
                 </div>
 
-                {/* Instant AI Micro-Feedback */}
-                <div className="p-4 rounded-2xl bg-zinc-950/70 border border-zinc-800 text-xs sm:text-sm text-zinc-200 leading-relaxed mb-4">
-                  <strong className="block text-indigo-400 uppercase text-[11px] mb-1">
-                    {lastSubmissionResult?.isCorrect ? "Ulasan Konsep:" : "Intisari Miskonsepsi:"}
-                  </strong>
+                <div className="p-3.5 rounded bg-[#140D08] border border-[#331F14] text-xs text-[#D6C5B2] leading-relaxed mb-3">
+                  <span className="font-semibold text-[#CA8A04] block mb-1">
+                    {lastSubmissionResult?.isCorrect ? "Ulasan materi:" : "Catatan konsep:"}
+                  </span>
                   {lastSubmissionResult?.microFeedback ||
                     lastSubmissionResult?.explanation ||
-                    "Jawaban telah direkam oleh sistem pembelajaran exile.org."}
+                    "Jawaban telah tersimpan di sistem pembelajaran."}
                 </div>
 
-                <div className="flex items-center justify-center gap-2 text-xs text-zinc-400 pt-2">
-                  <span className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse" />
-                  Menunggu Guru membuka soal berikutnya...
+                <div className="flex items-center justify-center gap-2 text-xs text-[#BFA98A] pt-1">
+                  <span className="w-2 h-2 rounded-full bg-[#CA8A04]" />
+                  Menunggu guru membuka pertanyaan berikutnya...
                 </div>
               </motion.div>
             )}
@@ -478,41 +464,38 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
         {/* State 3: Showing Leaderboard */}
         {roomState?.status === "showing_leaderboard" && (
           <motion.div
-            initial={{ opacity: 0, y: 10 }}
+            initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
-            className="bg-zinc-900/80 border border-zinc-800 rounded-3xl p-6 sm:p-8 backdrop-blur shadow-2xl space-y-6"
+            className="bg-[#1A0F0A] border border-[#331F14] rounded-lg p-6 shadow-sm space-y-4"
           >
-            <div className="text-center">
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center text-amber-400 mb-3">
-                <Trophy className="w-6 h-6" />
-              </div>
-              <h2 className="text-2xl font-black text-white">Papan Skor Sementara</h2>
-              <p className="text-xs text-zinc-400">
-                Peringkat kamu saat ini: <strong>#{myRank}</strong> ({myScore} pts)
+            <div className="text-center pb-2 border-b border-[#331F14]">
+              <h2 className="text-lg font-heading font-bold text-[#F5E6D3]">Papan skor sementara</h2>
+              <p className="text-xs text-[#BFA98A]">
+                Peringkat kamu saat ini: <strong>#{myRank}</strong> ({myScore} poin)
               </p>
             </div>
 
-            <div className="space-y-2.5 max-h-72 overflow-y-auto">
+            <div className="space-y-2 max-h-72 overflow-y-auto">
               {roomState.leaderboard.map((player) => (
                 <div
                   key={player.id}
-                  className={`p-3.5 rounded-2xl border flex items-center justify-between transition ${
+                  className={`p-3 rounded border flex items-center justify-between text-xs transition ${
                     player.id === playerId
-                      ? "bg-indigo-950/40 border-indigo-500/50"
-                      : "bg-zinc-950 border-zinc-800/80"
+                      ? "bg-[#24160E] border-[#CA8A04]"
+                      : "bg-[#140D08] border-[#331F14]"
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <span className="w-7 h-7 rounded-lg bg-zinc-800 text-zinc-300 font-mono text-xs font-bold flex items-center justify-center">
+                    <span className="w-6 h-6 rounded bg-[#24160E] border border-[#4A2E1F] text-[#BFA98A] font-medium text-xs flex items-center justify-center">
                       {player.rank}
                     </span>
-                    <span className="text-sm font-semibold text-white">
+                    <span className="font-medium text-[#F5E6D3]">
                       {player.nickname} {player.id === playerId && "(Kamu)"}
                     </span>
                   </div>
 
-                  <span className="font-mono text-sm font-bold text-indigo-400">
-                    {player.score} pts
+                  <span className="font-medium text-[#CA8A04]">
+                    {player.score} poin
                   </span>
                 </div>
               ))}
@@ -523,76 +506,72 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
         {/* State 4: Finished Game Podium */}
         {roomState?.status === "finished" && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
+            initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-8 px-6 bg-zinc-900/90 border border-zinc-800 rounded-3xl backdrop-blur shadow-2xl space-y-6"
+            className="text-center py-8 px-6 bg-[#1A0F0A] border border-[#331F14] rounded-lg shadow-sm space-y-5"
           >
-            <div className="w-16 h-16 mx-auto rounded-3xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shadow-xl shadow-amber-500/20">
-              <Trophy className="w-8 h-8" />
+            <div className="w-12 h-12 mx-auto rounded bg-[#2C1A10] border border-[#CA8A04]/40 flex items-center justify-center text-[#CA8A04]">
+              <RiTrophyLine className="w-6 h-6" />
             </div>
 
             <div>
-              <h2 className="text-3xl font-black text-white mb-2">Kuis Telah Selesai!</h2>
-              <p className="text-sm text-zinc-400">
-                Selamat! Kamu menyelesaikan kuis dengan total{" "}
-                <strong className="text-indigo-400">{myScore.toLocaleString()} Poin</strong> (Peringkat #{myRank}).
+              <h2 className="text-xl font-heading font-bold text-[#F5E6D3] mb-1">Kuis telah selesai</h2>
+              <p className="text-xs text-[#BFA98A]">
+                Hasil akhir kuis kamu: <strong className="text-[#CA8A04]">{myScore.toLocaleString()} poin</strong> (Peringkat #{myRank}).
               </p>
             </div>
 
-            {/* Podium top 3 */}
-            <div className="grid grid-cols-3 gap-2 items-end pt-4 pb-2">
-              {/* 2nd place */}
+            {/* Podium */}
+            <div className="grid grid-cols-3 gap-2 items-end pt-2 pb-2">
               {roomState.leaderboard[1] && (
-                <div className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col items-center">
-                  <span className="text-xl">🥈</span>
-                  <p className="text-xs font-bold text-white truncate w-full">
+                <div className="p-3 rounded bg-[#24160E] border border-[#4A2E1F] flex flex-col items-center">
+                  <span className="text-xs font-semibold text-[#BFA98A]">Peringkat 2</span>
+                  <p className="text-xs font-medium text-[#F5E6D3] truncate w-full mt-1">
                     {roomState.leaderboard[1].nickname}
                   </p>
-                  <span className="text-[10px] text-zinc-400 font-mono">
-                    {roomState.leaderboard[1].score} pts
+                  <span className="text-[11px] text-[#BFA98A]">
+                    {roomState.leaderboard[1].score} poin
                   </span>
                 </div>
               )}
 
-              {/* 1st place */}
               {roomState.leaderboard[0] && (
-                <div className="p-4 rounded-2xl bg-amber-950/30 border border-amber-500/40 flex flex-col items-center scale-105 shadow-xl">
-                  <span className="text-2xl">👑</span>
-                  <p className="text-sm font-black text-amber-300 truncate w-full">
+                <div className="p-3.5 rounded bg-[#2C1A10] border border-[#CA8A04] flex flex-col items-center">
+                  <span className="text-xs font-semibold text-[#CA8A04]">Juara 1</span>
+                  <p className="text-xs font-bold text-[#F5E6D3] truncate w-full mt-1">
                     {roomState.leaderboard[0].nickname}
                   </p>
-                  <span className="text-xs text-amber-400 font-mono font-bold">
-                    {roomState.leaderboard[0].score} pts
+                  <span className="text-xs font-semibold text-[#CA8A04]">
+                    {roomState.leaderboard[0].score} poin
                   </span>
                 </div>
               )}
 
-              {/* 3rd place */}
               {roomState.leaderboard[2] && (
-                <div className="p-3 rounded-2xl bg-zinc-950 border border-zinc-800 flex flex-col items-center">
-                  <span className="text-xl">🥉</span>
-                  <p className="text-xs font-bold text-white truncate w-full">
+                <div className="p-3 rounded bg-[#24160E] border border-[#4A2E1F] flex flex-col items-center">
+                  <span className="text-xs font-semibold text-[#BFA98A]">Peringkat 3</span>
+                  <p className="text-xs font-medium text-[#F5E6D3] truncate w-full mt-1">
                     {roomState.leaderboard[2].nickname}
                   </p>
-                  <span className="text-[10px] text-zinc-400 font-mono">
-                    {roomState.leaderboard[2].score} pts
+                  <span className="text-[11px] text-[#BFA98A]">
+                    {roomState.leaderboard[2].score} poin
                   </span>
                 </div>
               )}
             </div>
 
-            <div className="pt-4 flex flex-col sm:flex-row gap-3">
+            <div className="pt-2 flex flex-col sm:flex-row gap-2">
               <Link
                 href="/play"
-                className="flex-1 py-3.5 px-4 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm shadow-lg shadow-indigo-600/30 transition text-center"
+                className="flex-1 py-2 px-4 rounded bg-[#CA8A04] hover:bg-[#D97706] text-[#140D08] font-bold text-xs transition text-center"
               >
-                Masuk Room Lain
+                Masuk ke ruang kuis lain
               </Link>
               <Link
                 href="/"
-                className="flex-1 py-3.5 px-4 rounded-2xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 font-semibold text-sm transition text-center"
+                className="flex-1 py-2 px-4 rounded bg-[#24160E] hover:bg-[#331F14] text-[#D6C5B2] border border-[#4A2E1F] text-xs font-medium transition text-center"
               >
-                Kembali ke Beranda
+                Kembali ke beranda
               </Link>
             </div>
           </motion.div>
