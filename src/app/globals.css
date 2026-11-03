@@ -33,7 +33,9 @@ body {
 }
 
 h1, h2, h3, h4, .font-heading {
-  font-family: var(--font-cinzel), Georgia, serif;
+  font-family: var(--font-spectral), Georgia, Cambria, "Times New Roman", serif;
+  font-variant: normal;
+  text-transform: none;
 }
 
 /* 3D Flashcard transforms */
