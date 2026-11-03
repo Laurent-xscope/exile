@@ -634,8 +634,20 @@ export function recordAnswerSubmission(params: {
   const room = inMemoryRooms.get(params.roomCode);
   if (!room) return null;
 
-  const player = room.players.get(params.playerId);
-  if (!player) return null;
+  let player = room.players.get(params.playerId);
+  if (!player) {
+    player = {
+      id: params.playerId,
+      roomCode: params.roomCode,
+      nickname: `Siswa ${params.playerId.slice(-3)}`,
+      avatar: "garuda",
+      score: 0,
+      streak: 0,
+      isConnected: true,
+      lastSeenAt: new Date().toISOString(),
+    };
+    room.players.set(params.playerId, player);
+  }
 
   const question = room.questions.find(
     (q) => q.id === params.questionId || !params.questionId

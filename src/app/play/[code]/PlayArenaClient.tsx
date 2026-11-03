@@ -102,7 +102,18 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
     setPlayerId(storedId);
     setNickname(storedNick || "Siswa");
     setAvatar(storedAvatar || "garuda");
-  }, []);
+
+    // Auto-register to room if opened directly
+    fetch("/api/rooms/join", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        roomCode,
+        nickname: storedNick || "Siswa",
+        avatar: storedAvatar || "garuda",
+      }),
+    }).catch(() => {});
+  }, [roomCode]);
 
   // Poll room state
   const fetchState = async () => {
