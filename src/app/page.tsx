@@ -90,7 +90,7 @@ export default function Home() {
             </div>
             <div>
               <span className="font-bold tracking-tight text-white flex items-center gap-2">
-                HAKACTHON <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">MVP Engine</span>
+                exile.org <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">AI Education Engine</span>
               </span>
             </div>
           </div>
@@ -409,7 +409,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="border-t border-zinc-850 py-6 text-center text-xs text-zinc-500">
-        Hakacthon MVP Starter • Built with Next.js 15, Framer Motion, Tailwind v4, & Supabase
+        exile.org • Built with Next.js 15, Framer Motion, Tailwind v4, & Supabase for Bali DigiFest 2026
       </footer>
     </main>
   );

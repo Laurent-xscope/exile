@@ -14,8 +14,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Hackathon MVP | Full-Stack Launchpad",
-  description: "High-velocity hackathon starter with Framer Motion, Next.js, and Supabase",
+  title: "exile.org | Asesmen Cerdas & Diagnostik Kurikulum Merdeka Bali",
+  description:
+    "Platform evaluasi formatif berbasis AI dengan siklus belajar tertutup untuk Kurikulum Merdeka dan muatan lokal budaya Bali.",
 };
 
 export default function RootLayout({
