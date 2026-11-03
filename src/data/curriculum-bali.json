@@ -1,0 +1,429 @@
+{
+  "version": "1.0.0",
+  "name": "Exile.org Core Curriculum & Cultural Knowledge Base",
+  "description": "Comprehensive pedagogical dataset covering Kurikulum Merdeka (Fase D & E/F) and Muatan Lokal Bahasa & Budaya Bali for Bali DigiFest 2026",
+  "curriculum": {
+    "kurikulum_merdeka": {
+      "phases": {
+        "fase_d": {
+          "level": "SMP (Kelas 7-9)",
+          "target_age": "13-15 tahun",
+          "subjects": {
+            "sains_ipa": {
+              "capaian_pembelajaran": "Peserta didik memahami klasifikasi makhluk hidup, struktur sel, interaksi ekosistem, sifat zat dan perubahan fisika/kimia, energi dan perubahannya, serta sistem tata surya.",
+              "core_topics": [
+                "Ekosistem & Rantai Makanan",
+                "Energi Terbarukan & Perubahan Bentuk Energi",
+                "Tekanan Zat Padat, Cair, dan Gas (Hukum Pascal & Archimedes)",
+                "Getaran, Gelombang, dan Cahaya",
+                "Pewarisan Sifat & Bioteknologi Sederhana"
+              ],
+              "common_misconceptions": [
+                {
+                  "concept": "Massa vs Berat",
+                  "misconception": "Siswa sering menganggap massa dan berat adalah hal yang sama dengan satuan kilogram.",
+                  "correction": "Massa adalah jumlah materi (satuan kg, selalu konstan), sedangkan berat adalah gaya gravitasi pada massa (satuan Newton, berubah sesuai gravitasi setempat)."
+                },
+                {
+                  "concept": "Fotosintesis & Pernapasan Tumbuhan",
+                  "misconception": "Siswa beranggapan tumbuhan hanya bernapas pada malam hari dan hanya berfotosintesis di siang hari.",
+                  "correction": "Tumbuhan melakukan respirasi (pernapasan seluler) sepanjang waktu (siang dan malam), sedangkan fotosintesis hanya berlangsung saat ada cahaya."
+                }
+              ]
+            },
+            "matematika": {
+              "capaian_pembelajaran": "Peserta didik mengoperasikan bilangan rasional, aljabar linear, geometri bidang datar dan ruang, serta menganalisis data statistika dan peluang.",
+              "core_topics": [
+                "Persamaan & Pertidaksamaan Linear Satu Variabel",
+                "Teorema Pythagoras & Aplikasi Ruang",
+                "Relasi dan Fungsi Linear",
+                "Statistika (Mean, Median, Modus) dan Diagram Data",
+                "Peluang Teoretik dan Empirik"
+              ],
+              "common_misconceptions": [
+                {
+                  "concept": "Operasi Aljabar dengan Tanda Negatif",
+                  "misconception": "Siswa sering salah mengalikan tanda minus ke dalam tanda kurung, misalnya -(3x - 5) disederhanakan menjadi -3x - 5 bukannya -3x + 5.",
+                  "correction": "Tanda negatif di depan kurung mendistribusikan faktor -1 ke setiap suku di dalam tanda kurung."
+                }
+              ]
+            },
+            "informatika": {
+              "capaian_pembelajaran": "Peserta didik menerapkan berpikir komputasional (dekomposisi, pengenalan pola, abstraksi, algoritma) dan memahami dasar keamanan digital.",
+              "core_topics": [
+                "Berpikir Komputasional (Algoritma Pencarian & Pengurutan)",
+                "Struktur Logika Percabangan (If-Else) & Perulangan (Loop)",
+                "Jaringan Komputer & Enkripsi Dasar",
+                "Etika Berinternet & Keamanan Data Pribadi"
+              ]
+            }
+          }
+        },
+        "fase_e_f": {
+          "level": "SMA / SMK (Kelas 10-12)",
+          "target_age": "16-18 tahun",
+          "subjects": {
+            "fisika": {
+              "core_topics": [
+                "Kinematika & Dinamika Gerak Newton",
+                "Hukum Kekekalan Energi & Momentum",
+                "Termodinamika & Efisiensi Mesin Kalor",
+                "Rangkaian Arus Bolak-Balik & Medan Elektromagnetik"
+              ]
+            },
+            "biologi": {
+              "core_topics": [
+                "Metabolisme Sel (Enzim, Respirasi Aerob, Katabolisme)",
+                "Genetika Molekuler (Replikasi DNA, Sintesis Protein)",
+                "Evolusi & Keanekaragaman Hayati Indonesia",
+                "Bioteknologi Modern (Rekayasa Genetika & CRISPR dasar)"
+              ]
+            }
+          }
+        }
+      }
+    },
+    "muatan_lokal_bali": {
+      "anggah_ungguhing_basa": {
+        "description": "Tingkatan tata krama berbahasa Bali yang mencerminkan etika kesantunan sosial masyarakat Bali.",
+        "tiers": [
+          {
+            "code": "ASI",
+            "name": "Basa Alus Singgih",
+            "description": "Digunakan untuk meninggikan dan menghormati lawan bicara yang kedudukannya lebih tinggi atau dihormati (guru, sulinggih, orang tua, pejabat).",
+            "examples": {
+              "séda": "Meninggal (untuk orang terhormat)",
+              "ngrayunan": "Makan (untuk orang terhormat)",
+              "mabaos": "Berbicara (untuk orang terhormat)",
+              "lunga": "Pergi (untuk orang terhormat)",
+              "rauh": "Datang (untuk orang terhormat)",
+              "mirengang": "Mendengar (untuk orang terhormat)"
+            }
+          },
+          {
+            "code": "ASO",
+            "name": "Basa Alus Sor",
+            "description": "Digunakan untuk merendahkan diri sendiri (ngandapang raga) saat berbicara kepada orang yang lebih tinggi atau dihormati.",
+            "examples": {
+              "padem": "Meninggal (untuk diri sendiri / orang berkedudukan setara/rendah di depan orang terhormat)",
+              "neda": "Makan (untuk diri sendiri saat berbicara ke orang terhormat)",
+              "matur": "Berbicara / berkata (dari diri sendiri ke orang terhormat)",
+              "mamargi": "Berjalan / berangkat (dari diri sendiri)",
+              "miragi": "Mendengar (oleh diri sendiri)"
+            }
+          },
+          {
+            "code": "AMA",
+            "name": "Basa Alus Madia",
+            "description": "Bahasa alus rasa penengah yang santun dan umum digunakan antar sesama teman atau orang yang belum akrab.",
+            "examples": {
+              "tiang": "Saya",
+              "nggih": "Ya / setuju",
+              "ampura": "Maaf",
+              "sira": "Siapa",
+              "napi": "Apa"
+            }
+          },
+          {
+            "code": "AMI",
+            "name": "Basa Alus Mider",
+            "description": "Kosa kata alus yang netral dan dapat digunakan untuk diri sendiri maupun orang lain tanpa konotasi meninggikan atau merendahkan.",
+            "examples": {
+              "rauh": "Datang",
+              "elad": "Sayap",
+              "jinah": "Uang",
+              "kangkat": "Boleh / diperkenankan"
+            }
+          },
+          {
+            "code": "ANDAP",
+            "name": "Basa Andap / Kepara",
+            "description": "Bahasa pergaulan akrab sehari-hari antar teman sebaya atau orang tua kepada anak tanpa rasa angkuh atau kasar.",
+            "examples": {
+              "mati": "Meninggal",
+              "ngamah / medaar": "Makan",
+              "ngomong": "Berbicara",
+              "majalan": "Berjalan",
+              "ningeh": "Mendengar",
+              "icang / tiang": "Saya"
+            }
+          },
+          {
+            "code": "KASAR",
+            "name": "Basa Kasar",
+            "description": "Bahasa bernada kasar, marah, atau tidak sopan (pantang digunakan dalam pergaulan yang beradab).",
+            "examples": {
+              "bangka": "Mampus",
+              "celek": "Makan (kasar sekali)",
+              "ci / iba": "Kamu (kasar)"
+            }
+          }
+        ],
+        "conversion_matrix": [
+          { "andap": "ngamah", "alus_singgih": "ngrayunan", "alus_sor": "neda", "meaning": "makan" },
+          { "andap": "mati", "alus_singgih": "séda", "alus_sor": "padem", "meaning": "meninggal" },
+          { "andap": "ngomong", "alus_singgih": "mabaos", "alus_sor": "matur", "meaning": "berbicara" },
+          { "andap": "teka", "alus_singgih": "rauh", "alus_sor": "rauh", "meaning": "datang" },
+          { "andap": "ningeh", "alus_singgih": "mirengang", "alus_sor": "miragi", "meaning": "mendengar" },
+          { "andap": "turu / pules", "alus_singgih": "merem", "alus_sor": "sirep", "meaning": "tidur" },
+          { "andap": "suba", "alus_singgih": "sampun", "alus_sor": "sampun", "meaning": "sudah" },
+          { "andap": "sing", "alus_singgih": "nénten", "alus_sor": "nénten", "meaning": "tidak" }
+        ],
+        "common_student_misconceptions": [
+          {
+            "title": "Meninggikan Diri Sendiri (Salah Memakai Alus Singgih)",
+            "error_pattern": "Siswa mengatakan 'Tiyang sampun ngrayunan' saat ditanya oleh guru.",
+            "correct_usage": "'Ngrayunan' adalah kruna Alus Singgih khusus untuk orang yang dihormati (guru/orang tua). Untuk diri sendiri harus memakai Kruna Alus Sor, yaitu 'Tiyang sampun neda'.",
+            "pedagogical_rule": "Prinsip utama Anggah-ungguhing Basa: 'Singgihang anake lianan, andapang ragané padidi' (Hormati orang lain, rendahkan dirimu sendiri)."
+          },
+          {
+            "title": "Menganggap Alus Madia Sebagai Alus Singgih",
+            "error_pattern": "Menggunakan singkatan Alus Madia seperti 'ngenah' atau 'tiang' dalam forum seremonial resmi adat.",
+            "correct_usage": "Dalam pidato resmi (dharma wacana), wajib menggunakan kruna Alus Singgih murni seperti 'titiang' dan 'kacingak'."
+          }
+        ]
+      },
+      "pasang_aksara_bali": {
+        "description": "Pedoman ortografi dan tata tulis ejaan Aksara Bali berbasis Pasang Aksara Bali Baku.",
+        "aksara_wreastra": [
+          { "aksara": "Ha", "latin": "ha / a", "fonem": "/ha/ atau /a/" },
+          { "aksara": "Na", "latin": "na", "fonem": "/na/" },
+          { "aksara": "Ca", "latin": "ca", "fonem": "/tʃa/" },
+          { "aksara": "Ra", "latin": "ra", "fonem": "/ra/" },
+          { "aksara": "Ka", "latin": "ka", "fonem": "/ka/" },
+          { "aksara": "Da", "latin": "da", "fonem": "/da/" },
+          { "aksara": "Ta", "latin": "ta", "fonem": "/ta/" },
+          { "aksara": "Sa", "latin": "sa", "fonem": "/sa/" },
+          { "aksara": "Wa", "latin": "wa", "fonem": "/wa/" },
+          { "aksara": "La", "latin": "la", "fonem": "/la/" },
+          { "aksara": "Ma", "latin": "ma", "fonem": "/ma/" },
+          { "aksara": "Ga", "latin": "ga", "fonem": "/ga/" },
+          { "aksara": "Ba", "latin": "ba", "fonem": "/ba/" },
+          { "aksara": "Nga", "latin": "nga", "fonem": "/ŋa/" },
+          { "aksara": "Pa", "latin": "pa", "fonem": "/pa/" },
+          { "aksara": "Ja", "latin": "ja", "fonem": "/dʒa/" },
+          { "aksara": "Ya", "latin": "ya", "fonem": "/ja/" },
+          { "aksara": "Nya", "latin": "nya", "fonem": "/ɲa/" }
+        ],
+        "pengangge_suara": [
+          { "name": "Ulu", "sound": "i", "position": "di atas aksara", "symbol_desc": "lingkaran sabit di atas" },
+          { "name": "Suku", "sound": "u", "position": "di bawah aksara", "symbol_desc": "lengkung ke bawah" },
+          { "name": "Taling", "sound": "é", "position": "di depan aksara", "symbol_desc": "garis meliuk di kiri" },
+          { "name": "Taling Tedong", "sound": "o", "position": "mengapit aksara (taling di kiri, tedong di kanan)", "symbol_desc": "kombinasi taling dan tedong" },
+          { "name": "Pepet", "sound": "e (pepet)", "position": "di atas aksara", "symbol_desc": "lingkaran bulat pejal di atas" }
+        ],
+        "pengangge_tengenan": [
+          { "name": "Cecek", "sound": "-ng", "position": "di atas aksara", "rule": "Menggantikan aksara Nga yang mati (ng) di akhir suku kata." },
+          { "name": "Surang", "sound": "-r", "position": "di atas aksara", "rule": "Menggantikan aksara Ra yang mati (r) di akhir suku kata." },
+          { "name": "Bisah", "sound": "-h", "position": "di kanan aksara", "rule": "Menggantikan aksara Ha yang mati (h) di akhir kata." },
+          { "name": "Adeg-adeg", "sound": "pemati konsonan", "position": "di kanan aksara", "rule": "Mematikan vokal inherent /a/ pada aksara wianjana." }
+        ],
+        "critical_orthography_rules": [
+          {
+            "rule": "Pantangan Adeg-adeg di Tengah Kata/Kalimat",
+            "explanation": "Adeg-adeg HANYA boleh diletakkan di akhir kalimat atau sebelum tanda carik (titik/koma). Di tengah kata atau sambungan kata, konsonan mati WAJIB menggunakan Gantungan atau Gempelan.",
+            "common_mistake": "Menulis 'Bapak Wayan' dengan mematikan huruf Ka menggunakan adeg-adeg di tengah kalimat, padahal harus menggunakan Gantungan Wa di bawah aksara Ka."
+          },
+          {
+            "rule": "Hukum Pasang Aksara Ra & Re",
+            "explanation": "Aksara Ra yang diberi pepet dilarang dalam Pasang Aksara Bali Baku. Harus ditulis menggunakan aksara 'Re' (aksara swara / Pepet Ra mardu)."
+          }
+        ]
+      },
+      "filosofi_adat_bali": {
+        "tri_hita_karana": {
+          "definition": "Tiga penyebab keharmonisan hidup yang menjadi pedoman kosmologi dan tata ruang masyarakat Bali.",
+          "elements": [
+            { "aspect": "Parahyangan", "meaning": "Hubungan harmonis antara manusia dengan Tuhan (Ida Sang Hyang Widhi Wasa)", "implementation": "Pura Kahyangan Tiga di setiap desa adat, piodalan, sembahyang harian (Panca Sembah)." },
+            { "aspect": "Pawongan", "meaning": "Hubungan harmonis antara manusia dengan sesama manusia", "implementation": "Gotong royong (ngayah), musyawarah banjar adat, toleransi menyama braya." },
+            { "aspect": "Palemahan", "meaning": "Hubungan harmonis antara manusia dengan alam dan lingkungan", "implementation": "Konservasi air subak, pelestarian hutan tutupan (alas angker), perayaan Tumpek Wariga (upacara penghormatan tumbuh-tumbuhan)." }
+          ]
+        },
+        "sistem_subak": {
+          "definition": "Organisasi kemasyarakatan tradisional agraris di Bali yang mengatur distribusi air irigasi secara adil, demokratis, dan religius (diakui UNESCO sebagai Warisan Budaya Dunia).",
+          "core_values": "Keadilan pembagian air, otonomi petani (Krama Subak), dan pemujaan kesuburan Dewi Sri di Pura Ulun Danu."
+        },
+        "panca_yadnya": {
+          "definition": "Lima jenis persembahan suci tulus ikhlas dalam ajaran Hindu Bali.",
+          "types": [
+            { "type": "Dewa Yadnya", "target": "Ida Sang Hyang Widhi Wasa dan para manifestasi-Nya", "example": "Piodalan di Pura, Galungan, Kuningan" },
+            { "type": "Pitra Yadnya", "target": "Roh para leluhur", "example": "Upacara Ngaben, Nyekah" },
+            { "type": "Rsi Yadnya", "target": "Para guru spiritual, rsi, dan pengajar", "example": "Mediksa, menghormati ajaran guru rupaka & guru susrusa" },
+            { "type": "Manusa Yadnya", "target": "Penyucian manusia sejak dalam kandungan hingga dewasa", "example": "Otonan, Telubulanan, Pawiwahan (pernikahan), Mepandes (potong gigi)" },
+            { "type": "Bhuta Yadnya", "target": "Keseimbangan unsur-unsur alam dan kekuatan bawah (Panca Maha Bhuta)", "example": "Mecaru, Tawur Kesanga menjelang Nyepi" }
+          ]
+        }
+      }
+    }
+  },
+  "question_bank": [
+    {
+      "id": "q-mulok-001",
+      "category": "Bahasa Bali",
+      "topic": "Anggah-ungguhing Basa Bali",
+      "level": "SMP / SMA",
+      "question": "Wayan sedek mareraosan ring ajeng gurunnyane. Ri tatkala Wayan nlatarang indik dane nenten mrasidayang ngranjing semengane punika krana sungkan, kruna sane patut kanggen negasang raga nenten ngranjing inggih punika...",
+      "options": [
+        { "id": "A", "text": "Titiang nenten mrasidayang ngranjing krana sungkan" },
+        { "id": "B", "text": "Titiang nenten mrasidayang lunga krana gelem" },
+        { "id": "C", "text": "Ipun nenten mrasidayang ngrayunan krana tiang mati" },
+        { "id": "D", "text": "Icang nenten mrasidayang teka krana ngamah" }
+      ],
+      "correct_option": "A",
+      "explanation": "Kruna 'titiang' inggih punika kruna Alus Sor sane patut kanggen nyambatang raga majeng ring bapak/ibu guru sane patut kasinggihang.",
+      "distractor_rationales": {
+        "B": "'Gelem' inggih punika kruna andap, nenten patut kaaturang majeng ring guru.",
+        "C": "'Ipun' kagunayang antuk anak tiosan sane sor, tur 'ngrayunan' kruna Alus Singgih nenten dados kanggen nyambatang raga padidi.",
+        "D": "'Icang' lan 'ngamah' inggih punika kruna andap/kasar sane nenten manut ring tata krama mabasa Bali alus."
+      },
+      "misconception_tag": "ASI_vs_ASO_Self_Humble"
+    },
+    {
+      "id": "q-mulok-002",
+      "category": "Bahasa Bali",
+      "topic": "Anggah-ungguhing Basa Bali",
+      "level": "SMP / SMA",
+      "question": "Yening wenten murid matur ring guru nyihnayang 'Bapak guru sampun...",
+      "options": [
+        { "id": "A", "text": "ngrayunan" },
+        { "id": "B", "text": "neda" },
+        { "id": "C", "text": "ngamah" },
+        { "id": "D", "text": "medaar" }
+      ],
+      "correct_option": "A",
+      "explanation": "Guru inggih punika sang sane patut kasinggihang, mawinan kruna sane patut inggih punika Alus Singgih 'ngrayunan'.",
+      "distractor_rationales": {
+        "B": "'Neda' punika Alus Sor (kanggen nyambatang raga padidi, nenten dados kanggen guru).",
+        "C": "'Ngamah' punika kruna andap/kasar.",
+        "D": "'Medaar' punika kruna andap (basa lumrah)."
+      },
+      "misconception_tag": "ASI_Respect_Honorifics"
+    },
+    {
+      "id": "q-mulok-003",
+      "category": "Aksara Bali",
+      "topic": "Pasang Aksara Bali",
+      "level": "SMP",
+      "question": "Ring Pasang Aksara Bali Baku, piteket sane nenten kalugra ngeninin indik pangeduman 'adeg-adeg' inggih punika...",
+      "options": [
+        { "id": "A", "text": "Adeg-adeg kalugra kasurat ring tengahing kruna utawi tengahing lengkara sane nenten magenah ring pungkuran" },
+        { "id": "B", "text": "Adeg-adeg magenah ring pungkuran lengkara sadurung carik siki utawi carik kalih" },
+        { "id": "C", "text": "Konsonan mati ring tengahing kruna patut ngawigunayang gantungan utawi gempelan" },
+        { "id": "D", "text": "Adeg-adeg matetujon ngicalang suara vokal /a/ ring aksara wianjana sane kanten" }
+      ],
+      "correct_option": "A",
+      "explanation": "Adeg-adeg nenten dados kasurat ring tengahing kruna utawi lengkara sajabaning magenah ring pamuput sadurung pasang carik.",
+      "distractor_rationales": {
+        "B": "Pernyataan puniki patut manut uger-uger.",
+        "C": "Pernyataan puniki patut; konsonan mati ring tengahing kruna patut nganggen gantungan/gempelan.",
+        "D": "Pernyataan puniki patut ngeninin fungsi adeg-adeg."
+      },
+      "misconception_tag": "Adeg_Adeg_MidWord_Error"
+    },
+    {
+      "id": "q-mulok-004",
+      "category": "Budaya Bali",
+      "topic": "Tri Hita Karana",
+      "level": "SMP / SMA",
+      "question": "Parilaksana krama subak sane ngamargiang upacara ring Pura Ulun Swi sadurung ngawit nylukin carik nyihnayang pahan Tri Hita Karana sane mateges...",
+      "options": [
+        { "id": "A", "text": "Parahyangan, krana nyihnayang rasa baktin manusa ring Ida Sang Hyang Widhi Wasa pinaka sang ngicenin kesuburan" },
+        { "id": "B", "text": "Pawongan, krana ngiket pasubayan gotong royong para petani sawah" },
+        { "id": "C", "text": "Palemahan, krana wantah ngurus carik lan tanah padidi" },
+        { "id": "D", "text": "Panca Yadnya khusus Bhuta Yadnya nenten maduwe hubungan ring Parahyangan" }
+      ],
+      "correct_option": "A",
+      "explanation": "Upacara ring Pura Ulun Swi/Pura Subak nyihnayang aspek Parahyangan (sesembahan majeng Ida Sang Hyang Widhi/Dewi Sri), yadiastun genahnyane ring palemahan.",
+      "distractor_rationales": {
+        "B": "Pawongan nyihnayang pasawitran manusa ring banjar/krama, nenten upacara sembahyang pura.",
+        "C": "Palemahan nyihnayang palinnggihan fisik palemahan lan konservasi alam.",
+        "D": "Bhuta Yadnya wantah silih sinunggil pahan panca yadnya, nenten pasaut sane jangkep."
+      },
+      "misconception_tag": "THK_Classification_Pura_vs_Palemahan"
+    },
+    {
+      "id": "q-mulok-005",
+      "category": "Budaya Bali",
+      "topic": "Panca Yadnya",
+      "level": "SMP / SMA",
+      "question": "Upacara 'Otonan' sane kamargiang nyabran 210 rahina (nem sasih) nganutin kalender Pawukon ring Bali kagolongang ring upacara...",
+      "options": [
+        { "id": "A", "text": "Manusa Yadnya" },
+        { "id": "B", "text": "Pitra Yadnya" },
+        { "id": "C", "text": "Dewa Yadnya" },
+        { "id": "D", "text": "Rsi Yadnya" }
+      ],
+      "correct_option": "A",
+      "explanation": "Otonan inggih punika panyucian kauripan manusa saking embas ngantos kelih, mawinan ngranjing ring Manusa Yadnya.",
+      "distractor_rationales": {
+        "B": "Pitra Yadnya khusus katur ring roh leluhur (Ngaben/Nyekah).",
+        "C": "Dewa Yadnya katur ring Ida Bhatara ring Pura.",
+        "D": "Rsi Yadnya katur ring para guru suci lan rohaniawan."
+      },
+      "misconception_tag": "Panca_Yadnya_LifeCycle"
+    },
+    {
+      "id": "q-merdeka-001",
+      "category": "Kurikulum Merdeka - IPA",
+      "topic": "Gaya & Hukum Gravitasi",
+      "level": "SMP Fase D",
+      "question": "Seorang astronot bermassa 60 kg berada di Bumi (percepatan gravitasi g = 10 m/s²). Ketika astronot tersebut mendarat di Bulan yang memiliki percepatan gravitasi seperenam dari Bumi, nilai massa dan berat astronot di Bulan berturut-turut adalah...",
+      "options": [
+        { "id": "A", "text": "Massa 60 kg dan berat 100 N" },
+        { "id": "B", "text": "Massa 10 kg dan berat 600 N" },
+        { "id": "C", "text": "Massa 10 kg dan berat 100 N" },
+        { "id": "D", "text": "Massa 60 kg dan berat 600 N" }
+      ],
+      "correct_option": "A",
+      "explanation": "Massa benda selalu tetap di mana pun berada (m = 60 kg). Berat di Bulan W = m x g_bulan = 60 kg x (10/6 m/s²) = 100 N.",
+      "distractor_rationales": {
+        "B": "Terbalik menganggap massa yang menyusut dan berat yang tetap.",
+        "C": "Miskonsepsi umum siswa yang membagi massa dengan 6, padahal massa materi tidak terpengaruh gravitasi.",
+        "D": "Menganggap massa dan berat sama persis dengan kondisi di Bumi tanpa memperhitungkan gravitasi Bulan."
+      },
+      "misconception_tag": "Physics_Mass_vs_Weight"
+    },
+    {
+      "id": "q-merdeka-002",
+      "category": "Kurikulum Merdeka - IPA",
+      "topic": "Ekosistem & Aliran Energi",
+      "level": "SMP Fase D",
+      "question": "Pada ekosistem sawah di Bali (subak), jika populasi burung hantu sawah (Tyto alba) menurun drastis akibat perburuan liar, dampak langsung yang paling cepat teramati pada rantai makanan adalah...",
+      "options": [
+        { "id": "A", "text": "Peningkatan tajam populasi tikus sawah yang merusak tanaman padi" },
+        { "id": "B", "text": "Penurunan populasi wereng cokelat karena padi semakin rimbun" },
+        { "id": "C", "text": "Padi tumbuh lebih subur karena ketiadaan burung di atas tiang sawah" },
+        { "id": "D", "text": "Populasi ular sawah langsung punah seketika dalam hitungan hari" }
+      ],
+      "correct_option": "A",
+      "explanation": "Burung hantu adalah predator utama puncak bagi hama tikus di ekosistem sawah. Ketiadaan predator menyebabkan ledakan populasi mangsa (tikus).",
+      "distractor_rationales": {
+        "B": "Wereng bukan mangsa burung hantu; ledakan tikus justru akan menggunduli tanaman padi.",
+        "C": "Siswa salah mengira burung hantu pemakan tanaman padi, padahal bersifat karnivora predator.",
+        "D": "Ular sawah tidak langsung punah karena memiliki alternatif mangsa tikus dan katak."
+      },
+      "misconception_tag": "Ecology_Trophic_Cascade"
+    },
+    {
+      "id": "q-merdeka-003",
+      "category": "Kurikulum Merdeka - Matematika",
+      "topic": "Aljabar Linear",
+      "level": "SMP Fase D",
+      "question": "Bentuk sederhana dari operasi aljabar: 4(2x - 3) - 3(x - 5) adalah...",
+      "options": [
+        { "id": "A", "text": "5x + 3" },
+        { "id": "B", "text": "5x - 27" },
+        { "id": "C", "text": "5x - 3" },
+        { "id": "D", "text": "8x - 12" }
+      ],
+      "correct_option": "A",
+      "explanation": "Ekspansi: 4(2x - 3) = 8x - 12. Bagian kedua: -3(x - 5) = -3x + 15. Gabungkan suku sejenis: (8x - 3x) + (-12 + 15) = 5x + 3.",
+      "distractor_rationales": {
+        "B": "Siswa keliru mengalikan tanda minus: menganggap -3(-5) = -15, sehingga -12 - 15 = -27.",
+        "C": "Siswa salah menghitung -12 + 15 menjadi -3.",
+        "D": "Siswa hanya mengalikan suku pertama dan melupakan suku kedua."
+      },
+      "misconception_tag": "Algebra_Negative_Distribution"
+    }
+  ]
+}
