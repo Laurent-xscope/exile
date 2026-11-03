@@ -22,9 +22,11 @@ const SubmissionItemSchema = z.object({
 });
 
 const ClassDiagnosticRequestSchema = z.object({
-  roomId: z.string().min(1, "roomId is required"),
+  roomId: z.string().optional(),
+  roomCode: z.string().optional(),
   quizId: z.string().optional(),
   topic: z.string().optional().default("Asesmen Muatan Lokal Bali & Kurikulum Merdeka"),
+  teacherNotes: z.string().optional(),
   submissions: z.array(SubmissionItemSchema).optional(),
 });
 
@@ -44,12 +46,13 @@ export async function POST(req: Request) {
       );
     }
 
-    const { roomId, quizId, topic, submissions: customSubmissions } = parsed.data;
+    const targetRoom = parsed.data.roomCode || parsed.data.roomId || "849201";
+    const { quizId, topic, submissions: customSubmissions } = parsed.data;
 
     // 1. Gather submissions from request body or in-memory room store
     let submissions = customSubmissions;
     if (!submissions || submissions.length === 0) {
-      const roomSubmissions = getRoomSubmissions(roomId);
+      const roomSubmissions = getRoomSubmissions(targetRoom);
       submissions = roomSubmissions.map((s) => ({
         playerId: s.playerId,
         questionId: s.questionId,
@@ -59,7 +62,7 @@ export async function POST(req: Request) {
       }));
     }
 
-    const roomQuestions = getRoomQuestions(roomId);
+    const roomQuestions = getRoomQuestions(targetRoom);
 
     // 2. Synthesize aggregate question breakdown and error rates
     let totalQuestions = roomQuestions.length;
@@ -125,7 +128,7 @@ export async function POST(req: Request) {
 
       if (!isPlaceholder) {
         await supabase.from("class_diagnostics").insert({
-          room_code: roomId,
+          room_code: targetRoom,
           quiz_id: quizId || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
           class_mastery_rate: diagnostic.classMasteryRate,
           summary_text: diagnostic.summaryText,
