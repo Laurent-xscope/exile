@@ -79,25 +79,37 @@ interface TeacherRoomState {
   }>;
 }
 
+interface ClusterItem {
+  concept: string;
+  errorRate: number;
+  primaryMisconception: string;
+  affectedStudentsCount: number;
+}
+
 interface RemedialQuestion {
   question: string;
   options: Array<{
     label: string;
     text: string;
     isCorrect: boolean;
+    distractorRationale?: string;
   }>;
   explanation: string;
-  targetedMisconception: string;
+  conceptTag?: string;
+  culturalContext?: string;
 }
 
 interface DiagnosticResult {
-  clusterAnalysis: {
-    overview: string;
-    primaryMisconception: string;
-    affectedStudentsCount: number;
-    recommendedPedagogicalIntervention: string;
+  topic: string;
+  classMasteryRate: number;
+  summaryText: string;
+  clusterAnalysis: ClusterItem[];
+  recommendedReteaching: {
+    focusConcept: string;
+    pedagogicalStrategy: string;
+    quickActionableStep: string;
   };
-  remedialQuestions: RemedialQuestion[];
+  adaptiveRemedialQuestions: RemedialQuestion[];
 }
 
 export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
@@ -717,57 +729,100 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 <div className="space-y-6">
                   {/* Overview Card */}
                   <div className="p-5 rounded-2xl bg-indigo-950/30 border border-indigo-500/30 space-y-2">
-                    <p className="text-xs uppercase font-bold text-indigo-300">
-                      Temuan Intisari Miskonsepsi:
-                    </p>
-                    <p className="text-sm font-semibold text-white">
-                      {diagnosticData.clusterAnalysis.primaryMisconception}
-                    </p>
+                    <div className="flex items-center justify-between">
+                      <p className="text-xs uppercase font-bold text-indigo-300">
+                        Rangkuman Diagnostik Kelas
+                      </p>
+                      <span className="text-xs font-mono font-bold px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+                        Penguasaan Kelas: {diagnosticData.classMasteryRate}%
+                      </span>
+                    </div>
                     <p className="text-xs text-zinc-300 leading-relaxed">
-                      {diagnosticData.clusterAnalysis.overview}
+                      {diagnosticData.summaryText}
                     </p>
                   </div>
+
+                  {/* Clusters of Misconceptions */}
+                  {diagnosticData.clusterAnalysis?.length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs uppercase font-bold text-zinc-400 tracking-wider">
+                        Klaster Miskonsepsi Siswa Teridentifikasi:
+                      </h4>
+                      <div className="space-y-2.5">
+                        {diagnosticData.clusterAnalysis.map((cluster, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3.5 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-1.5"
+                          >
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-rose-400">{cluster.concept}</span>
+                              <span className="text-[11px] font-mono px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                                Kekeliruan: {cluster.errorRate}% ({cluster.affectedStudentsCount} Siswa)
+                              </span>
+                            </div>
+                            <p className="text-xs text-zinc-300 leading-relaxed">
+                              {cluster.primaryMisconception}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Recommendation Card */}
-                  <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 text-xs text-emerald-200">
-                    <strong className="block text-emerald-400 uppercase text-[11px] mb-1">
-                      Rekomendasi Intervensi Pedagogis Guru:
-                    </strong>
-                    {diagnosticData.clusterAnalysis.recommendedPedagogicalIntervention}
-                  </div>
+                  {diagnosticData.recommendedReteaching && (
+                    <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30 text-xs text-emerald-200 space-y-2">
+                      <strong className="block text-emerald-400 uppercase text-[11px]">
+                        Rekomendasi Intervensi Pedagogis Guru:
+                      </strong>
+                      <p className="text-zinc-200 font-semibold">
+                        {diagnosticData.recommendedReteaching.focusConcept}
+                      </p>
+                      <p className="text-zinc-300">
+                        {diagnosticData.recommendedReteaching.pedagogicalStrategy}
+                      </p>
+                      <div className="pt-1 text-[11px] text-emerald-300 font-mono">
+                        Langkah Cepat 10 Menit: {diagnosticData.recommendedReteaching.quickActionableStep}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Remedial Drill Questions */}
-                  <div>
-                    <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-amber-400" />
-                      3 Soal Remedial Adaptif Rekomendasi AI:
-                    </h4>
+                  {diagnosticData.adaptiveRemedialQuestions?.length > 0 && (
+                    <div>
+                      <h4 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-amber-400" />
+                        3 Soal Remedial Adaptif Rekomendasi AI:
+                      </h4>
 
-                    <div className="space-y-3">
-                      {diagnosticData.remedialQuestions.map((rq, idx) => (
-                        <div
-                          key={idx}
-                          className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2"
-                        >
-                          <div className="flex items-center justify-between text-xs">
-                            <span className="font-bold text-indigo-400">
-                              Soal Remedial #{idx + 1}
-                            </span>
-                            <span className="text-[11px] text-zinc-400">
-                              Target: {rq.targetedMisconception}
-                            </span>
+                      <div className="space-y-3">
+                        {diagnosticData.adaptiveRemedialQuestions.map((rq, idx) => (
+                          <div
+                            key={idx}
+                            className="p-4 rounded-2xl bg-zinc-950 border border-zinc-800 space-y-2"
+                          >
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-indigo-400">
+                                Soal Remedial #{idx + 1}
+                              </span>
+                              {rq.conceptTag && (
+                                <span className="text-[11px] text-zinc-400 font-mono">
+                                  {rq.conceptTag}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs font-medium text-zinc-200 leading-relaxed">
+                              {rq.question}
+                            </p>
+                            <div className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-900">
+                              <span className="text-emerald-400 font-semibold">Kunci:</span>{" "}
+                              {rq.options.find((o) => o.isCorrect)?.text}
+                            </div>
                           </div>
-                          <p className="text-xs font-medium text-zinc-200 leading-relaxed">
-                            {rq.question}
-                          </p>
-                          <div className="text-[11px] text-zinc-400 pt-1 border-t border-zinc-900">
-                            <span className="text-emerald-400 font-semibold">Kunci:</span>{" "}
-                            {rq.options.find((o) => o.isCorrect)?.text}
-                          </div>
-                        </div>
-                      ))}
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   <button
                     onClick={() => {
