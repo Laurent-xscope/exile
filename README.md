@@ -14,32 +14,33 @@
 * **Target User**: Guru, siswa SMP/SMA di Bali, dan komunitas pembelajar budaya lokal.
 
 ## Key Features
-1. **AI Question & Distractor Generator**: Pembuatan soal otomatis berbasis kompetensi Kurikulum Merdeka dan muatan lokal Bali dengan kunci penjelasan pedagogis.
-2. **Real-time Gamified Arena**: Ruang kuis multi-pemain dengan PIN 6-digit tanpa perlu login bagi siswa, animasi berbasis fisika, dan leaderboard langsung.
-3. **Instant Misconception Feedback**: Penjelasan mikro instan ketika siswa salah menjawab soal agar mereka langsung memahami kekeliruannya.
-4. **Automated Diagnostic & Remedial Engine**: Analisis agregat kelas untuk guru serta rekomendasi 3 soal remedial otomatis per siswa.
+1. **Multimodal OCR & Document Ingestion**: Unggah foto buku/LKS atau lembar modul teks untuk ditransformasi secara instan menjadi 3 produk interaktif: Ringkasan & Glosarium Budaya, Flashcard 3D flippable, dan Bank Soal HOTS.
+2. **AI Question & Distractor Generator**: Pembuatan soal otomatis berbasis kompetensi Kurikulum Merdeka dan muatan lokal Bali dengan kunci penjelasan pedagogis dan distractor rationale.
+3. **Real-time Gamified Arena**: Ruang kuis multi-pemain (`/play/[code]`) dengan PIN 6-digit tanpa perlu login bagi siswa, tombol taktil 4-warna, countdown timer, dan leaderboard langsung.
+4. **Teacher Cockpit Live Host**: Dasbor guru (`/host/[code]`) dengan kontrol pemutaran soal, visualisasi distribusi jawaban murid secara real-time, dan unmasked distractor analysis.
+5. **Instant Misconception Micro-Feedback**: Penjelasan mikro instan dari model penalaran AI ketika siswa salah menjawab soal agar mereka langsung memahami kekeliruannya secara real-time.
+6. **Automated Diagnostic & Remedial Engine**: Analisis agregat kelas untuk guru serta rekomendasi 3 soal remedial otomatis per siswa untuk menutup siklus belajar (*closed-loop learning*).
 
 ## Tech Stack
-* **Frontend**: Next.js 15 (App Router), React 19, TypeScript, Tailwind CSS v4, Framer Motion, Lucide Icons, Sonner Toaster, Canvas Confetti.
-* **Backend & API**: Next.js Server Actions & Route Handlers, Zod Validation.
+* **Frontend**: Next.js 16 (App Router with Partial Prerendering & Turbopack), React 19, TypeScript, Tailwind CSS v4, Framer Motion v14, Lucide Icons, Sonner Toaster, Canvas Confetti.
+* **Backend & API**: Next.js Server Actions & Route Handlers, Zod Validation, In-Memory Game Room State Machine.
 * **Database & Realtime**: Supabase (PostgreSQL 16, Supabase Realtime Channels, Row-Level Security).
-* **AI Engine**: Google Gemini API (Official AI Studio Key) via isolated backend gateway (`callAI`) dengan fallback handling.
+* **AI Engine**: Google Gemini 2.5 Flash via isolated backend gateway (`callAI`) dengan in-memory LRU cache dan pedagogical deterministic fallback.
 * **Deployment**: Vercel (Edge Network).
 
 ## AI Implementation
-* **Model**: Gemini 2.5 Flash via official API.
-* **Input**: Tema kurikulum, jenjang pendidikan, bahasa/aksara Bali, dan parameter jumlah soal.
-* **Output**: Objek JSON terstruktur (soal, opsi pengecoh, kunci jawaban, dan panduan miskonsepsi).
-* **Peran**: Generator konten pembelajaran, penganalisis miskonsepsi agregat siswa, dan perancang drill remedial personal.
+* **Model**: Gemini 2.5 Flash Multimodal via official API.
+* **Input**: Foto buku ajar/LKS/PDF, tema kurikulum, jenjang pendidikan, tingkatan Basa Bali (Alus Singgih vs Alus Sor), aturan Pasang Aksara Bali, dan parameter jumlah soal.
+* **Output**: Objek JSON terstruktur (Ringkasan, Glosarium Budaya, 3D Flashcards, soal pilihan ganda HOTS, opsi pengecoh, kunci jawaban, dan panduan miskonsepsi).
+* **Peran**: Generator konten pembelajaran multimodal, penganalisis miskonsepsi agregat siswa, dan perancang drill remedial personal.
 
 ## Architecture / Data Flow
 ```
-[Siswa (Mobile PIN Join)] <───► [Supabase Realtime Channel] <───► [Guru (Desktop Cockpit)]
-                                           ▲
-                                           │
-                         [Next.js 15 App Router / Server Actions]
-                                 ├──► [PostgreSQL Database]
-                                 └──► [callAI() Resilient Gateway] ──► [Gemini 2.5 Flash]
+[Dokumen / Foto LKS] ──► [Gemini 2.5 Flash OCR] ──► [3-Way Output: Summary / 3D Flashcards / Quiz]
+                                                                        │
+[Siswa (Mobile /play)] <───► [Game Room Store / Supabase] <───► [Guru Host (/host)]
+          │                                                               │
+          └──► [Salah: AI Micro-Feedback]            [AI Class Diagnostic & Remedial] ◄──┘
 ```
 
 ## Installation / Run Instructions
@@ -49,7 +50,7 @@
 git clone https://github.com/Laurent-xscope/exile.git
 cd exile
 
-# Install dependencies (disarankan menggunakan Bun)
+# Install dependencies (menggunakan Bun)
 bun install
 
 # Konfigurasi environment variables
@@ -62,17 +63,20 @@ bun run dev
 Buka `http://localhost:3000` pada peramban Anda.
 
 ## Deployment URL
-* **Production URL**: [https://exile-org.vercel.app](https://exile-org.vercel.app) (atau [https://hakacthon.vercel.app](https://hakacthon.vercel.app))
+* **Production URL**: [https://exile-org.vercel.app](https://exile-org.vercel.app)
+* **Mirror Domain**: [https://exile-bali.vercel.app](https://exile-bali.vercel.app)
 * **GitHub Repository**: [https://github.com/Laurent-xscope/exile](https://github.com/Laurent-xscope/exile)
 
-## Demo Account
+## Demo Account & Quick Links
 * Akses demo juri telah disiapkan untuk pengujian langsung tanpa perlu registrasi ulang:
-  * **Role**: Penguji / Juri
-  * **Room PIN Demo**: `849201` (tersedia pada live demo)
+  * **Teacher Host Cockpit**: [https://exile-org.vercel.app/host/849201](https://exile-org.vercel.app/host/849201) (PIN: `849201`)
+  * **Student Game Arena**: [https://exile-org.vercel.app/play](https://exile-org.vercel.app/play) (masukkan PIN `849201`)
+  * **Role**: Penguji / Juri & Guru
+  * **Room PIN Demo**: `849201` (dilengkapi 4 siswa simulasi dan data riwayat jawaban)
 
-## Known Limitations
-* Pada tahap MVP v1.0, pemindaian soal dari foto buku fisik (OCR multimodal) dialokasikan untuk tahap pengembangan lanjutan (Tahap 2 / Final).
-* Integrasi audio pengucapan Basa Bali Alus masih menggunakan sintesis teks standar peramban.
+## Known Limitations & Roadmap
+* Integrasi audio pengucapan Basa Bali Alus berbasis Text-to-Speech Web Audio API dialokasikan untuk tahap final.
+* Sinkronisasi data ke Supabase berjalan mode asinkron hibrid (in-memory fast response + Postgres sync).
 
 ## Third-party Resources / Credits
 * Next.js by Vercel

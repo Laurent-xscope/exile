@@ -692,3 +692,130 @@ export function getRoomQuestions(roomCode: string): Question[] {
   const room = inMemoryRooms.get(roomCode);
   return room ? room.questions : SEED_BALI_QUESTIONS;
 }
+
+export interface StoredQuizRecord {
+  id: string;
+  title: string;
+  description: string;
+  targetGrade?: string;
+  category?: string;
+  culturalTheme?: string;
+  questions: Question[];
+  createdAt: string;
+}
+
+const inMemoryQuizzes = new Map<string, StoredQuizRecord>();
+
+export function storeQuiz(quiz: Omit<StoredQuizRecord, "createdAt">): StoredQuizRecord {
+  const record: StoredQuizRecord = {
+    ...quiz,
+    createdAt: new Date().toISOString(),
+  };
+  inMemoryQuizzes.set(record.id, record);
+  return record;
+}
+
+export function getStoredQuiz(quizId: string): StoredQuizRecord | null {
+  return inMemoryQuizzes.get(quizId) || null;
+}
+
+/**
+ * Advance room to next question or change state
+ */
+export function advanceRoomQuestion(roomCode: string): {
+  success: boolean;
+  isFinished: boolean;
+  currentQuestionIndex: number;
+} {
+  const room = inMemoryRooms.get(roomCode);
+  if (!room) return { success: false, isFinished: false, currentQuestionIndex: 0 };
+
+  const nextIndex = room.currentQuestionIndex + 1;
+  if (nextIndex >= room.questions.length) {
+    room.status = "finished";
+    room.updatedAt = new Date().toISOString();
+    return { success: true, isFinished: true, currentQuestionIndex: room.currentQuestionIndex };
+  }
+
+  room.currentQuestionIndex = nextIndex;
+  room.status = "active";
+  room.questionStartTime = new Date().toISOString();
+  room.updatedAt = new Date().toISOString();
+
+  return { success: true, isFinished: false, currentQuestionIndex: nextIndex };
+}
+
+/**
+ * Update room status (e.g. showing_leaderboard, finished, active)
+ */
+export function setRoomStatus(
+  roomCode: string,
+  status: GameRoomRecord["status"]
+): boolean {
+  const room = inMemoryRooms.get(roomCode);
+  if (!room) return false;
+  room.status = status;
+  room.updatedAt = new Date().toISOString();
+  return true;
+}
+
+/**
+ * Get full teacher details including unmasked answers and live question statistics
+ */
+export function getTeacherRoomDetails(roomCode: string) {
+  initDemoRoom();
+  const room = inMemoryRooms.get(roomCode);
+  if (!room) return null;
+
+  const currentQ = room.questions[room.currentQuestionIndex] || null;
+  const submissionsForCurrentQ = currentQ
+    ? room.submissions.filter((s) => s.questionId === currentQ.id)
+    : [];
+
+  // Distribution of answers A, B, C, D
+  const optionCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
+  let correctCount = 0;
+  for (const sub of submissionsForCurrentQ) {
+    const opt = sub.selectedOption.toUpperCase();
+    if (optionCounts[opt] !== undefined) {
+      optionCounts[opt] += 1;
+    }
+    if (sub.isCorrect) {
+      correctCount += 1;
+    }
+  }
+
+  const playersList = Array.from(room.players.values());
+  const leaderboard = [...playersList].sort((a, b) => b.score - a.score);
+
+  return {
+    roomId: room.id,
+    roomCode: room.roomCode,
+    quizId: room.quizId,
+    hostName: room.hostName,
+    status: room.status,
+    currentQuestionIndex: room.currentQuestionIndex,
+    totalQuestions: room.questions.length,
+    currentQuestion: currentQ, // unmasked for teacher!
+    stats: {
+      submissionsCount: submissionsForCurrentQ.length,
+      totalPlayers: playersList.length,
+      correctCount,
+      accuracyPercentage:
+        submissionsForCurrentQ.length > 0
+          ? Math.round((correctCount / submissionsForCurrentQ.length) * 100)
+          : 0,
+      optionCounts,
+    },
+    leaderboard: leaderboard.map((p, index) => ({
+      rank: index + 1,
+      id: p.id,
+      nickname: p.nickname,
+      avatar: p.avatar,
+      score: p.score,
+      streak: p.streak,
+    })),
+    players: playersList,
+  };
+}
+

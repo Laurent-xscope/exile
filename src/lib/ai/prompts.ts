@@ -312,3 +312,90 @@ FORMAT OUTPUT WAJIB JSON:
 
   return { systemPrompt, prompt };
 }
+
+export const DocumentAnalysisSchema = z.object({
+  title: z.string(),
+  subjectArea: z.string(),
+  gradeLevel: z.string(),
+  summary: z.object({
+    overview: z.string().min(20),
+    keyTakeaways: z.array(z.string()).min(3),
+    culturalGlossary: z.array(
+      z.object({
+        term: z.string(),
+        meaning: z.string(),
+        category: z.string(),
+      })
+    ),
+  }),
+  flashcards: z.array(
+    z.object({
+      id: z.string(),
+      front: z.string(),
+      back: z.string(),
+      tag: z.string(),
+      hint: z.string().optional(),
+    })
+  ).min(4),
+  quiz: z.array(QuestionSchema).min(3),
+});
+
+export type DocumentAnalysis = z.infer<typeof DocumentAnalysisSchema>;
+
+export function buildDocumentAnalysisPrompt(
+  extractedContent: string,
+  mediaType: "pdf" | "image" | "text" = "text",
+  userContext?: string
+): { systemPrompt: string; prompt: string } {
+  const systemPrompt = `${BALI_PEDAGOGICAL_SYSTEM_PROMPT}
+
+TUGAS ANDA:
+Anda menerima dokumen modul pembelajaran Kurikulum Merdeka atau foto lembar kerja / LKS / buku teks (media: ${mediaType}).
+Lakukan ekstraksi konten, penalaran pedagogis mendalam, dan transformasikan materi ini menjadi TIGA PRODUK INTERAKTIF SEKALIGUS:
+1. RINGKASAN INTISARI (Summary): Paragraf terstruktur, poin-poin esensial, dan glosarium istilah/kosakata lokal.
+2. FLASHCARD INTERAKTIF: Kartu tanya-jawab cepat untuk memorisasi mandiri siswa (kosakata, konsep, definisi).
+3. LATIHAN SOAL / KUIS MULTIPLAYER: Soal pilihan ganda 4 opsi (A,B,C,D) berstandar HOTS dengan kunci penjelasan dan distractor rationale untuk mendeteksi miskonsepsi siswa.
+
+OUTPUT HARUS BERUPA VALID JSON FORMAT STRICT SESUAI SCHEMA DocumentAnalysisSchema.`;
+
+  const prompt = `EKSTRAK DAN ANALISIS DOKUMEN BERIKUT:
+${userContext ? `Catatan/Konteks Guru: ${userContext}\n` : ""}
+--- ISI DOKUMEN / HASIL PEMINDAIAN ---
+${extractedContent}
+--- AKHIR DOKUMEN ---
+
+Instruksi Output: Hasilkan satu objek JSON valid tanpa markdown penjelasan di luar JSON.
+Contoh struktur JSON:
+{
+  "title": "Judul Bab / Topik Pembelajaran",
+  "subjectArea": "Bahasa Bali / IPA / Matematika",
+  "gradeLevel": "SMP Fase D / SMA Fase E",
+  "summary": {
+    "overview": "Uraian intisari konsep materi...",
+    "keyTakeaways": ["Poin penting 1", "Poin penting 2", "Poin penting 3"],
+    "culturalGlossary": [
+      { "term": "Singgih", "meaning": "Tinggi/terhormat", "category": "Anggah-ungguhing Basa" }
+    ]
+  },
+  "flashcards": [
+    { "id": "fc-1", "front": "Apa arti kruna Alus Singgih 'ngrayunan'?", "back": "Makan (digunakan khusus untuk orang yang dihormati)", "tag": "Kosakata", "hint": "Lawan kata Alus Sor 'neda'" }
+  ],
+  "quiz": [
+    {
+      "question": "Pertanyaan kuis...",
+      "options": [
+        { "label": "A", "text": "...", "isCorrect": true, "distractorRationale": "..." },
+        { "label": "B", "text": "...", "isCorrect": false, "distractorRationale": "..." },
+        { "label": "C", "text": "...", "isCorrect": false, "distractorRationale": "..." },
+        { "label": "D", "text": "...", "isCorrect": false, "distractorRationale": "..." }
+      ],
+      "correctAnswer": "A",
+      "explanation": "Penjelasan...",
+      "conceptTag": "Konsep Tag..."
+    }
+  ]
+}`;
+
+  return { systemPrompt, prompt };
+}
+
