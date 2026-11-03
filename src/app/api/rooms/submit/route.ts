@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       microFeedback,
     } = parsed.data;
 
-    const result = recordAnswerSubmission({
+    const result = await recordAnswerSubmission({
       roomCode,
       playerId,
       questionId,

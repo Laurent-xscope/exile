@@ -462,6 +462,117 @@ export async function createGameRoom(params: {
 }
 
 /**
+ * Ensure Room is Loaded into In-Memory Cache (Hydrating from Supabase Cloud if Needed)
+ */
+export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord | null> {
+  initDemoRoom();
+  const cached = inMemoryRooms.get(roomCode);
+  if (cached) return cached;
+
+  try {
+    const isPlaceholder =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+    if (isPlaceholder) return null;
+
+    const { data: roomData, error: roomErr } = await supabase
+      .from("game_rooms")
+      .select("*")
+      .eq("room_code", roomCode)
+      .maybeSingle();
+
+    if (roomErr || !roomData) return null;
+
+    // Fetch players for this room
+    const { data: playersData } = await supabase
+      .from("players")
+      .select("*")
+      .eq("room_code", roomCode);
+
+    const playerMap = new Map<string, PlayerRecord>();
+    if (playersData) {
+      for (const p of playersData) {
+        playerMap.set(p.id, {
+          id: p.id,
+          roomCode: p.room_code,
+          nickname: p.nickname,
+          avatar: p.avatar,
+          score: p.score,
+          streak: p.streak,
+          isConnected: p.is_connected,
+          lastSeenAt: p.last_seen_at || new Date().toISOString(),
+        });
+      }
+    }
+
+    // Fetch submissions for this room
+    const { data: subData } = await supabase
+      .from("submissions")
+      .select("*")
+      .eq("room_code", roomCode);
+
+    const submissions: SubmissionRecord[] = (subData || []).map((s) => ({
+      id: s.id,
+      roomCode: s.room_code,
+      playerId: s.player_id,
+      questionId: s.question_id || "",
+      selectedOption: s.selected_option,
+      isCorrect: s.is_correct,
+      responseTimeMs: s.response_time_ms,
+      scoreAwarded: s.score_awarded,
+      microFeedback: s.micro_feedback || undefined,
+      createdAt: s.created_at,
+    }));
+
+    // Fetch questions if quiz_id is set
+    let questions: Question[] = SEED_BALI_QUESTIONS;
+    if (roomData.quiz_id) {
+      const { data: qData } = await supabase
+        .from("questions")
+        .select("*")
+        .eq("quiz_id", roomData.quiz_id)
+        .order("question_order", { ascending: true });
+
+      if (qData && qData.length > 0) {
+        questions = qData.map((q) => ({
+          id: q.id,
+          questionOrder: q.question_order,
+          question: q.question_text,
+          options: q.options,
+          correctAnswer: q.correct_answer,
+          explanation: q.explanation,
+          conceptTag: q.concept_tag,
+          culturalContext: q.cultural_context || undefined,
+        }));
+      }
+    }
+
+    const restoredRoom: GameRoomRecord = {
+      id: roomData.id,
+      roomCode: roomData.room_code,
+      quizId: roomData.quiz_id || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
+      hostName: roomData.host_name || "Guru",
+      status: roomData.status || "waiting",
+      currentQuestionIndex: roomData.current_question_index || 0,
+      questionStartTime: roomData.question_start_time || undefined,
+      settings: roomData.settings || { timePerQuestionSec: 20, streakBonus: true },
+      questions,
+      players: playerMap,
+      submissions,
+      createdAt: roomData.created_at || new Date().toISOString(),
+      updatedAt: roomData.updated_at || new Date().toISOString(),
+    };
+
+    inMemoryRooms.set(roomCode, restoredRoom);
+    return restoredRoom;
+  } catch (err) {
+    console.warn("[RoomStore] Failed to restore room from Supabase:", err);
+    return null;
+  }
+}
+
+/**
  * Join an existing Game Room
  */
 export async function joinGameRoom(params: {
@@ -469,39 +580,9 @@ export async function joinGameRoom(params: {
   nickname: string;
   avatar?: string;
 }): Promise<{ player: PlayerRecord; room: GameRoomRecord } | null> {
-  initDemoRoom();
-  const room = inMemoryRooms.get(params.roomCode);
+  const room = await ensureRoomLoaded(params.roomCode);
 
   if (!room) {
-    // Attempt to lookup in Supabase
-    try {
-      const { data } = await supabase
-        .from("game_rooms")
-        .select("*")
-        .eq("room_code", params.roomCode)
-        .single();
-
-      if (data) {
-        const restoredRoom: GameRoomRecord = {
-          id: data.id,
-          roomCode: data.room_code,
-          quizId: data.quiz_id || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
-          hostName: data.host_name || "Guru",
-          status: data.status || "waiting",
-          currentQuestionIndex: data.current_question_index || 0,
-          settings: data.settings || { timePerQuestionSec: 20, streakBonus: true },
-          questions: SEED_BALI_QUESTIONS,
-          players: new Map(),
-          submissions: [],
-          createdAt: data.created_at || new Date().toISOString(),
-          updatedAt: data.updated_at || new Date().toISOString(),
-        };
-        inMemoryRooms.set(params.roomCode, restoredRoom);
-        return joinGameRoom(params);
-      }
-    } catch {
-      // ignore
-    }
     return null;
   }
 
@@ -563,8 +644,7 @@ export async function joinGameRoom(params: {
  * Get Room State & Leaderboard
  */
 export async function getGameRoomState(roomCode: string) {
-  initDemoRoom();
-  const room = inMemoryRooms.get(roomCode);
+  const room = await ensureRoomLoaded(roomCode);
 
   if (!room) {
     return null;
@@ -623,7 +703,7 @@ export async function getGameRoomState(roomCode: string) {
 /**
  * Submit Player Answer & Compute Gamified Score
  */
-export function recordAnswerSubmission(params: {
+export async function recordAnswerSubmission(params: {
   roomCode: string;
   playerId: string;
   questionId: string;
@@ -631,7 +711,7 @@ export function recordAnswerSubmission(params: {
   responseTimeMs: number;
   microFeedback?: string;
 }) {
-  const room = inMemoryRooms.get(params.roomCode);
+  const room = await ensureRoomLoaded(params.roomCode);
   if (!room) return null;
 
   let player = room.players.get(params.playerId);
@@ -685,14 +765,58 @@ export function recordAnswerSubmission(params: {
   };
 
   room.submissions.push(submission);
+
+  // Asynchronously mirror submission & updated score to Supabase
+  try {
+    const isPlaceholder =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+    if (!isPlaceholder) {
+      // 1. Update player's score and streak
+      supabase
+        .from("players")
+        .update({
+          score: player.score,
+          streak: player.streak,
+          last_seen_at: new Date().toISOString(),
+        })
+        .match({ room_code: params.roomCode, id: player.id })
+        .then();
+
+      // 2. Insert submission record (ensure questionId is UUID or null)
+      const validQuestionId =
+        params.questionId && params.questionId.includes("-")
+          ? params.questionId
+          : null;
+
+      supabase
+        .from("submissions")
+        .insert({
+          id: submission.id,
+          room_code: params.roomCode,
+          player_id: player.id,
+          question_id: validQuestionId,
+          selected_option: params.selectedOption,
+          is_correct: isCorrect,
+          response_time_ms: params.responseTimeMs,
+          score_awarded: scoreAwarded,
+          micro_feedback: params.microFeedback || null,
+        })
+        .then();
+    }
+  } catch (err) {
+    console.warn("[RoomStore] Supabase submission sync omitted:", err);
+  }
+
   return { submission, updatedPlayer: player };
 }
 
 /**
  * Get Room Submissions for Diagnostic Clustering
  */
-export function getRoomSubmissions(roomCode: string) {
-  const room = inMemoryRooms.get(roomCode);
+export async function getRoomSubmissions(roomCode: string) {
+  const room = await ensureRoomLoaded(roomCode);
   if (!room) return [];
   return room.submissions;
 }
@@ -700,8 +824,8 @@ export function getRoomSubmissions(roomCode: string) {
 /**
  * Get Room Questions
  */
-export function getRoomQuestions(roomCode: string): Question[] {
-  const room = inMemoryRooms.get(roomCode);
+export async function getRoomQuestions(roomCode: string): Promise<Question[]> {
+  const room = await ensureRoomLoaded(roomCode);
   return room ? room.questions : SEED_BALI_QUESTIONS;
 }
 
@@ -724,6 +848,47 @@ export function storeQuiz(quiz: Omit<StoredQuizRecord, "createdAt">): StoredQuiz
     createdAt: new Date().toISOString(),
   };
   inMemoryQuizzes.set(record.id, record);
+
+  // Asynchronously mirror quiz and questions to Supabase
+  try {
+    const isPlaceholder =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+    if (!isPlaceholder) {
+      // Upsert quiz
+      supabase
+        .from("quizzes")
+        .upsert({
+          id: record.id,
+          title: record.title,
+          description: record.description || null,
+          grade_level: record.targetGrade || "Fase D (SMP)",
+          category: record.category || "Muatan Lokal Bali",
+          cultural_theme: record.culturalTheme || null,
+        })
+        .then(() => {
+          // Insert questions
+          if (record.questions && record.questions.length > 0) {
+            const questionRows = record.questions.map((q, index) => ({
+              id: q.id && q.id.includes("-") ? q.id : crypto.randomUUID(),
+              quiz_id: record.id,
+              question_order: q.questionOrder || index + 1,
+              question_text: q.question,
+              options: q.options,
+              correct_answer: q.correctAnswer,
+              explanation: q.explanation,
+              concept_tag: q.conceptTag,
+              cultural_context: q.culturalContext || null,
+            }));
+            supabase.from("questions").upsert(questionRows).then();
+          }
+        });
+    }
+  } catch (err) {
+    console.warn("[RoomStore] Supabase quiz sync omitted:", err);
+  }
+
   return record;
 }
 
@@ -734,12 +899,12 @@ export function getStoredQuiz(quizId: string): StoredQuizRecord | null {
 /**
  * Advance room to next question or change state
  */
-export function advanceRoomQuestion(roomCode: string): {
+export async function advanceRoomQuestion(roomCode: string): Promise<{
   success: boolean;
   isFinished: boolean;
   currentQuestionIndex: number;
-} {
-  const room = inMemoryRooms.get(roomCode);
+}> {
+  const room = await ensureRoomLoaded(roomCode);
   if (!room) return { success: false, isFinished: false, currentQuestionIndex: 0 };
 
   const nextIndex = room.currentQuestionIndex + 1;
@@ -754,29 +919,71 @@ export function advanceRoomQuestion(roomCode: string): {
   room.questionStartTime = new Date().toISOString();
   room.updatedAt = new Date().toISOString();
 
+  // Asynchronously mirror question advance to Supabase
+  try {
+    const isPlaceholder =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+    if (!isPlaceholder) {
+      supabase
+        .from("game_rooms")
+        .update({
+          current_question_index: nextIndex,
+          status: "active",
+          question_start_time: room.questionStartTime,
+          updated_at: room.updatedAt,
+        })
+        .match({ room_code: roomCode })
+        .then();
+    }
+  } catch (err) {
+    console.warn("[RoomStore] Supabase question advance sync omitted:", err);
+  }
+
   return { success: true, isFinished: false, currentQuestionIndex: nextIndex };
 }
 
 /**
  * Update room status (e.g. showing_leaderboard, finished, active)
  */
-export function setRoomStatus(
+export async function setRoomStatus(
   roomCode: string,
   status: GameRoomRecord["status"]
-): boolean {
-  const room = inMemoryRooms.get(roomCode);
+): Promise<boolean> {
+  const room = await ensureRoomLoaded(roomCode);
   if (!room) return false;
   room.status = status;
   room.updatedAt = new Date().toISOString();
+
+  // Asynchronously mirror room status to Supabase
+  try {
+    const isPlaceholder =
+      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+    if (!isPlaceholder) {
+      supabase
+        .from("game_rooms")
+        .update({
+          status,
+          updated_at: room.updatedAt,
+        })
+        .match({ room_code: roomCode })
+        .then();
+    }
+  } catch (err) {
+    console.warn("[RoomStore] Supabase status sync omitted:", err);
+  }
+
   return true;
 }
 
 /**
  * Get full teacher details including unmasked answers and live question statistics
  */
-export function getTeacherRoomDetails(roomCode: string) {
-  initDemoRoom();
-  const room = inMemoryRooms.get(roomCode);
+export async function getTeacherRoomDetails(roomCode: string) {
+  const room = await ensureRoomLoaded(roomCode);
   if (!room) return null;
 
   const currentQ = room.questions[room.currentQuestionIndex] || null;

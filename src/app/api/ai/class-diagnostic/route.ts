@@ -52,7 +52,7 @@ export async function POST(req: Request) {
     // 1. Gather submissions from request body or in-memory room store
     let submissions = customSubmissions;
     if (!submissions || submissions.length === 0) {
-      const roomSubmissions = getRoomSubmissions(targetRoom);
+      const roomSubmissions = await getRoomSubmissions(targetRoom);
       submissions = roomSubmissions.map((s) => ({
         playerId: s.playerId,
         questionId: s.questionId,
@@ -62,7 +62,7 @@ export async function POST(req: Request) {
       }));
     }
 
-    const roomQuestions = getRoomQuestions(targetRoom);
+    const roomQuestions = await getRoomQuestions(targetRoom);
 
     // 2. Synthesize aggregate question breakdown and error rates
     let totalQuestions = roomQuestions.length;

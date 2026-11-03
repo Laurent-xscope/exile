@@ -19,6 +19,8 @@ import {
 } from "@remixicon/react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
+import { supabase } from "@/lib/supabase";
+import { soundEffects } from "@/lib/audio/sounds";
 
 interface QuestionOption {
   label: string;
@@ -137,10 +139,57 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   useEffect(() => {
     fetchRoomState();
     const interval = setInterval(fetchRoomState, 2500);
-    return () => clearInterval(interval);
+
+    // Supabase Realtime subscription for live classroom feedback
+    let channel: any = null;
+    try {
+      const isPlaceholder =
+        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+      if (!isPlaceholder) {
+        channel = supabase
+          .channel(`teacher-host-${roomCode}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "submissions",
+              filter: `room_code=eq.${roomCode}`,
+            },
+            () => {
+              fetchRoomState();
+            }
+          )
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "players",
+              filter: `room_code=eq.${roomCode}`,
+            },
+            () => {
+              fetchRoomState();
+            }
+          )
+          .subscribe();
+      }
+    } catch (realtimeErr) {
+      console.warn("[TeacherHost] Supabase Realtime subscription skipped:", realtimeErr);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, [roomCode]);
 
   const handleAction = async (action: string) => {
+    soundEffects.playClick();
     setActionLoading(true);
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
@@ -160,6 +209,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
           spread: 70,
           origin: { y: 0.6 },
         });
+        soundEffects.playVictory();
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal memproses aksi";

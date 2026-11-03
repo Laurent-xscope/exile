@@ -11,9 +11,13 @@ import {
   RiCloseLine,
   RiTrophyLine,
   RiFireLine,
+  RiVolumeUpLine,
+  RiVolumeMuteLine,
 } from "@remixicon/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
+import { supabase } from "@/lib/supabase";
+import { soundEffects } from "@/lib/audio/sounds";
 
 interface Option {
   label: string;
@@ -78,6 +82,13 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   const [timeLeft, setTimeLeft] = useState<number>(20);
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const [lastQuestionId, setLastQuestionId] = useState<string | null>(null);
+  const [isMuted, setIsMuted] = useState(false);
+
+  const toggleSound = () => {
+    const nextMuted = !isMuted;
+    setIsMuted(nextMuted);
+    soundEffects.setMuted(nextMuted);
+  };
 
   // Initialize player info from localStorage
   useEffect(() => {
@@ -129,13 +140,14 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
           setQuestionStartTime(Date.now());
         }
 
-        // Trigger finish confetti
+        // Trigger finish confetti & victory fanfare
         if (data.status === "finished") {
           confetti({
             particleCount: 60,
             spread: 70,
             origin: { y: 0.6 },
           });
+          soundEffects.playVictory();
         }
       }
     } catch (err) {
@@ -148,7 +160,41 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   useEffect(() => {
     fetchState();
     const interval = setInterval(fetchState, 1500);
-    return () => clearInterval(interval);
+
+    // Supabase Realtime subscription for immediate state updates
+    let channel: any = null;
+    try {
+      const isPlaceholder =
+        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+      if (!isPlaceholder) {
+        channel = supabase
+          .channel(`play-room-${roomCode}`)
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              schema: "public",
+              table: "game_rooms",
+              filter: `room_code=eq.${roomCode}`,
+            },
+            () => {
+              fetchState();
+            }
+          )
+          .subscribe();
+      }
+    } catch (realtimeErr) {
+      console.warn("[PlayArena] Supabase Realtime skipped:", realtimeErr);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (channel) {
+        supabase.removeChannel(channel);
+      }
+    };
   }, [roomCode, lastQuestionId]);
 
   // Countdown timer effect
@@ -167,6 +213,9 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
           clearInterval(timer);
           return 0;
         }
+        if (prev <= 6 && prev > 1) {
+          soundEffects.playTick();
+        }
         return prev - 1;
       });
     }, 1000);
@@ -178,6 +227,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   const handleSelectOption = async (optionLabel: string) => {
     if (hasAnsweredCurrentQ || submitting || !roomState?.currentQuestion) return;
 
+    soundEffects.playClick();
     setSelectedOption(optionLabel);
     setSubmitting(true);
 
@@ -206,6 +256,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
       setHasAnsweredCurrentQ(true);
 
       if (isCorrect) {
+        soundEffects.playCorrect();
         confetti({
           particleCount: 40,
           spread: 60,
@@ -218,6 +269,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
         });
         toast.success(`+${scoreAwarded} poin diperoleh`);
       } else {
+        soundEffects.playIncorrect();
         toast.error("Pilihan belum tepat");
         try {
           const explainRes = await fetch("/api/ai/explain-error", {
@@ -315,11 +367,26 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             </div>
           </div>
 
-          <div className="px-3 py-1 rounded bg-[#24160E] border border-[#4A2E1F] text-right">
-            <span className="text-[10px] text-[#BFA98A] block">Total nilai</span>
-            <span className="text-sm font-semibold text-[#CA8A04]">
-              {myScore.toLocaleString()}
-            </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-label={isMuted ? "Aktifkan suara" : "Matikan suara"}
+              className="p-2 rounded bg-[#24160E] border border-[#4A2E1F] text-[#BFA98A] hover:text-[#CA8A04] transition-colors cursor-pointer"
+              title={isMuted ? "Aktifkan suara" : "Matikan suara"}
+            >
+              {isMuted ? (
+                <RiVolumeMuteLine className="w-4 h-4" />
+              ) : (
+                <RiVolumeUpLine className="w-4 h-4" />
+              )}
+            </button>
+            <div className="px-3 py-1 rounded bg-[#24160E] border border-[#4A2E1F] text-right">
+              <span className="text-[10px] text-[#BFA98A] block">Total nilai</span>
+              <span className="text-sm font-semibold text-[#CA8A04]">
+                {myScore.toLocaleString()}
+              </span>
+            </div>
           </div>
         </div>
       </header>

@@ -43,7 +43,7 @@ export async function POST(
 
     switch (action) {
       case "get_teacher_state": {
-        const details = getTeacherRoomDetails(roomCode);
+        const details = await getTeacherRoomDetails(roomCode);
         if (!details) {
           return NextResponse.json(
             { error: `Room ${roomCode} tidak ditemukan` },
@@ -54,7 +54,7 @@ export async function POST(
       }
 
       case "advance_question": {
-        const result = advanceRoomQuestion(roomCode);
+        const result = await advanceRoomQuestion(roomCode);
         const state = await getGameRoomState(roomCode);
         return NextResponse.json({
           success: result.success,
@@ -64,19 +64,19 @@ export async function POST(
       }
 
       case "show_leaderboard": {
-        setRoomStatus(roomCode, "showing_leaderboard");
+        await setRoomStatus(roomCode, "showing_leaderboard");
         const state = await getGameRoomState(roomCode);
         return NextResponse.json({ success: true, state });
       }
 
       case "resume_quiz": {
-        setRoomStatus(roomCode, "active");
+        await setRoomStatus(roomCode, "active");
         const state = await getGameRoomState(roomCode);
         return NextResponse.json({ success: true, state });
       }
 
       case "finish_game": {
-        setRoomStatus(roomCode, "finished");
+        await setRoomStatus(roomCode, "finished");
         const state = await getGameRoomState(roomCode);
         return NextResponse.json({ success: true, state });
       }
@@ -98,7 +98,7 @@ export async function POST(
           ["A", "B", "C", "D"][Math.floor(Math.random() * 4)];
 
         if (simulatedPlayerId) {
-          recordAnswerSubmission({
+          await recordAnswerSubmission({
             roomCode,
             playerId: simulatedPlayerId,
             questionId: state.currentQuestion.id || "q1",
@@ -107,7 +107,7 @@ export async function POST(
           });
         }
 
-        const updatedDetails = getTeacherRoomDetails(roomCode);
+        const updatedDetails = await getTeacherRoomDetails(roomCode);
         return NextResponse.json({ success: true, details: updatedDetails });
       }
 
