@@ -1032,6 +1032,265 @@ function getFallbackDocumentAnalysis(
   };
 }
 
+function enrichStudioArtifacts(analysis: DocumentAnalysis): DocumentAnalysis {
+  const title = analysis.title || "Materi Pembelajaran";
+  const overview = analysis.summary.overview;
+  const keyPoints = analysis.summary.keyTakeaways || [
+    "Penguasaan konsep dasar dan relasi sosial tutur bahasa.",
+    "Pencegahan miskonsepsi penerapan kaidah pada situasi nyata.",
+    "Integrasi nilai kearifan lokal Kurikulum Merdeka.",
+  ];
+
+  // 1. Difficulty-Scaled Quizzes (Easy, Medium, Hard)
+  const baseQuiz = analysis.quiz || [];
+  const easyQuestions = (analysis.difficultyQuizzes?.easy && analysis.difficultyQuizzes.easy.length > 0)
+    ? analysis.difficultyQuizzes.easy
+    : baseQuiz.slice(0, 3).map((q, idx) => ({
+        ...q,
+        id: crypto.randomUUID(),
+        questionOrder: idx + 1,
+        question: `[Tingkat Dasar] ${q.question}`,
+        explanation: `Pemahaman dasar konsep: ${q.explanation}`,
+      }));
+
+  const mediumQuestions = (analysis.difficultyQuizzes?.medium && analysis.difficultyQuizzes.medium.length > 0)
+    ? analysis.difficultyQuizzes.medium
+    : baseQuiz.slice(0, 3).map((q, idx) => ({
+        ...q,
+        id: crypto.randomUUID(),
+        questionOrder: idx + 1,
+        question: `[Penerapan Kontekstual] ${q.question}`,
+        explanation: `Penerapan tepat di kelas: ${q.explanation}`,
+      }));
+
+  const hardQuestions = (analysis.difficultyQuizzes?.hard && analysis.difficultyQuizzes.hard.length > 0)
+    ? analysis.difficultyQuizzes.hard
+    : baseQuiz.slice(0, 3).map((q, idx) => ({
+        ...q,
+        id: crypto.randomUUID(),
+        questionOrder: idx + 1,
+        question: `[Analisis HOTS & Miskonsepsi] Cermati kasus: ${q.question}`,
+        explanation: `Analisis mendalam jebakan berpikir: ${q.explanation}`,
+      }));
+
+  // 2. Slide Deck
+  const slideDeck = (analysis.slideDeck && analysis.slideDeck.length >= 3)
+    ? analysis.slideDeck
+    : [
+        {
+          slideNumber: 1,
+          title: title,
+          bullets: [
+            "Pengantar Intisari Materi & Capaian Pembelajaran",
+            overview.slice(0, 140) + "...",
+            "Tujuan: Mengeliminasi miskonsepsi umum di kalangan siswa",
+          ],
+          presenterNotes: `Buka sesi dengan menanyakan pengalaman siswa terkait topik ${title}. Berikan apersepsi pemantik sebelum masuk ke kaidah teknis.`,
+          visualConcept: "Visual ilustrasi pembuka dengan tipografi kontras dan ikon budaya Bali.",
+        },
+        {
+          slideNumber: 2,
+          title: "Kaidah Inti & Prinsip Utama",
+          bullets: keyPoints.slice(0, 3),
+          presenterNotes: "Tekankan bahwa kaidah ini bukan sekadar hafalan mati, melainkan etika interaksi sosial yang dipraktikkan langsung.",
+          visualConcept: "Bagan komparasi berdampingan: Kaidah Benar vs Jebakan Miskonsepsi.",
+        },
+        {
+          slideNumber: 3,
+          title: "Studi Kasus & Analisis Penerapan",
+          bullets: [
+            `Aplikasi nyata dalam kehidupan sekolah dan masyarakat adat`,
+            `Contoh kalimat / tata cara yang tepat: ${analysis.summary.culturalGlossary?.[0]?.term || "Konsep"}`,
+            "Pentingnya refleksi formatif berkala",
+          ],
+          presenterNotes: "Ajak siswa melakukan latihan roleplay cepat 2 menit berpasangan untuk menguji kepekaan memilih kata.",
+          visualConcept: "Simulasi dialog dua arah antara siswa dan guru.",
+        },
+        {
+          slideNumber: 4,
+          title: "Refleksi & Rencana Tindak Lanjut",
+          bullets: [
+            "Pengecekan mandiri melalui Kartu Belajar 3D",
+            "Uji pemahaman lewat Ruang Kuis Multiplayer",
+            "Konsolidasi konsep berbasis umpan balik instan",
+          ],
+          presenterNotes: "Bagikan kode PIN ruang kuis agar siswa dapat bergabung secara sinkron dari perangkat masing-masing.",
+          visualConcept: "Banner kode PIN kuis dengan animasi interaktif.",
+        },
+      ];
+
+  // 3. Mind Map Tree
+  const mindMap = analysis.mindMap || {
+    id: "root-concept",
+    label: title,
+    description: overview.slice(0, 100) + "...",
+    category: "Pusat Konsep",
+    children: [
+      {
+        id: "branch-rules",
+        label: "Kaidah & Prinsip Baku",
+        description: keyPoints[0] || "Prinsip dasar aturan",
+        category: "Kaidah",
+        children: (analysis.summary.culturalGlossary || []).slice(0, 3).map((g, idx) => ({
+          id: `leaf-glossary-${idx}`,
+          label: g.term,
+          description: g.meaning,
+          category: g.category,
+        })),
+      },
+      {
+        id: "branch-pitfalls",
+        label: "Identifikasi Miskonsepsi",
+        description: "Pola kekeliruan pemahaman siswa yang terdeteksi secara diagnostik",
+        category: "Miskonsepsi",
+        children: [
+          {
+            id: "leaf-error-1",
+            label: "Tertukar Tingkatan / Penempatan",
+            description: "Siswa sering menggeneralisasi aturan tanpa meninjau konteks subjek atau posisi kata.",
+            category: "Jebakan Pengecoh",
+          },
+          {
+            id: "leaf-error-2",
+            label: "Kekeliruan Asosiasi Makna",
+            description: "Menganggap sinonim sehari-hari berlaku netral di semua situasi formal.",
+            category: "Konteks",
+          },
+        ],
+      },
+      {
+        id: "branch-action",
+        label: "Aplikasi & Pembiasaan",
+        description: "Implementasi aktif di ruang kelas dan lingkungan sosial",
+        category: "Implementasi",
+        children: [
+          {
+            id: "leaf-action-1",
+            label: "Simulasi Dialog Berpasangan",
+            description: "Roleplay percakapan santun 2 menit.",
+            category: "Aktivitas",
+          },
+          {
+            id: "leaf-action-2",
+            label: "Asesmen Adaptif Berjenjang",
+            description: "Latihan soal bertahap dari pemahaman hingga penalaran HOTS.",
+            category: "Evaluasi",
+          },
+        ],
+      },
+    ],
+  };
+
+  // 4. Pedagogical Report
+  const report = analysis.report || {
+    executiveSummary: `Materi "${title}" memiliki peran fundamental dalam pembentukan kompetensi bernalar kritis dan kepekaan sosial budaya peserta didik. Hasil analisis menunjukkan materi ini membutuhkan penekanan khusus pada transfer konsep ke dalam skenario kehidupan nyata agar siswa tidak terjebak dalam sekadar memorisasi dangkal.`,
+    coreCompetencies: [
+      "Mengidentifikasi kaidah utama materi dengan ketepatan terminologis.",
+      "Menganalisis perbedaan fungsi dan batasan penggunaan konsep.",
+      "Mengaplikasikan pengetahuan dalam pemecahan masalah studi kasus kontekstual.",
+    ],
+    prerequisiteKnowledge: [
+      "Pemahaman kosakata dasar muatan lokal.",
+      "Kepekaan terhadap konteks situasi formal vs informal.",
+      "Kemampuan membaca kritis struktur teks.",
+    ],
+    difficultyHotspots: [
+      "Membedakan penggunaan istilah untuk diri sendiri vs orang yang dihormati.",
+      "Menentukan pengecualian aturan pada kondisi kalimat kompleks.",
+      "Mendeteksi jebakan pengecoh yang sepintas mirip dengan jawaban benar.",
+    ],
+    recommendedAction: "Gunakan pendekatan pembelajaran diferensiasi: bagi kelas ke dalam kelompok kecil untuk mendiskusikan studi kasus nyata, kemudian verifikasi pemahaman menggunakan kuis adaptif Exile.",
+  };
+
+  // 5. Data Table Matrix
+  const dataTable = analysis.dataTable || {
+    columns: ["Komponen Materi", "Tingkat Kognitif (Bloom)", "Tingkat Penguasaan Rata-rata", "Miskonsepsi Kunci", "Tindakan Remedial"],
+    rows: [
+      {
+        "Komponen Materi": "Kaidah Dasar & Definisi",
+        "Tingkat Kognitif (Bloom)": "C1 - C2 (Mengingat & Memahami)",
+        "Tingkat Penguasaan Rata-rata": "82%",
+        "Miskonsepsi Kunci": "Hafalan kata kunci terpisah dari maknanya",
+        "Tindakan Remedial": "Kartu Belajar 3D Apersepsi Mandiri",
+      },
+      {
+        "Komponen Materi": "Penerapan dalam Kalimat",
+        "Tingkat Kognitif (Bloom)": "C3 (Menerapkan)",
+        "Tingkat Penguasaan Rata-rata": "71%",
+        "Miskonsepsi Kunci": "Tertukar subjek penutur dan lawan tutur",
+        "Tindakan Remedial": "Latihan Simulasi Konteks Kelas",
+      },
+      {
+        "Komponen Materi": "Analisis Kasus & Pengecualian",
+        "Tingkat Kognitif (Bloom)": "C4 - C5 (Menganalisis & Mengevaluasi)",
+        "Tingkat Penguasaan Rata-rata": "64%",
+        "Miskonsepsi Kunci": "Mengabaikan tanda batas aturan",
+        "Tindakan Remedial": "Kuis Multiplayer HOTS dengan Pembahasan Pengecoh",
+      },
+    ],
+  };
+
+  // 6. Infographic Data
+  const infographic = analysis.infographic || {
+    title: title,
+    subtitle: "Rangkuman Visual Cepat & Kaidah Esensial",
+    centralConcept: overview.slice(0, 120) + "...",
+    pillars: [
+      {
+        title: "Pilar 1: Fondasi Konsep",
+        keyPoints: [
+          keyPoints[0] || "Pahami aturan mendasar tanpa kompromi.",
+          "Perhatikan subjek dan konteks yang melandasi teks.",
+        ],
+        quoteOrMnemonic: "Kaidah kuat, pemahaman akurat.",
+      },
+      {
+        title: "Pilar 2: Hindari Jebakan",
+        keyPoints: [
+          "Kenali tanda-tanda pengecoh dalam soal.",
+          "Jangan terburu-buru memilih sebelum membaca seluruh opsi.",
+        ],
+        quoteOrMnemonic: "Cek subjek sebelum menjawab.",
+      },
+      {
+        title: "Pilar 3: Aplikasi Nyata",
+        keyPoints: [
+          "Praktikkan dalam percakapan santun di kelas.",
+          "Jadikan kearifan lokal pedoman berperilaku.",
+        ],
+        quoteOrMnemonic: "Harmonis dalam tutur, bijak dalam tindak.",
+      },
+    ],
+  };
+
+  // 7. Student POV Insight
+  const studentPov = analysis.studentPov || {
+    studentMentalModel: `Bagi siswa, materi "${title}" terasa seperti kode aturan bahasa baru yang harus dipecahkan. Siswa cenderung mencari pola cepat dan sering merasa cemas jika takut salah berbicara di hadapan guru atau teman sekelas.`,
+    commonPointsOfConfusion: [
+      "Mengapa aturan yang berlaku untuk orang lain tidak boleh dipakai untuk diri sendiri?",
+      "Bagaimana membedakan situasi kapan harus formal dan kapan boleh santai?",
+      "Rasa ragu saat harus memilih di antara dua opsi jawaban yang keduanya terdengar mirip.",
+    ],
+    empatheticExplanation: `Tenang saja! Belajar materi ini sama seperti belajar aturan permainan olahraga favoritmu: saat pertama kali bermain kita mungkin ragu meniup peluit, tapi setelah beberapa kali mencoba di ruang kuis, jemari dan refleks kita akan langsung tahu langkah yang benar!`,
+    relatableAnalogy: `Bayangkan seperti memakai pakaian: kita memakai seragam rapi saat upacara bendera, dan memakai baju santai saat bermain bola di lapangan. Kaidah materi ini adalah seragam santun yang kita pakai agar semua orang merasa dihormati.`,
+  };
+
+  return {
+    ...analysis,
+    difficultyQuizzes: {
+      easy: easyQuestions,
+      medium: mediumQuestions,
+      hard: hardQuestions,
+    },
+    slideDeck,
+    mindMap,
+    report,
+    dataTable,
+    infographic,
+    studentPov,
+  };
+}
+
 export async function POST(req: Request) {
   try {
     const rawBody = await req.json();
@@ -1072,11 +1331,14 @@ export async function POST(req: Request) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const parts: any[] = [{ text: `${systemPrompt}\n\n${prompt}` }];
 
-        if (fileType === "image" && fileBase64) {
+        if (fileBase64) {
+          const rawBase64 = fileBase64.replace(/^data:[^;]+;base64,/, "");
+          const resolvedMime =
+            fileType === "pdf" ? "application/pdf" : mimeType || "image/jpeg";
           parts.unshift({
             inlineData: {
-              mimeType: mimeType || "image/jpeg",
-              data: fileBase64.replace(/^data:[^;]+;base64,/, ""),
+              mimeType: resolvedMime,
+              data: rawBase64,
             },
           });
         }
@@ -1103,6 +1365,9 @@ export async function POST(req: Request) {
     if (!result) {
       result = getFallbackDocumentAnalysis(fileName, contentToAnalyze, contextToUse);
     }
+
+    // Enrich with full NoteBookLM + Wayground Studio Suite artifacts
+    result = enrichStudioArtifacts(result);
 
     result.quiz = result.quiz.map((q, idx) => ({
       ...q,

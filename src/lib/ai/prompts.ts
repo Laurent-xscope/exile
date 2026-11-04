@@ -313,6 +313,63 @@ FORMAT OUTPUT WAJIB JSON:
   return { systemPrompt, prompt };
 }
 
+export const SlideItemSchema = z.object({
+  slideNumber: z.number(),
+  title: z.string(),
+  bullets: z.array(z.string()).min(2),
+  presenterNotes: z.string(),
+  visualConcept: z.string(),
+});
+
+export const MindMapNodeSchema: z.ZodType<{
+  id: string;
+  label: string;
+  description: string;
+  category?: string;
+  children?: any[];
+}> = z.lazy(() =>
+  z.object({
+    id: z.string(),
+    label: z.string(),
+    description: z.string(),
+    category: z.string().optional(),
+    children: z.array(MindMapNodeSchema).optional(),
+  })
+);
+
+export const PedagogicalReportSchema = z.object({
+  executiveSummary: z.string(),
+  coreCompetencies: z.array(z.string()),
+  prerequisiteKnowledge: z.array(z.string()),
+  difficultyHotspots: z.array(z.string()),
+  recommendedAction: z.string(),
+});
+
+export const DataTableSchema = z.object({
+  columns: z.array(z.string()),
+  rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))),
+});
+
+export const InfographicSchema = z.object({
+  title: z.string(),
+  subtitle: z.string(),
+  centralConcept: z.string(),
+  pillars: z.array(
+    z.object({
+      title: z.string(),
+      keyPoints: z.array(z.string()),
+      quoteOrMnemonic: z.string(),
+    })
+  ),
+});
+
+export const StudentPovInsightSchema = z.object({
+  studentMentalModel: z.string(),
+  commonPointsOfConfusion: z.array(z.string()),
+  empatheticExplanation: z.string(),
+  relatableAnalogy: z.string(),
+});
+
 export const DocumentAnalysisSchema = z.object({
   title: z.string(),
   subjectArea: z.string(),
@@ -338,8 +395,33 @@ export const DocumentAnalysisSchema = z.object({
     })
   ).min(4),
   quiz: z.array(QuestionSchema).min(3),
+  difficultyQuizzes: z
+    .object({
+      easy: z.array(QuestionSchema).optional(),
+      medium: z.array(QuestionSchema).optional(),
+      hard: z.array(QuestionSchema).optional(),
+    })
+    .optional(),
+  slideDeck: z.array(SlideItemSchema).optional(),
+  mindMap: MindMapNodeSchema.optional(),
+  report: PedagogicalReportSchema.optional(),
+  dataTable: DataTableSchema.optional(),
+  infographic: InfographicSchema.optional(),
+  studentPov: StudentPovInsightSchema.optional(),
 });
 
+export type SlideItem = z.infer<typeof SlideItemSchema>;
+export type MindMapNode = {
+  id: string;
+  label: string;
+  description: string;
+  category?: string;
+  children?: MindMapNode[];
+};
+export type PedagogicalReport = z.infer<typeof PedagogicalReportSchema>;
+export type DataTableData = z.infer<typeof DataTableSchema>;
+export type InfographicData = z.infer<typeof InfographicSchema>;
+export type StudentPovInsight = z.infer<typeof StudentPovInsightSchema>;
 export type DocumentAnalysis = z.infer<typeof DocumentAnalysisSchema>;
 
 export function buildDocumentAnalysisPrompt(
@@ -349,52 +431,35 @@ export function buildDocumentAnalysisPrompt(
 ): { systemPrompt: string; prompt: string } {
   const systemPrompt = `${BALI_PEDAGOGICAL_SYSTEM_PROMPT}
 
-TUGAS ANDA:
+TUGAS ANDA (NOTEBOOKLM + WAYGROUND FUSION ARTIFACT STUDIO):
 Anda menerima dokumen modul pembelajaran Kurikulum Merdeka atau foto lembar kerja / LKS / buku teks (media: ${mediaType}).
-Lakukan ekstraksi konten, penalaran pedagogis mendalam, dan transformasikan materi ini menjadi TIGA PRODUK INTERAKTIF SEKALIGUS:
+Lakukan ekstraksi konten, penalaran mendalam (dedikasi waktu bernalar kritis), dan transformasikan materi ini menjadi ARTIFAK STUDIO LENGKAP:
 1. RINGKASAN INTISARI (Summary): Paragraf terstruktur, poin-poin esensial, dan glosarium istilah/kosakata lokal.
 2. FLASHCARD INTERAKTIF: Kartu tanya-jawab cepat untuk memorisasi mandiri siswa (kosakata, konsep, definisi).
-3. LATIHAN SOAL / KUIS MULTIPLAYER: Soal pilihan ganda 4 opsi (A,B,C,D) berstandar HOTS dengan kunci penjelasan dan distractor rationale untuk mendeteksi miskonsepsi siswa.
+3. SOAL KUIS ADAPTIF BERDASARKAN TINGKAT KESULITAN (Easy, Medium, Hard):
+   - 'quiz': 4-5 butir soal pilihan ganda 4 opsi (A,B,C,D) berstandar HOTS dengan kunci penjelasan dan distractor rationale.
+   - 'difficultyQuizzes': Soal terklasifikasi ke level 'easy' (pemahaman dasar), 'medium' (penerapan), 'hard' (penalaran HOTS & analisis miskonsepsi).
+4. SLIDE DECK: 3-5 slide ringkas dengan presenterNotes dan konsep visual untuk pengajar menjelaskan di kelas.
+5. MIND MAP: Struktur pohon konsep hierarkis (root, cabang topik, anak konsep).
+6. REPORT: Analisis pedagogis komprehensif (prasyarat, kompetensi, area miskonsepsi).
+7. DATA TABLE: Rekap tabular kompetensi, indikator, bobot penilaian.
+8. INFOGRAPHIC: Rangkuman visual ringkas dengan pilar konsep utama dan jembatan keledai.
+9. STUDENT POV (Sudut Pandang Siswa):
+   - 'studentMentalModel': Bagaimana siswa melihat dan memahami materi ini pertama kali.
+   - 'commonPointsOfConfusion': Hal-hal yang paling sering membuat siswa bingung atau ragu.
+   - 'empatheticExplanation': Penjelasan santai, ramah, dan empatik menggunakan bahasa siswa.
+   - 'relatableAnalogy': Analogi kehidupan sehari-hari yang mudah dibayangkan siswa.
 
 OUTPUT HARUS BERUPA VALID JSON FORMAT STRICT SESUAI SCHEMA DocumentAnalysisSchema.`;
 
-  const prompt = `EKSTRAK DAN ANALISIS DOKUMEN BERIKUT:
+  const prompt = `EKSTRAK DAN ANALISIS DOKUMEN SECARA KOMPREHENSIF:
 ${userContext ? `Catatan/Konteks Guru: ${userContext}\n` : ""}
 --- ISI DOKUMEN / HASIL PEMINDAIAN ---
 ${extractedContent}
 --- AKHIR DOKUMEN ---
 
 Instruksi Output: Hasilkan satu objek JSON valid tanpa markdown penjelasan di luar JSON.
-Contoh struktur JSON:
-{
-  "title": "Judul Bab / Topik Pembelajaran",
-  "subjectArea": "Bahasa Bali / IPA / Matematika",
-  "gradeLevel": "SMP Fase D / SMA Fase E",
-  "summary": {
-    "overview": "Uraian intisari konsep materi...",
-    "keyTakeaways": ["Poin penting 1", "Poin penting 2", "Poin penting 3"],
-    "culturalGlossary": [
-      { "term": "Singgih", "meaning": "Tinggi/terhormat", "category": "Anggah-ungguhing Basa" }
-    ]
-  },
-  "flashcards": [
-    { "id": "fc-1", "front": "Apa arti kruna Alus Singgih 'ngrayunan'?", "back": "Makan (digunakan khusus untuk orang yang dihormati)", "tag": "Kosakata", "hint": "Lawan kata Alus Sor 'neda'" }
-  ],
-  "quiz": [
-    {
-      "question": "Pertanyaan kuis...",
-      "options": [
-        { "label": "A", "text": "...", "isCorrect": true, "distractorRationale": "..." },
-        { "label": "B", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "C", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "D", "text": "...", "isCorrect": false, "distractorRationale": "..." }
-      ],
-      "correctAnswer": "A",
-      "explanation": "Penjelasan...",
-      "conceptTag": "Konsep Tag..."
-    }
-  ]
-}`;
+Sertakan bidang: title, subjectArea, gradeLevel, summary, flashcards, quiz, difficultyQuizzes, slideDeck, mindMap, report, dataTable, infographic, studentPov.`;
 
   return { systemPrompt, prompt };
 }

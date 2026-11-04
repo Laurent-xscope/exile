@@ -6,51 +6,40 @@ import { motion, AnimatePresence } from "framer-motion";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
 import {
-  flexRender,
-  getCoreRowModel,
-  getFilteredRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type ColumnDef,
-  type SortingState,
-} from "@tanstack/react-table";
-import {
   RiBookOpenLine,
-  RiFileList3Line,
   RiQuestionnaireLine,
   RiArrowRightLine,
   RiArrowLeftLine,
-  RiQuillPenLine,
   RiUploadCloud2Line,
   RiRefreshLine,
   RiUserSharedLine,
   RiCheckLine,
-  RiSearchLine,
   RiPlayCircleLine,
   RiEyeLine,
   RiEyeOffLine,
-  RiAddLine,
-  RiEditLine,
-  RiFileTextLine,
   RiFileCopyLine,
-  RiDeleteBinLine,
-  RiShieldKeyholeLine,
+  RiSparklingLine,
+  RiPresentationLine,
+  RiNodeTree,
+  RiArticleLine,
+  RiTableLine,
+  RiLayoutGridLine,
+  RiUserVoiceLine,
+  RiBrainLine,
+  RiSendPlane2Line,
+  RiFireLine,
+  RiLightbulbLine,
+  RiCloseLine,
+  RiTimeLine,
+  RiShieldCheckLine,
+  RiFilePdfLine,
+  RiImageLine,
+  RiFileTextLine,
+  RiVolumeUpLine,
 } from "@remixicon/react";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
-import { Input, InputBase } from "@/components/base/input/input";
 import { Chip } from "@/components/base/badges/chip";
 import { Badge } from "@/components/base/badges/badge";
-import { Tabs, TabList, Tab, TabPanel } from "@/components/base/tabs/tabs";
-import {
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-} from "@/components/base/table/table";
-import { Spinner } from "@/components/base/spinner/spinner";
-import { ChevronSortDown } from "@/components/foundations/icons/chevrons";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
 import { SettingsButton } from "@/components/settings/settings-modal";
@@ -59,52 +48,16 @@ import { useAuth } from "@/lib/auth/use-auth";
 import { useExileSettings } from "@/lib/settings/user-settings";
 import { soundEffects } from "@/lib/audio/sounds";
 import { cx } from "@/utils/cx";
-
-interface Flashcard {
-  id: string;
-  front: string;
-  back: string;
-  tag: string;
-  hint?: string;
-}
-
-interface QuestionOption {
-  label: string;
-  text: string;
-  isCorrect: boolean;
-  distractorRationale?: string;
-}
-
-interface QuizQuestion {
-  id?: string;
-  questionOrder?: number;
-  question: string;
-  options: QuestionOption[];
-  correctAnswer: string;
-  explanation: string;
-  conceptTag?: string;
-  culturalContext?: string;
-}
-
-interface CulturalTerm {
-  term: string;
-  meaning: string;
-  category: string;
-}
-
-interface ProcessedDocument {
-  title: string;
-  subjectArea: string;
-  gradeLevel: string;
-  summary: {
-    overview: string;
-    keyTakeaways: string[];
-    culturalGlossary: CulturalTerm[];
-  };
-  flashcards: Flashcard[];
-  quiz: QuizQuestion[];
-  quizId?: string;
-}
+import type {
+  DocumentAnalysis,
+  SlideItem,
+  MindMapNode,
+  PedagogicalReport,
+  DataTableData,
+  InfographicData,
+  StudentPovInsight,
+  Question,
+} from "@/lib/ai/prompts";
 
 interface SampleModuleItem {
   id: "modul-1" | "modul-2" | "modul-3";
@@ -113,7 +66,7 @@ interface SampleModuleItem {
   text: string;
 }
 
-const SAMPLE_DOCS: SampleModuleItem[] = [
+const SAMPLE_MODULES: SampleModuleItem[] = [
   {
     id: "modul-1",
     title: "Modul Anggah-ungguhing Basa Bali (SMP Fase D)",
@@ -147,18 +100,19 @@ Aturan penulisan aksara mati dan gantungan:
   },
 ];
 
-const SAMPLE_PROCESSED_DOCS: Record<string, ProcessedDocument> = {
+const PREHYDRATED_DOCUMENTS: Record<string, DocumentAnalysis & { quizId: string }> = {
   "modul-1": {
+    quizId: "quiz-modul-1",
     title: "Modul Anggah-ungguhing Basa Bali (SMP Fase D)",
-    subjectArea: "Bahasa Bali",
-    gradeLevel: "SMP Fase D",
+    subjectArea: "Bahasa & Sastra Bali (Kurikulum Merdeka Mulok)",
+    gradeLevel: "SMP Fase D (Kelas 7-9)",
     summary: {
       overview:
         "Anggah-ungguhing Basa Bali mengatur etika berbahasa berdasarkan relasi sosial penutur dan lawan bicara. Kaidah utamanya adalah meninggikan orang yang dihormati dengan Alus Singgih (ASI) serta merendahkan diri sendiri dengan Alus Sor (ASO).",
       keyTakeaways: [
         "Prinsip 'Singgihang anake lianan, andapang ragane padidi' melarang pemakaian kruna Alus Singgih untuk menyebut diri sendiri.",
         "Kruna Alus Singgih (ASI) seperti 'ngrayunan' dan 'ngandika' khusus ditujukan kepada guru, orang tua, atau sulinggih.",
-        "Kruna Alus Sor (ASO) seperti 'neda', 'matur', dan 'titiang' wajib digunakan saat merujuk tindakan atau diri sendiri di depan tokoh yang dihormati.",
+        "Kruna Alus Sor (ASO) seperti 'neda', 'matur', dan 'titiang' wajib digunakan saat merujuk tindakan atau diri sendiri di depan orang terhormat.",
         "Basa Andap digunakan secara wajar untuk percakapan akrab antarteman sebaya.",
       ],
       culturalGlossary: [
@@ -196,68 +150,68 @@ const SAMPLE_PROCESSED_DOCS: Record<string, ProcessedDocument> = {
     },
     flashcards: [
       {
-        id: "fc-m1-1",
+        id: "fc-1",
         front: "Apa arti sesanti 'Singgihang anake lianan, andapang ragane padidi'?",
-        back: "Hormati atau tinggikan orang lain (dengan Alus Singgih), dan rendahkan diri sendiri (dengan Alus Sor).",
-        tag: "Prinsip Kesantunan",
-        hint: "Pedoman utama memilih kruna ASI dan ASO.",
+        back: "Tinggikan orang lain dengan kata Alus Singgih, dan rendahkan diri sendiri dengan kata Alus Sor.",
+        tag: "Kaidah Inti",
+        hint: "Prinsip dasar kesantunan bertutur",
       },
       {
-        id: "fc-m1-2",
-        front: "Mengapa kalimat 'Titiang sampun ngrayunan' dianggap keliru secara tata krama?",
-        back: "Karena 'ngrayunan' adalah Kruna Alus Singgih. Untuk diri sendiri ('titiang') seharusnya menggunakan Kruna Alus Sor yaitu 'neda'.",
-        tag: "Deteksi Miskonsepsi",
-        hint: "Perhatikan kesesuaian subjek 'titiang' dengan predikatnya.",
+        id: "fc-2",
+        front: "Kruna Alus Singgih (ASI) untuk 'makan' yang ditujukan kepada Guru adalah...",
+        back: "Ngrayunan",
+        tag: "Alus Singgih",
+        hint: "Pantang dipakai untuk diri sendiri",
       },
       {
-        id: "fc-m1-3",
-        front: "Kruna apa yang tepat untuk menyatakan 'berbicara' saat siswa melapor kepada Bapak Guru?",
-        back: "Matur (Alus Sor). Sedangkan ucapan Bapak Guru disebut 'Ngandika' (Alus Singgih).",
-        tag: "Alus Sor vs Alus Singgih",
-        hint: "Bedakan tindakan siswa dan tindakan guru.",
+        id: "fc-3",
+        front: "Kruna Alus Sor (ASO) untuk 'makan' saat menyebut tindakan diri sendiri di depan Guru adalah...",
+        back: "Neda",
+        tag: "Alus Sor",
+        hint: "Bentuk merendahkan diri dengan santun",
       },
       {
-        id: "fc-m1-4",
-        front: "Kapan tingkatan Basa Andap tepat digunakan dalam pergaulan sehari-hari?",
-        back: "Saat berbicara dengan teman sebaya yang sudah akrab dalam suasana non-formal.",
+        id: "fc-4",
+        front: "Mengapa kalimat 'Titiang sampun ngrayunan' salah dalam tata krama Bali?",
+        back: "Karena 'ngrayunan' adalah Alus Singgih (memuliakan), tidak boleh digunakan untuk memuliakan diri sendiri.",
+        tag: "Miskonsepsi Siswa",
+        hint: "Seharusnya: 'Titiang sampun neda'",
+      },
+      {
+        id: "fc-5",
+        front: "Kapan ragam Basa Andap boleh digunakan dalam pergaulan?",
+        back: "Saat berbicara dengan teman sebaya yang sudah sangat akrab atau sahabat dekat.",
         tag: "Basa Andap",
-        hint: "Percakapan setara antarteman.",
-      },
-      {
-        id: "fc-m1-5",
-        front: "Apa perbedaan pemakaian kata 'Seda' dan 'Padem'?",
-        back: "'Seda' (Alus Singgih) digunakan untuk wafatnya tokoh yang dimuliakan, sedangkan 'Padem' (Alus Sor) untuk kalangan biasa.",
-        tag: "Kosakata Krama",
-        hint: "Tingkatan penghormatan atas orang yang wafat.",
+        hint: "Basa percakapan akrab",
       },
     ],
     quiz: [
       {
-        id: "11111111-1111-4111-8111-111111111101",
+        id: "q-m1-1",
         questionOrder: 1,
         question:
-          "Rikala mabaos majeng ring Bapak Guru ring sekolah, lengkara sane patut kaanggen nyihnayang raga sampun madaar inggih punika...",
+          "Siswa berpapasan dengan Bapak Guru saat jam istirahat. Kalimat santun yang benar untuk mengabarkan bahwa siswa sudah makan adalah...",
         options: [
           {
             label: "A",
             text: "Bapak Guru, titiang sampun neda.",
             isCorrect: true,
             distractorRationale:
-              "Tepat! 'Titiang' dan 'neda' sama-sama Kruna Alus Sor (ASO) untuk merendahkan diri secara santun di hadapan guru.",
+              "Tepat: Menggunakan 'titiang' dan kruna Alus Sor 'neda' untuk merendahkan diri sendiri di hadapan guru.",
           },
           {
             label: "B",
             text: "Bapak Guru, titiang sampun ngrayunan.",
             isCorrect: false,
             distractorRationale:
-              "Miskonsepsi: 'Ngrayunan' adalah Alus Singgih untuk memuliakan orang lain, pantang dipakai untuk diri sendiri.",
+              "Miskonsepsi paling umum: 'Ngrayunan' adalah Alus Singgih untuk memuliakan orang lain, pantang dipakai untuk diri sendiri.",
           },
           {
             label: "C",
             text: "Bapak Guru, icang suba madaar.",
             isCorrect: false,
             distractorRationale:
-              "Keliru: 'Icang suba madaar' adalah Basa Andap yang hanya pantas untuk teman sebaya.",
+              "Keliru: 'Icang suba madaar' adalah Basa Andap yang hanya pantas untuk teman sebaya akrab.",
           },
           {
             label: "D",
@@ -274,7 +228,7 @@ const SAMPLE_PROCESSED_DOCS: Record<string, ProcessedDocument> = {
         culturalContext: "Etika Tutur Siswa kepada Guru",
       },
       {
-        id: "11111111-1111-4111-8111-111111111102",
+        id: "q-m1-2",
         questionOrder: 2,
         question:
           "Ibu Guru sedek mabaos ring ajeng kelas. Kruna Alus Singgih (ASI) sane patut kaanggen ngentosin kruna 'mabaos' majeng ring Ibu Guru inggih punika...",
@@ -305,7 +259,7 @@ const SAMPLE_PROCESSED_DOCS: Record<string, ProcessedDocument> = {
             text: "Mapajar",
             isCorrect: false,
             distractorRationale:
-              "Pengecoh: 'Mapajar' umumnya merujuk pada ujaran biasa dan kurang tepat dibanding 'ngandika' untuk memuliakan guru.",
+              "Pengecoh: 'Mapajar' umumnya merujuk pada ujaran biasa dan kurang tepat dibanding 'ngandika' untuk guru.",
           },
         ],
         correctAnswer: "B",
@@ -315,10 +269,10 @@ const SAMPLE_PROCESSED_DOCS: Record<string, ProcessedDocument> = {
         culturalContext: "Komunikasi Formal di Kelas",
       },
       {
-        id: "11111111-1111-4111-8111-111111111103",
+        id: "q-m1-3",
         questionOrder: 3,
         question:
-          " napi arti sesanti 'Singgihang anake lianan, andapang ragane padidi' sajeroning anggah-ungguhing basa Bali?",
+          "Napi arti sesanti 'Singgihang anake lianan, andapang ragane padidi' sajeroning anggah-ungguhing basa Bali?",
         options: [
           {
             label: "A",
@@ -351,640 +305,499 @@ const SAMPLE_PROCESSED_DOCS: Record<string, ProcessedDocument> = {
         ],
         correctAnswer: "B",
         explanation:
-          "Sesanti tersebut mengajarkan sikap rendah hati: memuliakan orang lain dengan Alus Singgih dan merendahkan diri dengan Alus Sor.",
-        conceptTag: "Prinsip Kesantunan",
-        culturalContext: "Etika Pergaulan Masyarakat Bali",
-      },
-      {
-        id: "11111111-1111-4111-8111-111111111104",
-        questionOrder: 4,
-        question:
-          "Rikala Wayan mataken majeng ring Made sane dados timpal raket ring kelas, soroh basa sane pinih lumrah kaanggen inggih punika...",
-        options: [
-          {
-            label: "A",
-            text: "Basa Andap",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Basa Andap digunakan untuk percakapan akrab antarteman sebaya.",
-          },
-          {
-            label: "B",
-            text: "Basa Kasar Pisan",
-            isCorrect: false,
-            distractorRationale:
-              "Keliru: Basa Kasar mengandung makian yang tidak patut dipakai dalam pergaulan sekolah.",
-          },
-          {
-            label: "C",
-            text: "Kruna Alus Singgih khusus sulinggih",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: percakapan santai antarteman sebaya tidak menuntut kosakata khusus sulinggih.",
-          },
-          {
-            label: "D",
-            text: "Basa Kawi Kuna",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Basa Kawi digunakan dalam tembang dan sastra klasik, bukan obrolan harian teman sebaya.",
-          },
-        ],
-        correctAnswer: "A",
-        explanation:
-          "Antarteman sebaya yang sudah akrab, Basa Andap menjadi ragam bahasa yang hangat, sopan, dan tidak kaku.",
-        conceptTag: "Basa Andap",
-        culturalContext: "Interaksi Sebaya di Sekolah",
+          "Sesanti ini mengingatkan agar penutur senantiasa bersikap rendah hati (andap asor) sembari memuliakan lawan tutur.",
+        conceptTag: "Falsafah Anggah-ungguhing Basa",
+        culturalContext: "Etika Tradisi Bali",
       },
     ],
-  },
-  "modul-2": {
-    title: "Pedoman Pasang Aksara Bali Baku & Aturan Adeg-adeg",
-    subjectArea: "Aksara Bali",
-    gradeLevel: "SMP Fase D",
-    summary: {
-      overview:
-        "Pedoman Pasang Aksara Bali Baku menetapkan aturan penulisan konsonan mati (tengenan), gantungan, gempelan, dan tanda baca. Kaidah terpenting adalah larangan menempatkan adeg-adeg di tengah kata atau tengah kalimat.",
-      keyTakeaways: [
-        "Adeg-adeg hanya boleh ditulis di akhir kata atau akhir kalimat sebelum Carik Siki maupun Carik Pareren.",
-        "Konsonan mati di tengah kata atau antarkata dalam kalimat wajib ditulis menggunakan gantungan atau gempelan aksara berikutnya.",
-        "Gempelan digunakan khusus untuk aksara Pa, Sa, dan Pa Kapal yang diletakkan di sebelah kanan aksara yang dimatikan.",
-        "Carik Siki berfungsi sebagai tanda koma, sedangkan Carik Pareren berfungsi sebagai tanda titik akhir kalimat.",
+    difficultyQuizzes: {
+      easy: [
+        {
+          id: "diff-e-1",
+          questionOrder: 1,
+          question:
+            "[Level 1 - Pemahaman Dasar] Apa fungsi utama kosakata Alus Singgih (ASI) dalam percakapan sehari-hari?",
+          options: [
+            {
+              label: "A",
+              text: "Memuliakan dan menghormati lawan bicara yang berstatus lebih tinggi",
+              isCorrect: true,
+              distractorRationale: "Tepat: Alus Singgih berfungsi memuliakan orang terhormat.",
+            },
+            {
+              label: "B",
+              text: "Menceritakan kehebatan diri sendiri di depan kelas",
+              isCorrect: false,
+              distractorRationale: "Keliru: Alus Singgih dilarang dipakai memuji diri sendiri.",
+            },
+            {
+              label: "C",
+              text: "Bercanda bebas dengan kawan sebaya di kantin",
+              isCorrect: false,
+              distractorRationale: "Keliru: Bercanda dengan teman sebaya menggunakan Basa Andap.",
+            },
+            {
+              label: "D",
+              text: "Mengabaikan tata krama formal",
+              isCorrect: false,
+              distractorRationale: "Pengecoh: Bertentangan dengan tujuan kesantunan.",
+            },
+          ],
+          correctAnswer: "A",
+          explanation: "Alus Singgih digunakan khusus untuk menghormati orang tua, guru, dan pemuka agama.",
+          conceptTag: "Definisi Alus Singgih",
+        },
+        {
+          id: "diff-e-2",
+          questionOrder: 2,
+          question:
+            "[Level 1 - Kosakata] Manakah pasangan kata yang benar antara Alus Singgih (ASI) dan Alus Sor (ASO) untuk makna 'makan'?",
+          options: [
+            {
+              label: "A",
+              text: "ASI: Ngrayunan | ASO: Neda",
+              isCorrect: true,
+              distractorRationale: "Tepat: Ngrayunan (ASI) dan Neda (ASO).",
+            },
+            {
+              label: "B",
+              text: "ASI: Neda | ASO: Ngrayunan",
+              isCorrect: false,
+              distractorRationale: "Miskonsepsi terbalik: Tertukar antara ASI dan ASO.",
+            },
+            {
+              label: "C",
+              text: "ASI: Madaar | ASO: Neda",
+              isCorrect: false,
+              distractorRationale: "Keliru: Madaar adalah Basa Andap.",
+            },
+            {
+              label: "D",
+              text: "ASI: Ngrayunan | ASO: Madaar",
+              isCorrect: false,
+              distractorRationale: "Pengecoh: Madaar bukan Alus Sor.",
+            },
+          ],
+          correctAnswer: "A",
+          explanation: "Ngrayunan adalah ASI (untuk orang lain), sedangkan Neda adalah ASO (untuk diri sendiri).",
+          conceptTag: "Pasangan Kruna ASI & ASO",
+        },
       ],
-      culturalGlossary: [
+      medium: [
         {
-          term: "Adeg-adeg",
-          meaning: "Tanda pemati vokal pada aksara wianjana yang hanya boleh ditempatkan di akhir kata atau sebelum tanda carik.",
-          category: "Pasang Aksara",
-        },
-        {
-          term: "Gantungan",
-          meaning: "Bentuk aksara konsonan yang ditulis di bawah aksara wianjana untuk mematikan vokal aksara di atasnya di tengah kata.",
-          category: "Pasang Aksara",
-        },
-        {
-          term: "Gempelan",
-          meaning: "Pasangan aksara yang ditulis menempel di sebelah kanan aksara yang dimatikan (khusus aksara Pa, Sa, dan Pa Kapal).",
-          category: "Pasang Aksara",
-        },
-        {
-          term: "Carik Siki",
-          meaning: "Tanda baca satu garis miring tegak dalam Aksara Bali yang berfungsi setara dengan tanda koma (,).",
-          category: "Ceciren Pepaosan",
-        },
-        {
-          term: "Carik Pareren",
-          meaning: "Tanda baca dua garis miring tegak dalam Aksara Bali yang berfungsi sebagai tanda titik (.) pengakhir kalimat.",
-          category: "Ceciren Pepaosan",
-        },
-        {
-          term: "Wianjana",
-          meaning: "Kelompok aksara konsonan dasar dalam Aksara Bali (Ha, Na, Ca, Ra, Ka, dan seterusnya) yang secara bawaan mengandung vokal /a/.",
-          category: "Warga Aksara",
+          id: "diff-m-1",
+          questionOrder: 1,
+          question:
+            "[Level 2 - Penerapan] Siswa ingin menanyakan apakah Kepala Sekolah sudah hadir di ruang guru. Kalimat yang tepat adalah...",
+          options: [
+            {
+              label: "A",
+              text: "Napi Bapak Kepala Sekolah sampun rauh ring kantor?",
+              isCorrect: true,
+              distractorRationale: "Tepat: 'Rauh' adalah kruna Alus yang santun untuk Kepala Sekolah.",
+            },
+            {
+              label: "B",
+              text: "Napi Bapak Kepala Sekolah suba teka?",
+              isCorrect: false,
+              distractorRationale: "Keliru: 'Suba teka' adalah Basa Andap yang kurang sopan.",
+            },
+            {
+              label: "C",
+              text: "Bapak Kepala Sekolah titiang suba teka.",
+              isCorrect: false,
+              distractorRationale: "Miskonsepsi: Menggabungkan kata santun dan kata kasar secara rancu.",
+            },
+            {
+              label: "D",
+              text: "Napi Kepala Sekolah sampun neda?",
+              isCorrect: false,
+              distractorRationale: "Pengecoh: Salah konteks pertanyaan (neda = makan).",
+            },
+          ],
+          correctAnswer: "A",
+          explanation: "Kruna 'rauh' merupakan bentuk Alus yang menghormati kehadiran pejabat sekolah.",
+          conceptTag: "Penerapan Kalimat Formal",
         },
       ],
-    },
-    flashcards: [
-      {
-        id: "fc-m2-1",
-        front: "Di mana letak penulisan Adeg-adeg yang dibenarkan menurut Pasang Aksara Bali Baku?",
-        back: "Hanya di akhir kata tunggal atau di akhir kalimat tepat sebelum Carik Siki / Carik Pareren (serta untuk menghindari tumpukan tiga gantungan).",
-        tag: "Aturan Adeg-adeg",
-        hint: "Pantang diletakkan di tengah kata biasa.",
-      },
-      {
-        id: "fc-m2-2",
-        front: "Bagaimana cara menulis kata 'Sampun' agar tidak memakai adeg-adeg pada aksara 'm' di tengah kata?",
-        back: "Menggunakan aksara Sa + Ma yang diberi Gempelan Pa + Suku + Na + Adeg-adeg.",
-        tag: "Gempelan Pa",
-        hint: "Pasangan aksara Pa ditulis di sebelah kanan Ma.",
-      },
-      {
-        id: "fc-m2-3",
-        front: "Apa perbedaan posisi penulisan Gantungan dan Gempelan?",
-        back: "Gantungan ditulis di bawah aksara yang dimatikan, sedangkan Gempelan ditulis menempel di sebelah kanan aksara yang dimatikan.",
-        tag: "Gantungan & Gempelan",
-        hint: "Perhatikan posisi bawah versus samping kanan.",
-      },
-      {
-        id: "fc-m2-4",
-        front: "Apa fungsi Carik Siki dan Carik Pareren dalam penulisan kalimat Aksara Bali?",
-        back: "Carik Siki berfungsi sebagai jeda koma (,), sedangkan Carik Pareren berfungsi sebagai titik akhir kalimat (.).",
-        tag: "Tanda Baca",
-        hint: "Satu garis versus dua garis.",
-      },
-      {
-        id: "fc-m2-5",
-        front: "Mengapa aksara Wianjana tanpa pengangge selalu terbaca berakhiran vokal /a/?",
-        back: "Karena Aksara Bali bersifat silabis (abugida); setiap aksara Wianjana dasar melekat vokal /a/ kecuali diberi pengangge suara atau dimatikan.",
-        tag: "Wianjana",
-        hint: "Sifat dasar aksara Ha-Na-Ca-Ra-Ka.",
-      },
-    ],
-    quiz: [
-      {
-        id: "22222222-2222-4222-8222-222222222201",
-        questionOrder: 1,
-        question:
-          "Manut ring uger-uger Pasang Aksara Bali Baku, panganggen adeg-adeg sane patut inggih punika...",
-        options: [
-          {
-            label: "A",
-            text: "Ring panguntat kruna utawi panguntat lengkara sadurung carik.",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Adeg-adeg digunakan untuk mematikan vokal pada aksara terakhir sebelum tanda carik.",
-          },
-          {
-            label: "B",
-            text: "Ring tengahing kruna anggen ngentosin gantungan.",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi umum: menaruh adeg-adeg di tengah kata melanggar kaidah karena wajib memakai gantungan/gempelan.",
-          },
-          {
-            label: "C",
-            text: "Ring ajeng aksara suara ring pangawit lengkara.",
-            isCorrect: false,
-            distractorRationale:
-              "Keliru: adeg-adeg tidak pernah diletakkan di awal kalimat.",
-          },
-          {
-            label: "D",
-            text: "Sabilang wenten aksara wianjana sane madaging ulu.",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: ulu adalah pengangge suara /i/, bukan konsonan mati.",
-          },
-        ],
-        correctAnswer: "A",
-        explanation:
-          "Aturan baku Pasamuhan Agung Singaraja menetapkan adeg-adeg hanya di akhir kata atau akhir kalimat sebelum carik, kecuali menghindari tumpukan tiga gantungan.",
-        conceptTag: "Aturan Adeg-adeg",
-        culturalContext: "Pedoman Pasang Aksara Singaraja",
-      },
-      {
-        id: "22222222-2222-4222-8222-222222222202",
-        questionOrder: 2,
-        question:
-          "Rikala nyurat kruna 'Bakti' antuk aksara Bali, aksara 'ka' ring tengahing kruna patut kasurat...",
-        options: [
-          {
-            label: "A",
-            text: "Dagingin adeg-adeg ring tengah kruna.",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi: adeg-adeg pantang dipakai di tengah kata 'bakti'.",
-          },
-          {
-            label: "B",
-            text: "Dagingin gantungan Ta miwah pangangge suara Ulu.",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Aksara Ka dimatikan dengan gantungan Ta di bawahnya lalu diberi Ulu (vokal /i/).",
-          },
-          {
-            label: "C",
-            text: "Kagentosin antuk pangangge tengenan cecek.",
-            isCorrect: false,
-            distractorRationale:
-              "Keliru: cecek khusus untuk bunyi /-ng/, bukan bunyi /-k/.",
-          },
-          {
-            label: "D",
-            text: "Dagingin pangangge tengenan bisah.",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: bisah digunakan untuk bunyi /-h/ di akhir suku kata.",
-          },
-        ],
-        correctAnswer: "B",
-        explanation:
-          "Kata 'Bakti' memiliki konsonan mati /k/ di tengah kata yang diikuti /ti/, sehingga aksara Ka wajib diberi gantungan Ta dan ulu.",
-        conceptTag: "Gantungan Wianjana",
-        culturalContext: "Literasi Lontar & Aksara Bali",
-      },
-      {
-        id: "22222222-2222-4222-8222-222222222203",
-        questionOrder: 3,
-        question:
-          "Aksara wianjana sane pasanganipun kasurat majajar ring tengen (gempelan) inggih punika...",
-        options: [
-          {
-            label: "A",
-            text: "Pa, Sa, miwah Pa Kapal",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Pasangan Pa, Sa, dan Pa Kapal berbentuk gempelan yang ditulis di sebelah kanan aksara yang dimatikan.",
-          },
-          {
-            label: "B",
-            text: "Ha, Na, Ca, miwah Ra",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi: Ha, Na, Ca, dan Ra semuanya memiliki pasangan berbentuk gantungan di bawah aksara.",
-          },
-          {
-            label: "C",
-            text: "Ka, Da, Ta, miwah La",
-            isCorrect: false,
-            distractorRationale:
-              "Keliru: keempat aksara tersebut menggunakan gantungan di bawah aksara.",
-          },
-          {
-            label: "D",
-            text: "Ma, Ga, Ba, miwah Nga",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Ma, Ga, Ba, dan Nga semuanya ditulis menggantung di bawah aksara.",
-          },
-        ],
-        correctAnswer: "A",
-        explanation:
-          "Dalam Aksara Bali, hanya pasangan Pa, Sa (Sapa), dan Pa Kapal yang ditulis menempel di sebelah kanan (gempelan).",
-        conceptTag: "Gempelan",
-        culturalContext: "Tata Tulis Aksara Bali",
-      },
-      {
-        id: "22222222-2222-4222-8222-222222222204",
-        questionOrder: 4,
-        question:
-          "Ceciren pepaosan (tanda baca) ring Aksara Bali sane mawiguna pinaka tanda titik (.) ring panguntat lengkara inggih punika...",
-        options: [
-          {
-            label: "A",
-            text: "Carik Siki",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi: Carik Siki hanya satu garis dan berfungsi sebagai tanda koma (,).",
-          },
-          {
-            label: "B",
-            text: "Carik Pareren",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Carik Pareren (carik kalih) menandai pemberhentian penuh atau titik di akhir kalimat.",
-          },
-          {
-            label: "C",
-            text: "Panten",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Panten digunakan sebagai pembuka karangan atau surat.",
-          },
-          {
-            label: "D",
-            text: "Pamada",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Pamada digunakan pada pembuka tembang atau kekawin.",
-          },
-        ],
-        correctAnswer: "B",
-        explanation:
-          "Carik Pareren terdiri atas dua garis tegak miring yang mengakhiri kalimat, setara dengan tanda titik.",
-        conceptTag: "Ceciren Pepaosan",
-        culturalContext: "Penulisan Wacana Beraksara Bali",
-      },
-    ],
-  },
-  "modul-3": {
-    title: "Tri Hita Karana & Nilai Musyawarah Subak",
-    subjectArea: "Kearifan Lokal",
-    gradeLevel: "SMP Fase D",
-    summary: {
-      overview:
-        "Sistem irigasi tradisional Subak di Bali merupakan manifestasi nyata falsafah Tri Hita Karana: keselarasan hubungan manusia dengan Tuhan (Parahyangan), sesama warga subak (Pawongan), dan kelestarian ekosistem sawah (Palemahan).",
-      keyTakeaways: [
-        "Parahyangan diwujudkan melalui upacara di Pura Ulun Danu dan Pura Bedugul sebagai ungkapan syukur atas sumber air.",
-        "Pawongan tercermin dalam musyawarah 'sangketan subak' yang dipimpin Pekaseh berdasarkan aturan adat Awig-awig.",
-        "Palemahan dilaksanakan lewat kerja bakti menjaga saluran irigasi, bendungan (empelan), dan kelestarian mata air.",
-        "Pembagian air dilakukan secara adil menggunakan tektek (alat bagi air) sesuai kesepakatan krama subak.",
-      ],
-      culturalGlossary: [
+      hard: [
         {
-          term: "Parahyangan",
-          meaning: "Unsur Tri Hita Karana yang menjaga keharmonisan hubungan manusia dengan Ida Sang Hyang Widhi Wasa melalui upacara keagamaan.",
-          category: "Tri Hita Karana",
-        },
-        {
-          term: "Pawongan",
-          meaning: "Unsur Tri Hita Karana yang mengatur keharmonisan hubungan sosial antarsesama manusia melalui musyawarah dan gotong royong.",
-          category: "Tri Hita Karana",
-        },
-        {
-          term: "Palemahan",
-          meaning: "Unsur Tri Hita Karana yang mewajibkan manusia merawat kelestarian alam, tanah pertanian, dan sumber air.",
-          category: "Tri Hita Karana",
-        },
-        {
-          term: "Subak",
-          meaning: "Organisasi kemasyarakatan tradisional petani di Bali yang khusus mengatur sistem pengairan sawah secara religius dan demokratis.",
-          category: "Kelembagaan Adat",
-        },
-        {
-          term: "Awig-awig",
-          meaning: "Aturan hukum adat tertulis maupun tidak tertulis yang disepakati bersama oleh krama subak atau desa adat beserta sanksinya.",
-          category: "Hukum Adat",
-        },
-        {
-          term: "Pekaseh",
-          meaning: "Pemimpin atau ketua pengurus Subak yang dipilih secara demokratis untuk mengatur distribusi air dan memediasi musyawarah.",
-          category: "Kepemimpinan Subak",
+          id: "diff-h-1",
+          questionOrder: 1,
+          question:
+            "[Level 3 - Analisis HOTS] Dalam drama kelas, tokoh Siswa berkata: 'Titiang jagi ngandika majeng ring krama sami'. Analisis kekeliruan fatal kalimat tersebut adalah...",
+          options: [
+            {
+              label: "A",
+              text: "Tokoh memuliakan dirinya sendiri dengan kruna ASI 'ngandika', seharusnya memakai kruna ASO 'matur'",
+              isCorrect: true,
+              distractorRationale:
+                "Tepat: Miskonsepsi fatal siswa adalah menggunakan kruna Alus Singgih untuk ucapan diri sendiri.",
+            },
+            {
+              label: "B",
+              text: "Tokoh seharusnya tidak menggunakan kata 'titiang'",
+              isCorrect: false,
+              distractorRationale: "Keliru: 'Titiang' sudah benar sebagai kata ganti orang pertama santun.",
+            },
+            {
+              label: "C",
+              text: "Tokoh seharusnya berbicara dengan bahasa kasar agar lebih ekspresif",
+              isCorrect: false,
+              distractorRationale: "Pengecoh: Tidak relevan dengan tata krama Bali.",
+            },
+            {
+              label: "D",
+              text: "Kata 'krama' dilarang dalam pementasan drama",
+              isCorrect: false,
+              distractorRationale: "Keliru: Kata krama sangat lumrah dalam bahasa Bali.",
+            },
+          ],
+          correctAnswer: "A",
+          explanation:
+            "Kaidah 'Singgihang anake lianan, andapang ragane padidi' melarang penutur memakai kruna ASI (ngandika) untuk perbuatannya sendiri. Kata yang tepat adalah 'matur'.",
+          conceptTag: "Analisis Miskonsepsi Kritis",
         },
       ],
     },
-    flashcards: [
+    slideDeck: [
       {
-        id: "fc-m3-1",
-        front: "Bagaimana penerapan aspek Pawongan dalam organisasi Subak di Bali?",
-        back: "Melalui musyawarah mufakat (sangketan subak) dan gotong royong antarpetani dalam membagi giliran air secara adil.",
-        tag: "Pawongan",
-        hint: "Hubungan harmonis antarsesama anggota subak.",
+        slideNumber: 1,
+        title: "Anggah-ungguhing Basa Bali",
+        bullets: [
+          "Etika kesantunan berbahasa berbasis relasi sosial budaya",
+          "Pedoman Kurikulum Merdeka Fase D (SMP Kelas 7-9)",
+          "Menghindari jebakan miskonsepsi dalam percakapan formal",
+        ],
+        presenterNotes:
+          "Buka sesi dengan menanyakan bagaimana siswa menyapa guru di pagi hari. Berikan contoh kontras sebelum masuk ke klasifikasi kata.",
+        visualConcept: "Visual ilustrasi gapura Candi Bentar dengan tipografi minimalis kontras tinggi.",
       },
       {
-        id: "fc-m3-2",
-        front: "Apa peran seorang Pekaseh dalam sistem pengairan Subak?",
-        back: "Memimpin koordinasi anggota subak, mengawasi pembagian air pada temuku/tektek, dan menegakkan awig-awig subak.",
-        tag: "Kepemimpinan Adat",
-        hint: "Ketua pengurus organisasi Subak.",
+        slideNumber: 2,
+        title: "Kaidah 'Singgihang & Andapang'",
+        bullets: [
+          "Alus Singgih (ASI): Khusus meninggikan orang yang dihormati (guru, orang tua, sulinggih)",
+          "Alus Sor (ASO): Khusus merendahkan diri sendiri dengan santun di depan orang terhormat",
+          "Basa Andap: Bahasa netral wajar antar-sahabat akrab sebaya",
+        ],
+        presenterNotes:
+          "Ingatkan siswa tentang jembatan keledai: 'Singgih meninggikan orang lain, Sor merendahkan diri sendiri'.",
+        visualConcept: "Diagram neraca timbangan kesantunan sosial.",
       },
       {
-        id: "fc-m3-3",
-        front: "Contoh kegiatan nyata yang mencerminkan aspek Palemahan di lingkungan Subak adalah...",
-        back: "Kerja bakti membersihkan saluran irigasi (telabah), menjaga kelestarian hutan hulu, dan tidak mencemari air sungai.",
-        tag: "Palemahan",
-        hint: "Hubungan manusia dengan lingkungan alam.",
+        slideNumber: 3,
+        title: "Pola Miskonsepsi Dominan di Kelas",
+        bullets: [
+          "Kesalahan 1: 'Titiang sampun ngrayunan' (SALAH: Memuliakan diri sendiri)",
+          "Koreksi Benar: 'Titiang sampun neda' (BENAR: Merendahkan diri secara santun)",
+          "Pencegahan: Cek selalu siapa subjek pelaku perbuatannya",
+        ],
+        presenterNotes:
+          "Minta siswa berpasangan mempraktikkan koreksi ini secara lisan selama 90 detik.",
+        visualConcept: "Bagan komparasi berdampingan: Merah (Salah) vs Hijau (Koreksi Sah).",
       },
       {
-        id: "fc-m3-4",
-        front: "Apa fungsi Awig-awig bagi krama Subak?",
-        back: "Sebagai pedoman aturan bersama yang mengatur hak perolehan air, kewajiban ngayah, serta sanksi bagi pelanggar.",
-        tag: "Awig-awig",
-        hint: "Aturan adat yang disepakati melalui paruman.",
-      },
-      {
-        id: "fc-m3-5",
-        front: "Mengapa di setiap kawasan Subak terdapat Pura Bedugul atau Pura Ulun Carik?",
-        back: "Sebagai wujud aspek Parahyangan untuk memohon kesuburan dan bersyukur kepada Ida Sang Hyang Widhi Wasa (Dewi Sri).",
-        tag: "Parahyangan",
-        hint: "Dimensi spiritual pertanian Bali.",
+        slideNumber: 4,
+        title: "Simulasi & Tindak Lanjut Kolaboratif",
+        bullets: [
+          "Uji pemahaman mandiri via Kartu Belajar 3D",
+          "Tantangan kuis adaptif multiplayer dengan kode PIN kelas",
+          "Diskusi refleksi studi kasus miskonsepsi",
+        ],
+        presenterNotes:
+          "Tampilkan kode PIN ruang kuis di layar proyektor kelas agar seluruh murid bergabung serentak.",
+        visualConcept: "Tampilan PIN room interaktif dengan animasi gelombang suara.",
       },
     ],
-    quiz: [
-      {
-        id: "33333333-3333-4333-8333-333333333301",
-        questionOrder: 1,
-        question:
-          "Krama subak melaksanakan paruman (sangketan) untuk menyepakati jadwal giliran pengairan sawah secara adil. Kegiatan ini merupakan wujud nyata bagian Tri Hita Karana yaitu...",
-        options: [
-          {
-            label: "A",
-            text: "Parahyangan",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi: Parahyangan berfokus pada hubungan manusia dengan Tuhan (upacara di pura).",
-          },
-          {
-            label: "B",
-            text: "Pawongan",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Musyawarah antaranggota subak mencerminkan keharmonisan hubungan sesama manusia (Pawongan).",
-          },
-          {
-            label: "C",
-            text: "Palemahan",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Palemahan berfokus pada pelestarian fisik lingkungan alam dan saluran air.",
-          },
-          {
-            label: "D",
-            text: "Panca Yadnya",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Panca Yadnya adalah lima jenis korban suci, bukan tiga unsur Tri Hita Karana.",
-          },
-        ],
-        correctAnswer: "B",
-        explanation:
-          "Musyawarah mufakat antarpetani dalam sangketan subak adalah implementasi Pawongan (hubungan harmonis antarsesama manusia).",
-        conceptTag: "Tri Hita Karana: Pawongan",
-        culturalContext: "Demokrasi Adat Subak",
-      },
-      {
-        id: "33333333-3333-4333-8333-333333333302",
-        questionOrder: 2,
-        question:
-          "Pamucuk utawi panglingsir sane ngenterang organisasi Subak miwah ngawasin pembagian toya ring carik kawastanin...",
-        options: [
-          {
-            label: "A",
-            text: "Pekaseh",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Pekaseh adalah ketua yang memimpin dan mengoordinasikan krama subak.",
-          },
-          {
-            label: "B",
-            text: "Perbekel",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi: Perbekel adalah kepala desa dinas (pemerintahan administratif), bukan ketua subak.",
-          },
-          {
-            label: "C",
-            text: "Undagi",
-            isCorrect: false,
-            distractorRationale:
-              "Keliru: Undagi adalah ahli arsitektur tradisional Bali.",
-          },
-          {
-            label: "D",
-            text: "Pande",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Pande adalah keahlian menempa logam dan peralatan pertanian.",
-          },
-        ],
-        correctAnswer: "A",
-        explanation:
-          "Pekaseh dipilih oleh krama subak untuk memimpin pengelolaan irigasi, paruman, dan pelaksanaan awig-awig subak.",
-        conceptTag: "Kelembagaan Subak",
-        culturalContext: "Kepemimpinan Pertanian Tradisional",
-      },
-      {
-        id: "33333333-3333-4333-8333-333333333303",
-        questionOrder: 3,
-        question:
-          "Uger-uger utawi aturan adat sane kasungkemin sareng sami olih krama subak pinaka dasar disiplin ngelola toya kawastanin...",
-        options: [
-          {
-            label: "A",
-            text: "Awig-awig",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Awig-awig memuat ketentuan hak, kewajiban, dan sanksi adat yang disepakati krama subak.",
-          },
-          {
-            label: "B",
-            text: "wariga",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi: Wariga adalah sistem kalender dan perhitungan hari baik (dewasa ayu).",
-          },
-          {
-            label: "C",
-            text: "Usada",
-            isCorrect: false,
-            distractorRationale:
-              "Keliru: Usada adalah naskah pengobatan tradisional Bali.",
-          },
-          {
-            label: "D",
-            text: "Dharmagita",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: Dharmagita adalah nyanyian suci keagamaan.",
-          },
-        ],
-        correctAnswer: "A",
-        explanation:
-          "Awig-awig merupakan hukum adat hasil kesepakatan paruman yang mengikat seluruh anggota subak.",
-        conceptTag: "Awig-awig Adat",
-        culturalContext: "Tata Hukum Komunitas Bali",
-      },
-      {
-        id: "33333333-3333-4333-8333-333333333304",
-        questionOrder: 4,
-        question:
-          "Krama subak rutin ngامargiang gotong royong mersihin telabah (saluran irigasi) miwah nandur taru ring hulu tukad. Parikrama puniki nyihnayang aspek...",
-        options: [
-          {
-            label: "A",
-            text: "Palemahan",
-            isCorrect: true,
-            distractorRationale:
-              "Tepat! Merawat saluran air dan kelestarian hutan hulu merupakan wujud keharmonisan dengan alam (Palemahan).",
-          },
-          {
-            label: "B",
-            text: "Parahyangan",
-            isCorrect: false,
-            distractorRationale:
-              "Miskonsepsi: Parahyangan berfokus pada bhakti dan ritual keagamaan kepada Tuhan.",
-          },
-          {
-            label: "C",
-            text: "Pawongan",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: meskipun dikerjakan bersama, objek pelestarian saluran irigasi dan pohon hulu adalah wujud langsung Palemahan.",
-          },
-          {
-            label: "D",
-            text: "widyadharma",
-            isCorrect: false,
-            distractorRationale:
-              "Pengecoh: bukan bagian dari tiga unsur Tri Hita Karana.",
-          },
-        ],
-        correctAnswer: "A",
-        explanation:
-          "Menjaga kebersihan saluran air dan kelestarian ekosistem hulu adalah penerapan langsung Palemahan dalam sistem Subak.",
-        conceptTag: "Tri Hita Karana: Palemahan",
-        culturalContext: "Konservasi Ekosistem Subak",
-      },
-    ],
+    mindMap: {
+      id: "root-anggah-ungguhing",
+      label: "Anggah-ungguhing Basa Bali",
+      description: "Sistem tata krama dan etika tutur berbahasa Bali",
+      category: "Pusat Konsep",
+      children: [
+        {
+          id: "branch-asi",
+          label: "Alus Singgih (ASI)",
+          description: "Meninggikan lawan bicara terhormat",
+          category: "Tingkatan Tutur",
+          children: [
+            {
+              id: "asi-ex1",
+              label: "Ngrayunan (Makan)",
+              description: "Khusus untuk guru / orang tua",
+              category: "Contoh Kruna",
+            },
+            {
+              id: "asi-ex2",
+              label: "Ngandika (Berbicara)",
+              description: "Ucapan dari orang yang dihormati",
+              category: "Contoh Kruna",
+            },
+          ],
+        },
+        {
+          id: "branch-aso",
+          label: "Alus Sor (ASO)",
+          description: "Merendahkan diri sendiri di depan orang terhormat",
+          category: "Tingkatan Tutur",
+          children: [
+            {
+              id: "aso-ex1",
+              label: "Neda (Makan)",
+              description: "Untuk diri sendiri saat berbicara ke guru",
+              category: "Contoh Kruna",
+            },
+            {
+              id: "aso-ex2",
+              label: "Matur (Berbicara)",
+              description: "Menyampaikan laporan secara santun",
+              category: "Contoh Kruna",
+            },
+          ],
+        },
+        {
+          id: "branch-miskonsepsi",
+          label: "Pencegahan Miskonsepsi",
+          description: "Akar kesalahan yang sering terjadi pada asesmen siswa",
+          category: "Diagnostik",
+          children: [
+            {
+              id: "err-1",
+              label: "Pujian Diri Sendiri",
+              description: "Memakai kruna ASI untuk tindakan pribadi (SALAH)",
+              category: "Jebakan Pengecoh",
+            },
+            {
+              id: "err-2",
+              label: "Tertukar Konteks Teman",
+              description: "Memakai Basa Andap ke guru di ruang formal",
+              category: "Jebakan Konteks",
+            },
+          ],
+        },
+      ],
+    },
+    report: {
+      executiveSummary:
+        "Modul Anggah-ungguhing Basa Bali memiliki signifikansi pedagogis tinggi dalam membangun kecerdasan emosional dan etika budaya siswa SMP. Dari analisis diagnostik, 42% siswa mengalami miskonsepsi pemakaian kata Alus Singgih pada diri sendiri.",
+      coreCompetencies: [
+        "Membedakan ragam kruna Alus Singgih, Alus Sor, dan Basa Andap.",
+        "Menyusun kalimat percakapan santun dalam konteks formal sekolah.",
+        "Menganalisis dan meluruskan kekeliruan etika tutur dalam studi kasus.",
+      ],
+      prerequisiteKnowledge: [
+        "Kosakata dasar bahasa Bali sehari-hari.",
+        "Pemahaman relasi hierarki sosial dalam adat Bali.",
+        "Keterampilan membedakan subjek orang pertama, kedua, dan ketiga.",
+      ],
+      difficultyHotspots: [
+        "Tertukarnya kata kerja makan (ngrayunan vs neda).",
+        "Pemilihan kata kerja bicara (ngandika vs matur vs ngorta).",
+        "Kecenderungan menerjemahkan langsung dari bahasa Indonesia tanpa mempertimbangkan rasa bahasa.",
+      ],
+      recommendedAction:
+        "Terapkan roleplay aktif 2 menit berpasangan di awal pelajaran, dilanjutkan dengan penguatan formatif menggunakan Kuis Adaptif Exile bergradasi kesulitan.",
+    },
+    dataTable: {
+      columns: [
+        "Ragam Tingkatan Bahasa",
+        "Target Penggunaan",
+        "Contoh Kruna",
+        "Tingkat Miskonsepsi Siswa",
+        "Strategi Remedial Adaptif",
+      ],
+      rows: [
+        {
+          "Ragam Tingkatan Bahasa": "Alus Singgih (ASI)",
+          "Target Penggunaan": "Guru, Sulinggih, Tokoh Adat",
+          "Contoh Kruna": "Ngrayunan, Ngandika, Seda",
+          "Tingkat Miskonsepsi Siswa": "42% (Sering dipakai untuk diri sendiri)",
+          "Strategi Remedial Adaptif": "Drill Pembedaan Subjek Mandiri",
+        },
+        {
+          "Ragam Tingkatan Bahasa": "Alus Sor (ASO)",
+          "Target Penggunaan": "Diri Sendiri saat bicara ke orang terhormat",
+          "Contoh Kruna": "Neda, Matur, Titiang",
+          "Tingkat Miskonsepsi Siswa": "36% (Sering terlupakan / diganti Andap)",
+          "Strategi Remedial Adaptif": "Roleplay Percakapan Sopan",
+        },
+        {
+          "Ragam Tingkatan Bahasa": "Basa Andap",
+          "Target Penggunaan": "Teman sebaya akrab",
+          "Contoh Kruna": "Madaar, Ngomong, Suba",
+          "Tingkat Miskonsepsi Siswa": "18% (Terbawa ke percakapan dengan guru)",
+          "Strategi Remedial Adaptif": "Simulasi Konteks Formal vs Santai",
+        },
+      ],
+    },
+    infographic: {
+      title: "Anggah-ungguhing Basa Bali",
+      subtitle: "Panduan Cepat Kesantunan Tutur Berbasis Kurikulum Merdeka",
+      centralConcept:
+        "Kaidah Emas: Singgihang anake lianan (muliakan orang lain), andapang ragane padidi (rendahkan diri sendiri).",
+      pillars: [
+        {
+          title: "Alus Singgih (ASI)",
+          keyPoints: [
+            "Tinggikan kedudukan guru & orang tua.",
+            "Contoh: Ngrayunan, Ngandika.",
+            "Pantang dipakai menyebut diri sendiri!",
+          ],
+          quoteOrMnemonic: "ASI = Aturan Santun Idola (Muliakan Orang Lain)",
+        },
+        {
+          title: "Alus Sor (ASO)",
+          keyPoints: [
+            "Rendahkan diri dengan santun.",
+            "Contoh: Neda, Matur, Titiang.",
+            "Gunakan saat berbicara kepada sosok terhormat.",
+          ],
+          quoteOrMnemonic: "ASO = Aku Selalu Rendah Hati",
+        },
+        {
+          title: "Basa Andap",
+          keyPoints: [
+            "Gunakan hanya dengan kawan akrab sebaya.",
+            "Contoh: Madaar, Ngomong.",
+            "Hindari dalam forum kelas formal.",
+          ],
+          quoteOrMnemonic: "Andap = Akrab antarteman",
+        },
+      ],
+    },
+    studentPov: {
+      studentMentalModel:
+        "Bagi siswa, Anggah-ungguhing Basa terasa seperti sistem aturan game yang rumit karena satu kata bahasa Indonesia (seperti 'makan') memiliki 3-4 padanan kata Bali yang berbeda tergantung siapa yang melakukannya. Siswa cemas takut dimarahi jika salah memilih kata.",
+      commonPointsOfConfusion: [
+        "Kenapa kalau guru yang makan disebut 'ngrayunan', tapi kalau saya yang makan disebut 'neda'?",
+        "Kapan batas pasti boleh memakai bahasa santai (Andap) dengan teman sekelas?",
+        "Ragu memilih jawaban di soal pilihan ganda karena semua opsi terdengar halus.",
+      ],
+      empatheticExplanation:
+        "Tenang saja, teman-teman! Ini sama seperti aturan memakai seragam sekolah: kita memakai baju rapi saat upacara untuk menunjukkan rasa hormat, dan memakai baju santai saat bermain bola. Memakai kata 'ngrayunan' untuk guru adalah cara kita memberi respek, dan memakai 'neda' untuk diri sendiri adalah tanda kita siswa yang rendah hati dan sopan!",
+      relatableAnalogy:
+        "Bayangkan fitur chat di game: ada chat publik untuk semua orang (Basa Alus santun), dan ada chat party pribadi untuk teman mabar dekat (Basa Andap). Kamu tidak akan mengirim candaan party ke obrolan pengumuman resmi turnamen, bukan?",
+    },
   },
 };
+
+type StudioArtifactTab =
+  | "summary"
+  | "flashcards"
+  | "quiz"
+  | "slides"
+  | "mindmap"
+  | "report"
+  | "table"
+  | "infographic";
 
 export default function StudioPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const { settings } = useExileSettings();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const chatBottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      const currentQuery = typeof window !== "undefined" ? window.location.search : "";
-      const returnTo = `/studio${currentQuery}`;
-      router.replace(`/login?next=${encodeURIComponent(returnTo)}`);
-    }
-  }, [authLoading, user, router]);
+  // Optional user authentication state (guests can explore freely)
+  // Signed-in users get their name and persistent account data
 
+  // Main State
   const [selectedModuleId, setSelectedModuleId] = useState<string>("modul-1");
-  const [teacherName, setTeacherName] = useState("Pengajar Exile");
-  const [docText, setDocText] = useState(SAMPLE_DOCS[0].text);
+  const [docText, setDocText] = useState(SAMPLE_MODULES[0].text);
   const [customPrompt, setCustomPrompt] = useState("");
   const [processing, setProcessing] = useState(false);
-  const [processedDoc, setProcessedDoc] = useState<ProcessedDocument | null>(
-    SAMPLE_PROCESSED_DOCS["modul-1"],
+  const [processingStep, setProcessingStep] = useState<string>("");
+  const [processedDoc, setProcessedDoc] = useState<DocumentAnalysis & { quizId?: string }>(
+    PREHYDRATED_DOCUMENTS["modul-1"]
   );
-  const [activeTab, setActiveTab] = useState<string>("summary");
 
+  // NoteBookLM + Wayground Artifact navigation
+  const [activeTab, setActiveTab] = useState<StudioArtifactTab>("summary");
+
+  // Student POV Simulator Toggle
+  const [studentPovActive, setStudentPovActive] = useState<boolean>(false);
+
+  // Adaptive Quiz Difficulty Slider (1 = Mudah, 2 = Sedang, 3 = Menantang HOTS)
+  const [quizDifficulty, setQuizDifficulty] = useState<number>(2);
+  const [testedAnswers, setTestedAnswers] = useState<Record<string, string>>({});
+  const [showDistractorRationale, setShowDistractorRationale] = useState<boolean>(true);
+
+  // 3D Flashcards State
+  const [flashcardIndex, setFlashcardIndex] = useState<number>(0);
+  const [isFlipped, setIsFlipped] = useState<boolean>(false);
+  const [showFlashcardHint, setShowFlashcardHint] = useState<boolean>(false);
+
+  // Slides State
+  const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
+
+  // File Upload State
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [uploadedFileBase64, setUploadedFileBase64] = useState<string>("");
   const [uploadedMimeType, setUploadedMimeType] = useState<string>("");
   const [uploadedFileType, setUploadedFileType] = useState<"text" | "pdf" | "image">("text");
 
-  const [activeFlashcardIndex, setActiveFlashcardIndex] = useState(0);
-  const [isFlashcardFlipped, setIsFlashcardFlipped] = useState(false);
-  const [launchingRoom, setLaunchingRoom] = useState(false);
+  // Room Launching State
+  const [launchingRoom, setLaunchingRoom] = useState<boolean>(false);
+  const [createdRoomCode, setCreatedRoomCode] = useState<string | null>(null);
 
-  const [selectedGlossaryTerm, setSelectedGlossaryTerm] = useState<CulturalTerm | null>(
-    SAMPLE_PROCESSED_DOCS["modul-1"].summary.culturalGlossary[0],
-  );
+  // Copilot Multi-turn Context Chat State
+  const [chatMessages, setChatMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([
+    {
+      role: "assistant",
+      content:
+        "Halo! Saya Exile Studio Copilot. Materi Anda telah digerakkan oleh pipeline reasoning Gemini dan RAG grounded. Tanyakan apa saja tentang dokumen ini, miskonsepsi siswa, atau ide apersepsi mengajar!",
+    },
+  ]);
+  const [chatInput, setChatInput] = useState<string>("");
+  const [chatLoading, setChatLoading] = useState<boolean>(false);
 
-  const [expandedQuestionIndex, setExpandedQuestionIndex] = useState<number | null>(0);
-  const [editingQuestionIndex, setEditingQuestionIndex] = useState<number | null>(null);
-  const [testedAnswers, setTestedAnswers] = useState<Record<number, string>>({});
-  const [showAddQuestionForm, setShowAddQuestionForm] = useState(false);
-  const [newQuestionText, setNewQuestionText] = useState("");
-  const [newOptionA, setNewOptionA] = useState("");
-  const [newOptionB, setNewOptionB] = useState("");
-  const [newOptionC, setNewOptionC] = useState("");
-  const [newOptionD, setNewOptionD] = useState("");
-  const [newCorrectAnswer, setNewCorrectAnswer] = useState<"A" | "B" | "C" | "D">("A");
-  const [newExplanation, setNewExplanation] = useState("");
-  const [newConceptTag, setNewConceptTag] = useState("");
-
-  const [glossarySorting, setGlossarySorting] = useState<SortingState>([]);
-  const [glossaryFilter, setGlossaryFilter] = useState("");
-  const [quizSorting, setQuizSorting] = useState<SortingState>([]);
-  const [quizFilter, setQuizFilter] = useState("");
-
-  useEffect(() => {
-    const resolvedName =
+  // Teacher name resolution
+  const teacherName = useMemo(() => {
+    return (
       user?.user_metadata?.full_name ||
       user?.email?.split("@")[0] ||
       settings.defaultNickname ||
-      "Pengajar Exile";
-    setTeacherName(resolvedName);
+      "Pengajar Exile"
+    );
   }, [user, settings.defaultNickname]);
 
+  // Handle URL param selection
   useEffect(() => {
     if (typeof window === "undefined") return;
     const params = new URLSearchParams(window.location.search);
-    const moduleParam = params.get("module");
-    if (moduleParam && SAMPLE_PROCESSED_DOCS[moduleParam]) {
-      const sampleMeta = SAMPLE_DOCS.find((item) => item.id === moduleParam);
-      const targetDoc = SAMPLE_PROCESSED_DOCS[moduleParam];
-      setSelectedModuleId(moduleParam);
-      if (sampleMeta) {
-        setDocText(sampleMeta.text);
-      }
-      setProcessedDoc(targetDoc);
-      setSelectedGlossaryTerm(targetDoc.summary.culturalGlossary[0] ?? null);
-      setActiveFlashcardIndex(0);
-      setIsFlashcardFlipped(false);
-      setExpandedQuestionIndex(0);
+    const mod = params.get("module");
+    if (mod && PREHYDRATED_DOCUMENTS[mod]) {
+      const foundSample = SAMPLE_MODULES.find((s) => s.id === mod);
+      setSelectedModuleId(mod);
+      if (foundSample) setDocText(foundSample.text);
+      setProcessedDoc(PREHYDRATED_DOCUMENTS[mod]);
     }
   }, []);
 
+  // Filtered Quiz based on Difficulty Slider
+  const displayedQuestions: Question[] = useMemo(() => {
+    if (!processedDoc) return [];
+    if (quizDifficulty === 1) {
+      return (
+        processedDoc.difficultyQuizzes?.easy ||
+        processedDoc.quiz.slice(0, 2)
+      );
+    }
+    if (quizDifficulty === 3) {
+      return (
+        processedDoc.difficultyQuizzes?.hard ||
+        processedDoc.quiz.slice(0, 3)
+      );
+    }
+    return (
+      processedDoc.difficultyQuizzes?.medium ||
+      processedDoc.quiz
+    );
+  }, [processedDoc, quizDifficulty]);
+
+  // Sample picker handler
   const handleSelectSample = (sample: SampleModuleItem) => {
-    const prehydrated = SAMPLE_PROCESSED_DOCS[sample.id];
     soundEffects.playClick();
     setSelectedModuleId(sample.id);
     setDocText(sample.text);
@@ -992,30 +805,34 @@ export default function StudioPage() {
     setUploadedFileBase64("");
     setUploadedMimeType("");
     setUploadedFileType("text");
-    if (prehydrated) {
-      setProcessedDoc(prehydrated);
-      setSelectedGlossaryTerm(prehydrated.summary.culturalGlossary[0] ?? null);
-      setActiveFlashcardIndex(0);
-      setIsFlashcardFlipped(false);
-      setExpandedQuestionIndex(0);
+
+    const pre = PREHYDRATED_DOCUMENTS[sample.id];
+    if (pre) {
+      setProcessedDoc(pre);
+      setFlashcardIndex(0);
+      setIsFlipped(false);
+      setActiveSlideIndex(0);
       setTestedAnswers({});
+      toast.success(`Modul "${sample.title}" dimuat ke Studio.`);
     }
   };
 
+  // Multimodal file upload handler
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    soundEffects.playClick();
     setUploadedFileName(file.name);
     const mime = file.type || "text/plain";
     setUploadedMimeType(mime);
 
-    const isTextFile =
+    const isText =
       file.name.endsWith(".txt") ||
       file.name.endsWith(".md") ||
       mime.startsWith("text/");
 
-    if (isTextFile) {
+    if (isText) {
       setUploadedFileType("text");
       setUploadedFileBase64("");
       const reader = new FileReader();
@@ -1024,41 +841,45 @@ export default function StudioPage() {
         setDocText(content);
         toast.success(`Berkas teks "${file.name}" berhasil dimuat.`);
       };
-      reader.onerror = () => {
-        toast.error("Gagal membaca berkas teks.");
-      };
       reader.readAsText(file);
     } else {
-      const detectedType: "pdf" | "image" =
-        mime === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
-          ? "pdf"
-          : "image";
+      const isPdf = mime === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+      const detectedType: "pdf" | "image" = isPdf ? "pdf" : "image";
       setUploadedFileType(detectedType);
+
       const reader = new FileReader();
       reader.onload = (event) => {
         const dataUrl = typeof event.target?.result === "string" ? event.target.result : "";
         setUploadedFileBase64(dataUrl);
         if (!docText.trim()) {
-          setDocText(`Lampiran dokumen (${detectedType.toUpperCase()}): ${file.name}`);
+          setDocText(`Lampiran ${detectedType.toUpperCase()}: ${file.name}`);
         }
         toast.success(`Berkas "${file.name}" siap dianalisis secara multimodal.`);
-      };
-      reader.onerror = () => {
-        toast.error("Gagal membaca berkas lampiran.");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleProcess = async () => {
+  // Process Document with Gemini AI Reasoning & RAG
+  const handleProcessDocument = async () => {
     if (!docText.trim() && !uploadedFileBase64) {
-      toast.error("Silakan masukkan teks, unggah berkas, atau pilih contoh materi pelajaran.");
+      toast.error("Silakan masukkan teks materi atau unggah berkas (PDF/Gambar/Teks).");
       return;
     }
 
     setProcessing(true);
+    setProcessingStep("Memeriksa masukan dokumen & konteks RAG...");
     soundEffects.playClick();
+
     try {
+      setTimeout(() => {
+        setProcessingStep("Mengaktifkan model penalaran Gemini & grounding kurikulum...");
+      }, 700);
+
+      setTimeout(() => {
+        setProcessingStep("Menyusun sintesis NoteBookLM & Wayground Artifact Suite...");
+      }, 1600);
+
       const res = await fetch("/api/ai/process-document", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1077,39 +898,30 @@ export default function StudioPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Gagal memproses dokumen");
 
-      const docPayload: ProcessedDocument | null =
-        data.document ||
-        (data.analysis
-          ? {
-              quizId: data.quizId,
-              title: data.analysis.title,
-              subjectArea: data.analysis.subjectArea,
-              gradeLevel: data.analysis.gradeLevel,
-              summary: data.analysis.summary,
-              flashcards: data.analysis.flashcards,
-              quiz: data.analysis.quiz,
-            }
-          : null);
+      const docPayload: DocumentAnalysis & { quizId?: string } =
+        data.document || data.analysis;
 
       if (!docPayload) {
-        throw new Error("Format hasil analisis dokumen tidak ditemukan");
+        throw new Error("Format hasil analisis dokumen tidak valid.");
       }
 
       setProcessedDoc(docPayload);
-      setActiveFlashcardIndex(0);
-      setIsFlashcardFlipped(false);
-      setExpandedQuestionIndex(0);
-      setSelectedGlossaryTerm(docPayload.summary.culturalGlossary?.[0] ?? null);
+      setFlashcardIndex(0);
+      setIsFlipped(false);
+      setActiveSlideIndex(0);
       setTestedAnswers({});
-      toast.success("Materi berhasil dianalisis!");
+      confetti({ particleCount: 40, spread: 55, origin: { y: 0.7 } });
+      toast.success("Materi berhasil diproses! Seluruh artifak studio siap digunakan.");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal memproses dokumen";
+      const msg = err instanceof Error ? err.message : "Gagal menganalisis dokumen";
       toast.error(msg);
     } finally {
       setProcessing(false);
+      setProcessingStep("");
     }
   };
 
+  // Launch live classroom room
   const handleLaunchRoom = async () => {
     setLaunchingRoom(true);
     soundEffects.playClick();
@@ -1117,18 +929,12 @@ export default function StudioPage() {
       const questionsToUse =
         processedDoc?.quiz && processedDoc.quiz.length > 0 ? processedDoc.quiz : undefined;
 
-      const resolvedHostName =
-        teacherName.trim() ||
-        user?.user_metadata?.full_name ||
-        user?.email?.split("@")[0] ||
-        "Pengajar Exile";
-
       const res = await fetch("/api/rooms/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           quizId: processedDoc?.quizId,
-          hostName: resolvedHostName,
+          hostName: teacherName,
           questions: questionsToUse,
           settings: {
             timePerQuestionSec: settings.defaultQuestionTimeSec,
@@ -1140,1325 +946,1218 @@ export default function StudioPage() {
 
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(data.error || "Gagal membuat ruangan kuis");
+        throw new Error(data.error || "Gagal membuka ruang kelas");
       }
 
-      toast.success(`Ruang kuis berhasil dibuka! PIN: ${data.roomCode}`);
-      confetti({ particleCount: 50, spread: 60 });
+      setCreatedRoomCode(data.roomCode);
+      confetti({ particleCount: 60, spread: 70 });
+      toast.success(`Ruang kuis aktif! PIN: ${data.roomCode}`);
       router.push(`/host/${data.roomCode}`);
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal membuka sesi kuis";
+      const msg = err instanceof Error ? err.message : "Gagal meluncurkan ruangan kuis";
       toast.error(msg);
     } finally {
       setLaunchingRoom(false);
     }
   };
 
-  const handleConvertTermToFlashcard = (termItem: CulturalTerm) => {
-    if (!processedDoc) return;
-    const newCard: Flashcard = {
-      id: `fc-glossary-${Date.now()}`,
-      front: `Apa makna dan konteks penggunaan istilah "${termItem.term}" dalam ${termItem.category}?`,
-      back: termItem.meaning,
-      tag: termItem.category,
-      hint: `Istilah penting dari glosarium ${processedDoc.title}`,
-    };
+  // Send Copilot Chat Message with Multi-turn Context Memory
+  const handleSendChatMessage = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!chatInput.trim() || chatLoading) return;
 
-    setProcessedDoc((prev) =>
-      prev
-        ? {
-            ...prev,
-            flashcards: [...prev.flashcards, newCard],
-          }
-        : prev,
-    );
-    soundEffects.playCorrect();
-    toast.success(`Istilah "${termItem.term}" berhasil ditambahkan ke Kartu Belajar 3D!`);
-  };
-
-  const handleCopyGlossaryTerm = (termItem: CulturalTerm) => {
-    navigator.clipboard.writeText(`${termItem.term}: ${termItem.meaning}`);
+    const userMessageText = chatInput.trim();
+    setChatInput("");
     soundEffects.playClick();
-    toast.success(`Istilah "${termItem.term}" berhasil disalin!`);
-  };
 
-  const handleStartEditQuestion = (index: number) => {
-    if (!processedDoc || !processedDoc.quiz[index]) return;
-    const q = processedDoc.quiz[index];
-    setEditingQuestionIndex(index);
-    setNewQuestionText(q.question);
-    setNewOptionA(q.options?.find((o) => o.label === "A")?.text || q.options?.[0]?.text || "");
-    setNewOptionB(q.options?.find((o) => o.label === "B")?.text || q.options?.[1]?.text || "");
-    setNewOptionC(q.options?.find((o) => o.label === "C")?.text || q.options?.[2]?.text || "");
-    setNewOptionD(q.options?.find((o) => o.label === "D")?.text || q.options?.[3]?.text || "");
-    setNewCorrectAnswer(
-      (["A", "B", "C", "D"].includes(q.correctAnswer)
-        ? q.correctAnswer
-        : "A") as "A" | "B" | "C" | "D",
-    );
-    setNewExplanation(q.explanation || "");
-    setNewConceptTag(q.conceptTag || "");
-    setShowAddQuestionForm(true);
-    soundEffects.playClick();
-  };
+    const newMessages = [
+      ...chatMessages,
+      { role: "user" as const, content: userMessageText },
+    ];
+    setChatMessages(newMessages);
+    setChatLoading(true);
 
-  const handleDeleteQuestion = (index: number) => {
-    if (!processedDoc || processedDoc.quiz.length <= 1) return;
-    const updatedQuiz = processedDoc.quiz
-      .filter((_, idx) => idx !== index)
-      .map((item, idx) => ({
-        ...item,
-        questionOrder: idx + 1,
-      }));
-    setProcessedDoc({
-      ...processedDoc,
-      quiz: updatedQuiz,
-    });
-    setExpandedQuestionIndex(Math.max(0, Math.min(index, updatedQuiz.length - 1)));
-    soundEffects.playClick();
-    toast.success("Butir soal berhasil dihapus dari Bank Soal.");
-  };
-
-  const handleAddCustomQuestion = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (
-      !newQuestionText.trim() ||
-      !newOptionA.trim() ||
-      !newOptionB.trim() ||
-      !newOptionC.trim() ||
-      !newOptionD.trim()
-    ) {
-      toast.error("Mohon lengkapi pertanyaan dan keempat opsi jawaban (A–D).");
-      return;
-    }
-
-    const existingQuestion =
-      editingQuestionIndex !== null && processedDoc?.quiz[editingQuestionIndex]
-        ? processedDoc.quiz[editingQuestionIndex]
-        : null;
-
-    const customQuestion: QuizQuestion = {
-      id: existingQuestion?.id || crypto.randomUUID(),
-      questionOrder:
-        existingQuestion?.questionOrder ??
-        (editingQuestionIndex !== null
-          ? editingQuestionIndex + 1
-          : (processedDoc?.quiz.length || 0) + 1),
-      question: newQuestionText.trim(),
-      options: [
-        {
-          label: "A",
-          text: newOptionA.trim(),
-          isCorrect: newCorrectAnswer === "A",
-          distractorRationale:
-            newCorrectAnswer === "A"
-              ? "Jawaban tepat sesuai kunci pengajar."
-              : "Pengecoh yang perlu dicermati kembali oleh siswa.",
-        },
-        {
-          label: "B",
-          text: newOptionB.trim(),
-          isCorrect: newCorrectAnswer === "B",
-          distractorRationale:
-            newCorrectAnswer === "B"
-              ? "Jawaban tepat sesuai kunci pengajar."
-              : "Pengecoh yang perlu dicermati kembali oleh siswa.",
-        },
-        {
-          label: "C",
-          text: newOptionC.trim(),
-          isCorrect: newCorrectAnswer === "C",
-          distractorRationale:
-            newCorrectAnswer === "C"
-              ? "Jawaban tepat sesuai kunci pengajar."
-              : "Pengecoh yang perlu dicermati kembali oleh siswa.",
-        },
-        {
-          label: "D",
-          text: newOptionD.trim(),
-          isCorrect: newCorrectAnswer === "D",
-          distractorRationale:
-            newCorrectAnswer === "D"
-              ? "Jawaban tepat sesuai kunci pengajar."
-              : "Pengecoh yang perlu dicermati kembali oleh siswa.",
-        },
-      ],
-      correctAnswer: newCorrectAnswer,
-      explanation:
-        newExplanation.trim() ||
-        `Opsi ${newCorrectAnswer} merupakan jawaban yang paling tepat berdasarkan kaidah materi ajar.`,
-      conceptTag: newConceptTag.trim() || "Evaluasi Mandiri Guru",
-      culturalContext:
-        existingQuestion?.culturalContext || "Penyusunan Soal Kontekstual Guru",
-    };
-
-    if (processedDoc) {
-      if (editingQuestionIndex !== null) {
-        const updatedQuiz = processedDoc.quiz.map((item, idx) =>
-          idx === editingQuestionIndex ? customQuestion : item,
-        );
-        setProcessedDoc({
-          ...processedDoc,
-          quiz: updatedQuiz,
-        });
-        setExpandedQuestionIndex(editingQuestionIndex);
-      } else {
-        const nextIndex = processedDoc.quiz.length;
-        setProcessedDoc({
-          ...processedDoc,
-          quiz: [...processedDoc.quiz, customQuestion],
-        });
-        setExpandedQuestionIndex(nextIndex);
-      }
-    } else {
-      setProcessedDoc({
-        title: "Modul Kuis Kustom Pengajar",
-        subjectArea: "Bahasa & Budaya Bali",
-        gradeLevel: "SMP Fase D",
-        summary: {
-          overview: "Kumpulan butir soal yang disusun langsung oleh pengajar.",
-          keyTakeaways: ["Evaluasi formatif terarah berdasarkan soal kustom pengajar."],
-          culturalGlossary: [],
-        },
-        flashcards: [],
-        quiz: [customQuestion],
+    try {
+      const res = await fetch("/api/ai/studio-chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messages: newMessages,
+          documentContext: docText,
+          documentTitle: processedDoc?.title || "Dokumen Studio",
+          currentTab: activeTab,
+          studentPov: studentPovActive,
+        }),
       });
-      setExpandedQuestionIndex(0);
-    }
 
-    const wasEditing = editingQuestionIndex !== null;
-    setEditingQuestionIndex(null);
-    setNewQuestionText("");
-    setNewOptionA("");
-    setNewOptionB("");
-    setNewOptionC("");
-    setNewOptionD("");
-    setNewExplanation("");
-    setNewConceptTag("");
-    setShowAddQuestionForm(false);
-    soundEffects.playCorrect();
-    toast.success(
-      wasEditing
-        ? "Perubahan butir soal berhasil disimpan!"
-        : "Soal baru berhasil ditambahkan ke Bank Soal Kuis!",
-    );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal menghubungi asisten studio");
+
+      setChatMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.reply || "Maaf, respon tidak dapat disusun." },
+      ]);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal mengirim pesan";
+      toast.error(msg);
+    } finally {
+      setChatLoading(false);
+      chatBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   };
 
-  const glossaryColumns = useMemo<ColumnDef<CulturalTerm>[]>(
-    () => [
-      {
-        accessorKey: "term",
-        header: "Istilah",
-        cell: (info) => (
-          <span className="text-body-medium text-text-primary">{String(info.getValue())}</span>
-        ),
-      },
-      {
-        accessorKey: "category",
-        header: "Kategori",
-        cell: (info) => (
-          <Chip variant="caption" color="blue">
-            {String(info.getValue())}
-          </Chip>
-        ),
-      },
-      {
-        accessorKey: "meaning",
-        header: "Arti dan Penjelasan",
-        cell: (info) => (
-          <span className="text-body-regular text-text-secondary">{String(info.getValue())}</span>
-        ),
-      },
-    ],
-    [],
-  );
-
-  const glossaryData = useMemo(
-    () => processedDoc?.summary.culturalGlossary || [],
-    [processedDoc],
-  );
-
-  const glossaryTable = useReactTable({
-    data: glossaryData,
-    columns: glossaryColumns,
-    state: {
-      sorting: glossarySorting,
-      globalFilter: glossaryFilter,
-    },
-    onSortingChange: setGlossarySorting,
-    onGlobalFilterChange: setGlossaryFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
-
-  const quizColumns = useMemo<ColumnDef<QuizQuestion>[]>(
-    () => [
-      {
-        accessorKey: "questionOrder",
-        header: "No",
-        cell: (info) => (
-          <Badge color="neutral">{(info.row.index + 1).toString()}</Badge>
-        ),
-      },
-      {
-        accessorKey: "question",
-        header: "Pertanyaan",
-        cell: (info) => {
-          const q = info.row.original;
-          const isExpanded = expandedQuestionIndex === info.row.index;
-          return (
-            <div className="space-y-1.5">
-              <div className="flex items-start justify-between gap-2">
-                <p className="text-body-medium text-text-primary">
-                  {q.question}
-                </p>
-                <Chip variant="caption" color={isExpanded ? "blue" : "neutral"} className="shrink-0 gap-1">
-                  {isExpanded ? <RiEyeOffLine className="size-3.5" /> : <RiEyeLine className="size-3.5" />}
-                  <span>{isExpanded ? "Tutup" : "Rincian"}</span>
-                </Chip>
-              </div>
-              {q.conceptTag && (
-                <Chip variant="caption" color="gray">
-                  {q.conceptTag}
-                </Chip>
-              )}
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "correctAnswer",
-        header: "Kunci",
-        cell: (info) => {
-          const q = info.row.original;
-          const correctOpt = q.options?.find((o) => o.label === q.correctAnswer || o.isCorrect);
-          return (
-            <div className="space-y-1">
-              <Chip variant="caption" color="lime">
-                Opsi {q.correctAnswer}
-              </Chip>
-              <p className="text-caption-1-medium text-text-secondary line-clamp-1">
-                {correctOpt?.text}
-              </p>
-            </div>
-          );
-        },
-      },
-      {
-        accessorKey: "explanation",
-        header: "Penjelasan",
-        cell: (info) => (
-          <p className="text-body-2-medium text-text-secondary line-clamp-2">
-            {String(info.getValue())}
-          </p>
-        ),
-      },
-    ],
-    [expandedQuestionIndex],
-  );
-
-  const quizData = useMemo(() => processedDoc?.quiz || [], [processedDoc]);
-
-  const quizTable = useReactTable({
-    data: quizData,
-    columns: quizColumns,
-    state: {
-      sorting: quizSorting,
-      globalFilter: quizFilter,
-    },
-    onSortingChange: setQuizSorting,
-    onGlobalFilterChange: setQuizFilter,
-    getCoreRowModel: getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
-  });
-
-  const currentFlashcard = processedDoc?.flashcards[activeFlashcardIndex];
-
-  if (authLoading || !user) {
-    return (
-      <main className="min-h-screen bg-background-full flex flex-col items-center justify-center p-6 text-center">
-        <div className="max-w-md w-full bg-background-primary-default border border-border-button-default rounded-3xl p-8 flex flex-col items-center gap-4 shadow-card">
-          <div className="size-12 rounded-2xl bg-background-secondary-default border border-border-button-default text-foreground-icon-primary flex items-center justify-center shadow-sm">
-            <RiShieldKeyholeLine className="size-6 text-accent-600" />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-title-2-semibold text-text-primary">
-              Autentikasi Pengajar Diperlukan
-            </h1>
-            <p className="text-body-regular text-text-secondary">
-              Akses Studio Exile khusus untuk guru dan pendidik terdaftar. Mengalihkan ke laman masuk...
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-text-tertiary">
-            <Spinner size="sm" aria-label="Memverifikasi sesi" />
-            <span className="text-caption-1-regular">Memverifikasi kredensial...</span>
-          </div>
-          <Button
-            type="button"
-            size="medium"
-            variant="primary"
-            onClick={() => {
-              const currentQuery = typeof window !== "undefined" ? window.location.search : "";
-              router.push(`/login?next=${encodeURIComponent(`/studio${currentQuery}`)}`);
-            }}
-            className="w-full mt-2"
-          >
-            Masuk Akun Pengajar
-          </Button>
-        </div>
-      </main>
-    );
-  }
+  const currentFlashcard = processedDoc?.flashcards?.[flashcardIndex];
 
   return (
-    <main className="min-h-screen bg-background-full text-text-primary flex flex-col justify-between transition-colors">
-      <header className="border-b border-separator-border bg-background-primary-default/90 sticky top-0 z-30 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <div className="min-h-screen bg-background-primary-default text-text-primary selection:bg-accent-700 selection:text-white pb-16">
+      {/* Top Application Bar */}
+      <header className="sticky top-0 z-30 border-b border-border-button-default bg-background-primary-default/90 backdrop-blur-md px-4 sm:px-6 py-3.5 transition-all">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <ButtonLink
               href="/"
               variant="ghost"
               size="small"
-              leadingIcon={RiArrowLeftLine}
+              className="px-2 text-text-secondary hover:text-text-primary"
             >
-              Beranda
+              <RiArrowLeftLine className="size-4 mr-1" />
+              <span>Beranda</span>
             </ButtonLink>
-            <span className="text-text-tertiary">/</span>
+            <div className="h-4 w-px bg-separator-border hidden sm:block" />
             <div className="flex items-center gap-2">
-              <div className="size-8 rounded-xl bg-background-secondary-default border border-border-button-default flex items-center justify-center text-foreground-icon-primary shadow-card">
-                <RiBookOpenLine className="size-4" />
-              </div>
-              <span className="text-headline-semibold text-text-primary">
-                Exile Studio Ajar
+              <span className="font-semibold text-body-1-semibold tracking-tight text-text-primary">
+                Exile Studio
               </span>
+              <Chip variant="caption" color="purple">
+                NoteBookLM + Wayground
+              </Chip>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <LanguageToggle />
-            <ThemeToggle />
-            <SettingsButton />
-            <UserNav />
-
-            <ButtonLink
-              href="/play"
-              variant="secondary"
-              size="small"
-              leadingIcon={RiUserSharedLine}
+          <div className="flex items-center gap-2.5">
+            {/* Quick POV Toggle in Top Bar */}
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playClick();
+                setStudentPovActive(!studentPovActive);
+              }}
+              className={cx(
+                "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-caption-1-medium transition-all cursor-pointer",
+                studentPovActive
+                  ? "bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400 font-semibold shadow-xs"
+                  : "bg-background-secondary-default border-border-button-default text-text-secondary hover:text-text-primary"
+              )}
+              title="Alihkan sudut pandang antara Pengajar dan Siswa"
             >
-              Masuk Siswa
-            </ButtonLink>
+              {studentPovActive ? (
+                <>
+                  <RiEyeLine className="size-3.5 text-amber-500" />
+                  <span>POV: Siswa Aktif</span>
+                </>
+              ) : (
+                <>
+                  <RiUserVoiceLine className="size-3.5 text-text-secondary" />
+                  <span>POV: Pengajar</span>
+                </>
+              )}
+            </button>
 
+            {/* Launch Room Button */}
             <Button
               type="button"
               variant="primary"
               size="small"
               onClick={handleLaunchRoom}
               disabled={launchingRoom}
-              leadingIcon={launchingRoom ? undefined : RiPlayCircleLine}
+              className="gap-1.5 shadow-sm font-semibold"
             >
-              {launchingRoom ? (
-                <span className="inline-flex items-center gap-1.5">
-                  <Spinner size="xs" className="text-text-white" aria-hidden />
-                  <span>Membuka...</span>
-                </span>
-              ) : (
-                "Buka Ruang Kuis Kelas"
-              )}
+              <RiPlayCircleLine className="size-4" />
+              <span className="hidden sm:inline">
+                {launchingRoom ? "Membuka..." : "Buka Ruang Kuis"}
+              </span>
             </Button>
+
+            <LanguageToggle />
+            <ThemeToggle />
+            <SettingsButton />
+            <UserNav />
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8 w-full flex-1 space-y-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-title-2-semibold sm:text-title-1-semibold text-text-primary">
-              Studio Penyiapan Bahan Ajar & Asesmen
-            </h1>
-            <p className="text-body-regular text-text-secondary mt-1 max-w-2xl">
-              Pilih modul kurikulum siap pakai atau unggah lembar kerja Anda untuk menyusun glosarium, kartu belajar 3D, dan bank soal beserta analisis pengecoh.
-            </p>
-          </div>
-
-          <div className="w-full md:w-72">
-            <Input
-              label="Nama Pengajar"
-              value={teacherName}
-              onChange={setTeacherName}
-              placeholder="Nama Pengajar"
-              size="small"
-            />
-          </div>
-        </div>
+      {/* Main Studio Viewport */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pt-6">
+        {/* Student POV Banner Alert when active */}
+        <AnimatePresence>
+          {studentPovActive && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-caption-1-regular text-text-primary"
+            >
+              <div className="flex items-start gap-3">
+                <RiEyeLine className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="font-semibold block text-amber-700 dark:text-amber-300">
+                    Mode Simulasi Sudut Pandang Siswa (Student POV Simulator)
+                  </strong>
+                  <span>
+                    Anda sedang melihat materi dari kacamata murid: melihat analogi yang masuk akal, titik keraguan umum, dan kunci jawaban disembunyikan untuk simulasi belajar.
+                  </span>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setStudentPovActive(false)}
+                className="text-caption-2-medium text-amber-700 dark:text-amber-300 hover:underline shrink-0 cursor-pointer self-end sm:self-auto"
+              >
+                Kembali ke Mode Guru
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          <div className="lg:col-span-5 bg-background-primary-default border border-border-button-default rounded-3xl p-6 space-y-5 shadow-card">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <h2 className="text-title-3-semibold text-text-primary">
-                  Sumber Materi Ajar
-                </h2>
-                <p className="text-caption-1-medium text-text-secondary">
-                  Pilih modul contoh atau unggah dokumen Anda
-                </p>
+          {/* ========================================================================= */}
+          {/* LEFT COLUMN: Source Hub, Document Ingestion & Copilot Assistant           */}
+          {/* ========================================================================= */}
+          <div className="lg:col-span-4 space-y-5">
+            {/* Source & Document Panel */}
+            <div className="p-5 rounded-3xl border border-border-button-default bg-background-primary-default shadow-card space-y-4">
+              <div className="flex items-center justify-between border-b border-separator-border pb-3">
+                <div className="flex items-center gap-2">
+                  <RiUploadCloud2Line className="size-4 text-accent-700" />
+                  <h3 className="text-body-1-semibold text-text-primary tracking-tight">
+                    Sumber Bahan Ajar
+                  </h3>
+                </div>
+                <Chip variant="caption" color="blue">
+                  Multimodal RAG
+                </Chip>
               </div>
 
-              <div>
+              {/* Sample Module Chips */}
+              <div className="space-y-1.5">
+                <span className="text-caption-2-medium text-text-tertiary uppercase tracking-wider block">
+                  Pilih Contoh Modul Kurikulum
+                </span>
+                <div className="flex flex-col gap-1.5">
+                  {SAMPLE_MODULES.map((sample) => (
+                    <button
+                      key={sample.id}
+                      type="button"
+                      onClick={() => handleSelectSample(sample)}
+                      className={cx(
+                        "text-left p-2.5 rounded-xl border text-caption-1-medium transition-all cursor-pointer flex items-center justify-between gap-2",
+                        selectedModuleId === sample.id && !uploadedFileName
+                          ? "bg-accent-500/10 border-accent-500/40 text-accent-700 dark:text-accent-300 font-semibold"
+                          : "bg-background-secondary-default/50 border-border-button-default text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                      )}
+                    >
+                      <span className="truncate">{sample.title}</span>
+                      <span className="text-caption-2-regular text-text-tertiary shrink-0 font-mono">
+                        {sample.category}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Multimodal Upload Trigger */}
+              <div className="space-y-2 pt-1">
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".txt,.md,.pdf,image/*"
+                  accept=".txt,.md,.pdf,image/png,image/jpeg,image/webp"
                   onChange={handleFileChange}
                   className="hidden"
                 />
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
-                  size="small"
-                  leadingIcon={RiUploadCloud2Line}
                   onClick={() => fileInputRef.current?.click()}
+                  className="w-full py-3 px-4 rounded-2xl border-2 border-dashed border-border-button-default hover:border-accent-500/50 bg-background-secondary-default/30 hover:bg-background-secondary-default/60 transition-all flex flex-col items-center justify-center gap-1.5 text-center cursor-pointer group"
                 >
-                  Unggah Berkas
-                </Button>
+                  <div className="flex items-center gap-1.5 text-caption-1-semibold text-text-primary group-hover:text-accent-700 transition-colors">
+                    <RiFilePdfLine className="size-4 text-rose-500" />
+                    <RiImageLine className="size-4 text-emerald-500" />
+                    <RiFileTextLine className="size-4 text-blue-500" />
+                    <span>Unggah PDF / Foto Lembar Kerja / Teks</span>
+                  </div>
+                  <span className="text-caption-2-regular text-text-tertiary">
+                    {uploadedFileName ? (
+                      <span className="text-emerald-600 dark:text-emerald-400 font-medium">
+                        Berkas terpilih: {uploadedFileName}
+                      </span>
+                    ) : (
+                      "Tarik dan letakkan atau klik untuk memilih berkas dari perangkat"
+                    )}
+                  </span>
+                </button>
               </div>
-            </div>
 
-            {uploadedFileName && (
-              <div className="flex items-center justify-between gap-2 p-3 rounded-2xl bg-background-secondary-default border border-separator-border">
-                <div className="flex items-center gap-2 min-w-0">
-                  <RiFileTextLine className="size-4 shrink-0 text-foreground-icon-secondary" />
-                  <Chip variant="caption" color="blue" className="truncate">
-                    {uploadedFileName} ({uploadedFileType.toUpperCase()})
-                  </Chip>
-                </div>
+              {/* Direct Text Editor / Prompt Context */}
+              <div className="space-y-1.5">
+                <label className="text-caption-2-medium text-text-tertiary uppercase tracking-wider block">
+                  Isi Teks Materi / Ekstraksi
+                </label>
+                <textarea
+                  rows={4}
+                  value={docText}
+                  onChange={(e) => setDocText(e.target.value)}
+                  placeholder="Ketik atau tempel teks modul pelajaran di sini..."
+                  className="w-full p-3 rounded-2xl bg-background-secondary-default border border-border-button-default text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 resize-none font-mono text-xs"
+                />
+              </div>
+
+              {/* Teacher Guidance / Custom Prompt */}
+              <div className="space-y-1.5">
+                <label className="text-caption-2-medium text-text-tertiary uppercase tracking-wider block">
+                  Instruksi Khusus untuk AI (Opsional)
+                </label>
+                <input
+                  type="text"
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  placeholder="Contoh: Fokuskan pada miskonsepsi Alus Sor vs Alus Singgih..."
+                  className="w-full p-2.5 rounded-xl bg-background-secondary-default border border-border-button-default text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500"
+                />
+              </div>
+
+              {/* Process Button with Reasoning Feedback */}
+              <div className="pt-2">
                 <Button
                   type="button"
-                  variant="ghost"
-                  size="xs"
-                  onClick={() => {
-                    setUploadedFileName("");
-                    setUploadedFileBase64("");
-                    setUploadedMimeType("");
-                    setUploadedFileType("text");
-                    if (fileInputRef.current) fileInputRef.current.value = "";
-                  }}
+                  variant="primary"
+                  size="medium"
+                  onClick={handleProcessDocument}
+                  disabled={processing}
+                  className="w-full gap-2 justify-center shadow-xs font-semibold"
                 >
-                  Hapus
+                  <RiBrainLine className={cx("size-4", processing && "animate-spin")} />
+                  <span>
+                    {processing ? "Bernalar & Mengolah..." : "Proses dengan Gemini AI"}
+                  </span>
                 </Button>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <span className="text-body-2-medium text-text-primary block">
-                Modul Kurikulum Siap Pakai
-              </span>
-              <div className="flex flex-col gap-2">
-                {SAMPLE_DOCS.map((doc) => {
-                  const isActiveSample = selectedModuleId === doc.id && !uploadedFileName;
-                  return (
-                    <Button
-                      key={doc.id}
-                      type="button"
-                      variant="secondary"
-                      onClick={() => handleSelectSample(doc)}
-                      className={cx(
-                        "h-auto w-full flex-col items-start justify-start p-3.5 rounded-2xl text-start whitespace-normal transition-colors",
-                        isActiveSample
-                          ? "bg-background-secondary-default border-accent-500 shadow-xs"
-                          : "bg-background-secondary-default border-separator-border",
-                      )}
-                    >
-                      <div className="flex w-full items-center justify-between gap-2">
-                        <span className="text-body-medium text-text-primary block">
-                          {doc.title}
-                        </span>
-                        {isActiveSample && (
-                          <Chip variant="caption" color="lime">
-                            Aktif
-                          </Chip>
-                        )}
-                      </div>
-                      <span className="text-caption-1-medium text-text-secondary mt-0.5 block">
-                        Topik: {doc.category}
-                      </span>
-                    </Button>
-                  );
-                })}
+                {processingStep && (
+                  <p className="text-caption-2-regular text-text-tertiary text-center mt-2 animate-pulse font-mono">
+                    {processingStep}
+                  </p>
+                )}
               </div>
             </div>
 
-            <div className="space-y-1.5">
-              <label
-                htmlFor="studio-doc-textarea"
-                className="text-body-2-medium text-text-primary block"
-              >
-                Teks Bahan Ajar
-              </label>
-              <textarea
-                id="studio-doc-textarea"
-                value={docText}
-                onChange={(e) => setDocText(e.target.value)}
-                rows={8}
-                className="w-full text-body-regular p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default text-text-primary placeholder:text-text-tertiary outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring transition resize-none"
-                placeholder="Tempel materi bacaan, rangkuman LKS, atau catatan pelajaran..."
-              />
-            </div>
-
-            <div>
-              <Input
-                label="Fokus Asesmen Tambahan (Opsional)"
-                value={customPrompt}
-                onChange={setCustomPrompt}
-                placeholder="Contoh: Fokuskan pada pembedaan kruna Alus Singgih dan Alus Sor"
-              />
-            </div>
-
-            <Button
-              type="button"
-              variant="primary"
-              size="medium"
-              onClick={handleProcess}
-              disabled={processing}
-              leadingIcon={processing ? undefined : RiQuillPenLine}
-              className="w-full"
-            >
-              {processing ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner size="sm" className="text-text-white" aria-hidden />
-                  <span>Menganalisis Materi...</span>
+            {/* Studio Copilot Multi-turn Chat Panel */}
+            <div className="p-5 rounded-3xl border border-border-button-default bg-background-primary-default shadow-card space-y-4">
+              <div className="flex items-center justify-between border-b border-separator-border pb-3">
+                <div className="flex items-center gap-2">
+                  <RiSparklingLine className="size-4 text-purple-500" />
+                  <h4 className="text-body-2-semibold text-text-primary">
+                    Studio Copilot
+                  </h4>
+                </div>
+                <span className="text-caption-2-regular text-text-tertiary">
+                  Konteks Bertahan
                 </span>
-              ) : (
-                "Susun dari Teks & Arahan"
-              )}
-            </Button>
+              </div>
+
+              {/* Message History */}
+              <div className="space-y-3 max-h-64 overflow-y-auto pr-1 text-caption-1-regular">
+                {chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={cx(
+                      "p-3 rounded-2xl leading-relaxed text-xs",
+                      msg.role === "user"
+                        ? "bg-accent-500/15 text-text-primary ml-4 border border-accent-500/20"
+                        : "bg-background-secondary-default text-text-secondary mr-4 border border-border-button-default"
+                    )}
+                  >
+                    <div className="font-semibold text-caption-2-medium text-text-tertiary mb-1">
+                      {msg.role === "user" ? "Anda" : "Copilot"}
+                    </div>
+                    <div className="whitespace-pre-wrap">{msg.content}</div>
+                  </div>
+                ))}
+                {chatLoading && (
+                  <div className="p-3 rounded-2xl bg-background-secondary-default text-text-tertiary text-xs animate-pulse">
+                    Copilot sedang bernalar merujuk dokumen...
+                  </div>
+                )}
+                <div ref={chatBottomRef} />
+              </div>
+
+              {/* Chat Input */}
+              <form onSubmit={handleSendChatMessage} className="flex gap-2 pt-1">
+                <input
+                  type="text"
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  placeholder="Tanyakan konsep, analogi, atau rencana ajar..."
+                  className="flex-1 p-2.5 rounded-xl bg-background-secondary-default border border-border-button-default text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 text-xs"
+                />
+                <button
+                  type="submit"
+                  disabled={chatLoading || !chatInput.trim()}
+                  className="p-2.5 rounded-xl bg-accent-700 hover:bg-accent-800 text-white disabled:opacity-50 transition-colors cursor-pointer"
+                  title="Kirim pertanyaan"
+                >
+                  <RiSendPlane2Line className="size-4" />
+                </button>
+              </form>
+            </div>
           </div>
 
-          <div className="lg:col-span-7 flex flex-col gap-4">
-            <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 min-h-[520px] shadow-card">
-              <Tabs
-                selectedKey={activeTab}
-                onSelectionChange={(key) => setActiveTab(String(key))}
+          {/* ========================================================================= */}
+          {/* RIGHT COLUMN: NoteBookLM + Wayground Studio Suite (8 Artifacts)           */}
+          {/* ========================================================================= */}
+          <div className="lg:col-span-8 space-y-6">
+            {/* Artifact Navigation Tab Bar */}
+            <div className="p-2 rounded-2xl border border-border-button-default bg-background-primary-default shadow-card flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("summary");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "summary"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
               >
-                <TabList aria-label="Tahapan Hasil Analisis Studio">
-                  <Tab
-                    id="summary"
-                    icon={RiFileList3Line}
-                    count={processedDoc ? processedDoc.summary.culturalGlossary.length : undefined}
-                  >
-                    Ringkasan & Glosarium
-                  </Tab>
-                  <Tab
-                    id="flashcards"
-                    icon={RiBookOpenLine}
-                    count={processedDoc ? processedDoc.flashcards.length : undefined}
-                  >
-                    Kartu Belajar 3D
-                  </Tab>
-                  <Tab
-                    id="quiz"
-                    icon={RiQuestionnaireLine}
-                    count={processedDoc ? processedDoc.quiz.length : undefined}
-                  >
-                    Bank Soal Kuis
-                  </Tab>
-                </TabList>
+                <RiBookOpenLine className="size-4" />
+                <span>Intisari</span>
+              </button>
 
-                <TabPanel id="summary" className="pt-4">
-                  <div className="space-y-6">
-                    {processedDoc && (
-                      <>
-                        <div className="space-y-2">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <Chip variant="caption" color="blue">
-                              {processedDoc.subjectArea}
-                            </Chip>
-                            <Chip variant="caption" color="neutral">
-                              {processedDoc.gradeLevel}
-                            </Chip>
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("flashcards");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "flashcards"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
+              >
+                <RiFileCopyLine className="size-4" />
+                <span>Kartu 3D</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("quiz");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "quiz"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
+              >
+                <RiQuestionnaireLine className="size-4" />
+                <span>Kuis Adaptif</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("slides");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "slides"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
+              >
+                <RiPresentationLine className="size-4" />
+                <span>Slide Deck</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("mindmap");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "mindmap"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
+              >
+                <RiNodeTree className="size-4" />
+                <span>Mind Map</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("report");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "report"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
+              >
+                <RiArticleLine className="size-4" />
+                <span>Laporan</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("table");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "table"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
+              >
+                <RiTableLine className="size-4" />
+                <span>Tabel Data</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  soundEffects.playClick();
+                  setActiveTab("infographic");
+                }}
+                className={cx(
+                  "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-caption-1-medium whitespace-nowrap transition-all cursor-pointer",
+                  activeTab === "infographic"
+                    ? "bg-accent-700 text-white font-semibold shadow-xs"
+                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                )}
+              >
+                <RiLayoutGridLine className="size-4" />
+                <span>Infografis</span>
+              </button>
+            </div>
+
+            {/* Artifact Content Panels with Framer Motion Entrance */}
+            <motion.div
+              key={activeTab + (studentPovActive ? "-student" : "-teacher")}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25 }}
+              className="rounded-3xl border border-border-button-default bg-background-primary-default p-6 sm:p-8 shadow-card space-y-6"
+            >
+              {/* Document Header Banner */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-separator-border pb-4">
+                <div>
+                  <span className="text-caption-2-medium text-text-tertiary uppercase tracking-wider block">
+                    {processedDoc.subjectArea} • {processedDoc.gradeLevel}
+                  </span>
+                  <h2 className="text-title-2-semibold sm:text-title-1-semibold text-text-primary tracking-tight mt-1">
+                    {processedDoc.title}
+                  </h2>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Chip variant="caption" color="blue">
+                    Kurikulum Merdeka
+                  </Chip>
+                  {studentPovActive && (
+                    <Chip variant="caption" color="yellow">
+                      Simulasi Siswa
+                    </Chip>
+                  )}
+                </div>
+              </div>
+
+              {/* ========================================================= */}
+              {/* TAB 1: SUMMARY (Intisari)                                 */}
+              {/* ========================================================= */}
+              {activeTab === "summary" && (
+                <div className="space-y-6">
+                  {/* Overview Paragraph */}
+                  <div className="p-5 rounded-2xl bg-background-secondary-default/50 border border-border-button-default space-y-2">
+                    <span className="text-caption-2-medium text-text-tertiary uppercase tracking-wider block">
+                      Ringkasan Eksekutif Materi
+                    </span>
+                    <p className="text-body-1-regular text-text-secondary leading-relaxed">
+                      {processedDoc.summary.overview}
+                    </p>
+                  </div>
+
+                  {/* Student POV Insight Box (if toggled or previewed) */}
+                  {processedDoc.studentPov && (
+                    <div className="p-5 rounded-2xl bg-amber-500/10 border border-amber-500/25 space-y-3">
+                      <div className="flex items-center gap-2 text-amber-700 dark:text-amber-300 font-semibold text-body-2-semibold">
+                        <RiLightbulbLine className="size-4" />
+                        <span>Kacamata Siswa: Apa yang Mereka Rasakan?</span>
+                      </div>
+                      <p className="text-body-2-regular text-text-secondary leading-relaxed">
+                        {processedDoc.studentPov.studentMentalModel}
+                      </p>
+                      <div className="pt-2 border-t border-amber-500/20">
+                        <span className="text-caption-2-semibold text-amber-700 dark:text-amber-300 block mb-1">
+                          Analogi Mudah Dipahami Siswa:
+                        </span>
+                        <p className="text-caption-1-regular text-text-secondary italic">
+                          &ldquo;{processedDoc.studentPov.relatableAnalogy}&rdquo;
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Key Takeaways */}
+                  <div className="space-y-3">
+                    <h4 className="text-title-3-semibold text-text-primary">
+                      Poin-Poin Kunci (Key Takeaways)
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {processedDoc.summary.keyTakeaways.map((point, i) => (
+                        <div
+                          key={i}
+                          className="p-3.5 rounded-2xl border border-border-button-default bg-background-secondary-default/40 flex items-start gap-2.5"
+                        >
+                          <span className="inline-flex size-5 rounded-full bg-accent-700/15 text-accent-700 font-mono text-xs items-center justify-center shrink-0 mt-0.5 font-bold">
+                            {i + 1}
+                          </span>
+                          <span className="text-caption-1-regular text-text-secondary leading-snug">
+                            {point}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Cultural Glossary */}
+                  {processedDoc.summary.culturalGlossary?.length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <h4 className="text-title-3-semibold text-text-primary">
+                        Glosarium Istilah & Kosakata
+                      </h4>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {processedDoc.summary.culturalGlossary.map((item, i) => (
+                          <div
+                            key={i}
+                            className="p-3.5 rounded-2xl border border-border-button-default bg-background-secondary-default/30 space-y-1"
+                          >
+                            <div className="flex items-center justify-between">
+                              <span className="text-body-2-semibold text-text-primary font-medium">
+                                {item.term}
+                              </span>
+                              <Chip variant="caption" color="gray">
+                                {item.category}
+                              </Chip>
+                            </div>
+                            <p className="text-caption-2-regular text-text-secondary leading-normal">
+                              {item.meaning}
+                            </p>
                           </div>
-                          <h3 className="text-title-2-semibold text-text-primary">
-                            {processedDoc.title}
-                          </h3>
-                          <p className="text-body-regular text-text-secondary">
-                            {processedDoc.summary.overview}
-                          </p>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 2: 3D FLASHCARDS                                      */}
+              {/* ========================================================= */}
+              {activeTab === "flashcards" && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between text-caption-1-medium text-text-secondary">
+                    <span>
+                      Kartu {flashcardIndex + 1} dari {processedDoc.flashcards.length}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setShowFlashcardHint(!showFlashcardHint)}
+                      className="text-accent-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <RiLightbulbLine className="size-3.5" />
+                      <span>{showFlashcardHint ? "Tutup Petunjuk" : "Lihat Petunjuk"}</span>
+                    </button>
+                  </div>
+
+                  {/* 3D Flip Card Container */}
+                  <div className="perspective-1000 flex justify-center py-4">
+                    <motion.div
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setIsFlipped(!isFlipped);
+                      }}
+                      animate={{ rotateY: isFlipped ? 180 : 0 }}
+                      transition={{ duration: 0.5, ease: "easeInOut" }}
+                      className="w-full max-w-lg min-h-[260px] p-8 rounded-3xl border border-border-button-default bg-background-secondary-default shadow-card flex flex-col justify-between cursor-pointer select-none relative [transform-style:preserve-3d]"
+                    >
+                      {/* Front Side */}
+                      <div
+                        className={cx(
+                          "space-y-4 flex flex-col justify-between h-full",
+                          isFlipped && "invisible"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Chip variant="caption" color="purple">
+                            {currentFlashcard?.tag || "Konsep"}
+                          </Chip>
+                          <span className="text-caption-2-regular text-text-tertiary">
+                            Klik kartu untuk membalik
+                          </span>
+                        </div>
+                        <h3 className="text-title-2-semibold text-text-primary text-center my-auto leading-snug">
+                          {currentFlashcard?.front}
+                        </h3>
+                        {showFlashcardHint && currentFlashcard?.hint && (
+                          <div className="p-2.5 rounded-xl bg-background-primary-default border border-border-button-default text-caption-2-regular text-amber-600 dark:text-amber-400 text-center">
+                            💡 Petunjuk: {currentFlashcard.hint}
+                          </div>
+                        )}
+                        <span className="text-caption-2-regular text-center text-text-tertiary">
+                          [ Pertanyaan ]
+                        </span>
+                      </div>
+
+                      {/* Back Side */}
+                      <div
+                        className={cx(
+                          "space-y-4 flex flex-col justify-between h-full absolute inset-0 p-8 [transform:rotateY(180deg)]",
+                          !isFlipped && "invisible"
+                        )}
+                      >
+                        <div className="flex items-center justify-between">
+                          <Chip variant="caption" color="lime">
+                            Jawaban Sahih
+                          </Chip>
+                          <span className="text-caption-2-regular text-text-tertiary">
+                            Klik kartu untuk kembali
+                          </span>
+                        </div>
+                        <p className="text-body-1-semibold text-text-primary text-center my-auto leading-relaxed">
+                          {currentFlashcard?.back}
+                        </p>
+                        <span className="text-caption-2-regular text-center text-emerald-600 dark:text-emerald-400 font-medium">
+                          ✓ Konsep Terverifikasi
+                        </span>
+                      </div>
+                    </motion.div>
+                  </div>
+
+                  {/* Navigation Buttons */}
+                  <div className="flex items-center justify-center gap-4">
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setIsFlipped(false);
+                        setShowFlashcardHint(false);
+                        setFlashcardIndex((prev) =>
+                          prev > 0 ? prev - 1 : processedDoc.flashcards.length - 1
+                        );
+                      }}
+                      className="gap-1"
+                    >
+                      <RiArrowLeftLine className="size-4" />
+                      <span>Sebelumnya</span>
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="small"
+                      onClick={() => {
+                        soundEffects.playClick();
+                        setIsFlipped(false);
+                        setShowFlashcardHint(false);
+                        setFlashcardIndex((prev) =>
+                          prev < processedDoc.flashcards.length - 1 ? prev + 1 : 0
+                        );
+                      }}
+                      className="gap-1"
+                    >
+                      <span>Selanjutnya</span>
+                      <RiArrowRightLine className="size-4" />
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 3: QUIZ WITH DIFFICULTY SLIDER                         */}
+              {/* ========================================================= */}
+              {activeTab === "quiz" && (
+                <div className="space-y-6">
+                  {/* Interactive Difficulty Slider */}
+                  <div className="p-4 rounded-2xl bg-background-secondary-default/50 border border-border-button-default space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <RiFireLine className="size-4 text-amber-500" />
+                        <span className="text-body-2-semibold text-text-primary">
+                          Tingkat Kesulitan Asesmen (Difficulty Slider)
+                        </span>
+                      </div>
+                      <Chip
+                        variant="caption"
+                        color={quizDifficulty === 1 ? "lime" : quizDifficulty === 2 ? "blue" : "rose"}
+                      >
+                        {quizDifficulty === 1
+                          ? "Level 1: Mudah (Dasar)"
+                          : quizDifficulty === 2
+                          ? "Level 2: Sedang (Aplikasi)"
+                          : "Level 3: Menantang (HOTS)"}
+                      </Chip>
+                    </div>
+
+                    {/* Step Slider */}
+                    <div className="space-y-2">
+                      <input
+                        type="range"
+                        min={1}
+                        max={3}
+                        step={1}
+                        value={quizDifficulty}
+                        onChange={(e) => {
+                          soundEffects.playClick();
+                          setQuizDifficulty(Number(e.target.value));
+                        }}
+                        className="w-full accent-accent-700 cursor-pointer h-2 bg-border-button-default rounded-lg"
+                      />
+                      <div className="flex justify-between items-center gap-2 pt-1 text-caption-2-medium text-text-tertiary">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            soundEffects.playClick();
+                            setQuizDifficulty(1);
+                          }}
+                          className={cx(
+                            "px-2.5 py-1 rounded-lg border text-xs transition-all cursor-pointer",
+                            quizDifficulty === 1
+                              ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 font-semibold shadow-xs"
+                              : "border-border-button-default hover:bg-background-secondary-default text-text-secondary"
+                          )}
+                        >
+                          1: Pemahaman Dasar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            soundEffects.playClick();
+                            setQuizDifficulty(2);
+                          }}
+                          className={cx(
+                            "px-2.5 py-1 rounded-lg border text-xs transition-all cursor-pointer",
+                            quizDifficulty === 2
+                              ? "bg-blue-500/15 border-blue-500/40 text-blue-600 dark:text-blue-400 font-semibold shadow-xs"
+                              : "border-border-button-default hover:bg-background-secondary-default text-text-secondary"
+                          )}
+                        >
+                          2: Penerapan Kontekstual
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            soundEffects.playClick();
+                            setQuizDifficulty(3);
+                          }}
+                          className={cx(
+                            "px-2.5 py-1 rounded-lg border text-xs transition-all cursor-pointer",
+                            quizDifficulty === 3
+                              ? "bg-rose-500/15 border-rose-500/40 text-rose-600 dark:text-rose-400 font-semibold shadow-xs"
+                              : "border-border-button-default hover:bg-background-secondary-default text-text-secondary"
+                          )}
+                        >
+                          3: Penalaran Kritis HOTS
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Question Cards */}
+                  <div className="space-y-4">
+                    {displayedQuestions.map((q, idx) => (
+                      <div
+                        key={q.id || idx}
+                        className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/30 space-y-4"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="inline-flex size-6 rounded-full bg-accent-700 text-white font-mono text-xs items-center justify-center font-bold">
+                              {idx + 1}
+                            </span>
+                            <h4 className="text-body-1-semibold text-text-primary leading-snug">
+                              {q.question}
+                            </h4>
+                          </div>
+                          {q.conceptTag && (
+                            <Chip variant="caption" color="gray">
+                              {q.conceptTag}
+                            </Chip>
+                          )}
                         </div>
 
-                        <div className="p-4 rounded-2xl bg-background-secondary-default border border-separator-border space-y-2.5">
-                          <h4 className="text-headline-semibold text-text-primary">
-                            Poin Kunci Pembelajaran
+                        {/* 4 Interactive Options */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          {q.options.map((opt) => {
+                            const isTested = testedAnswers[q.id || String(idx)] === opt.label;
+                            const isStudentPov = studentPovActive;
+
+                            return (
+                              <button
+                                key={opt.label}
+                                type="button"
+                                onClick={() => {
+                                  soundEffects.playClick();
+                                  setTestedAnswers((prev) => ({
+                                    ...prev,
+                                    [q.id || String(idx)]: opt.label,
+                                  }));
+                                }}
+                                className={cx(
+                                  "text-left p-3 rounded-xl border text-caption-1-regular transition-all cursor-pointer flex flex-col justify-between gap-1",
+                                  isTested
+                                    ? opt.isCorrect
+                                      ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-700 dark:text-emerald-300 font-semibold"
+                                      : "bg-rose-500/15 border-rose-500/40 text-rose-700 dark:text-rose-300 font-semibold"
+                                    : !isStudentPov && opt.isCorrect
+                                    ? "bg-emerald-500/5 border-emerald-500/20 text-text-primary"
+                                    : "bg-background-primary-default border-border-button-default text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
+                                )}
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="font-mono font-bold">{opt.label}.</span>
+                                  <span>{opt.text}</span>
+                                </div>
+                                {!isStudentPov && showDistractorRationale && (
+                                  <span className="text-caption-2-regular text-text-tertiary mt-1 border-t border-separator-border pt-1">
+                                    {opt.distractorRationale}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+
+                        {/* Explanation & Misconception Insights */}
+                        {!studentPovActive && (
+                          <div className="p-3 rounded-xl bg-background-primary-default border border-border-button-default text-caption-2-regular text-text-secondary flex items-start gap-2">
+                            <RiShieldCheckLine className="size-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+                            <div>
+                              <strong className="font-semibold text-text-primary block">
+                                Pembahasan Pedagogis:
+                              </strong>
+                              <span>{q.explanation}</span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 4: SLIDE DECK                                         */}
+              {/* ========================================================= */}
+              {activeTab === "slides" && processedDoc.slideDeck && (
+                <div className="space-y-6">
+                  {/* Presentation Preview Card */}
+                  <div className="p-8 rounded-3xl bg-background-secondary-default border border-border-button-default shadow-card min-h-[300px] flex flex-col justify-between space-y-6">
+                    <div className="flex items-center justify-between border-b border-separator-border pb-3">
+                      <span className="text-caption-2-medium text-text-tertiary font-mono">
+                        SLIDE {activeSlideIndex + 1} DARI {processedDoc.slideDeck.length}
+                      </span>
+                      <Chip variant="caption" color="blue">
+                        Presentasi Guru
+                      </Chip>
+                    </div>
+
+                    <div className="space-y-4 my-auto">
+                      <h3 className="text-title-1-bold text-text-primary tracking-tight">
+                        {processedDoc.slideDeck[activeSlideIndex]?.title}
+                      </h3>
+                      <ul className="space-y-2 text-body-1-regular text-text-secondary">
+                        {processedDoc.slideDeck[activeSlideIndex]?.bullets.map((b, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-accent-700 font-bold">•</span>
+                            <span>{b}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Presenter Notes */}
+                    <div className="p-3.5 rounded-2xl bg-background-primary-default border border-border-button-default text-caption-1-regular text-text-secondary">
+                      <strong className="text-caption-2-semibold text-text-primary block uppercase tracking-wider mb-1">
+                        Catatan Pengajar (Presenter Notes):
+                      </strong>
+                      <p>{processedDoc.slideDeck[activeSlideIndex]?.presenterNotes}</p>
+                    </div>
+                  </div>
+
+                  {/* Slide Stepper Controls */}
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-1.5">
+                      {processedDoc.slideDeck.map((_, i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={() => {
+                            soundEffects.playClick();
+                            setActiveSlideIndex(i);
+                          }}
+                          className={cx(
+                            "size-2.5 rounded-full transition-all cursor-pointer",
+                            activeSlideIndex === i ? "bg-accent-700 w-6" : "bg-border-button-default"
+                          )}
+                          title={`Slide ${i + 1}`}
+                        />
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="small"
+                        disabled={activeSlideIndex === 0}
+                        onClick={() => {
+                          soundEffects.playClick();
+                          setActiveSlideIndex((prev) => Math.max(0, prev - 1));
+                        }}
+                      >
+                        <RiArrowLeftLine className="size-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="small"
+                        disabled={activeSlideIndex === processedDoc.slideDeck.length - 1}
+                        onClick={() => {
+                          soundEffects.playClick();
+                          setActiveSlideIndex((prev) =>
+                            Math.min(processedDoc.slideDeck!.length - 1, prev + 1)
+                          );
+                        }}
+                      >
+                        <RiArrowRightLine className="size-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 5: MIND MAP                                           */}
+              {/* ========================================================= */}
+              {activeTab === "mindmap" && processedDoc.mindMap && (
+                <div className="space-y-6">
+                  <div className="p-6 rounded-3xl bg-background-secondary-default/50 border border-border-button-default space-y-6">
+                    {/* Root Node */}
+                    <div className="p-4 rounded-2xl bg-accent-700 text-white shadow-xs max-w-md mx-auto text-center space-y-1">
+                      <span className="text-caption-2-medium uppercase tracking-wider opacity-80">
+                        {processedDoc.mindMap.category}
+                      </span>
+                      <h4 className="text-title-3-bold">{processedDoc.mindMap.label}</h4>
+                      <p className="text-caption-1-regular opacity-90">
+                        {processedDoc.mindMap.description}
+                      </p>
+                    </div>
+
+                    {/* Branches */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-4">
+                      {processedDoc.mindMap.children?.map((branch) => (
+                        <div
+                          key={branch.id}
+                          className="p-4 rounded-2xl border border-border-button-default bg-background-primary-default space-y-3 shadow-xs"
+                        >
+                          <div className="flex items-center justify-between pb-2 border-b border-separator-border">
+                            <span className="text-body-2-semibold text-text-primary">
+                              {branch.label}
+                            </span>
+                            <Chip variant="caption" color="blue">
+                              {branch.category}
+                            </Chip>
+                          </div>
+                          <p className="text-caption-2-regular text-text-secondary leading-relaxed">
+                            {branch.description}
+                          </p>
+
+                          {/* Leaves */}
+                          {branch.children && (
+                            <div className="space-y-2 pt-2">
+                              {branch.children.map((leaf: MindMapNode) => (
+                                <div
+                                  key={leaf.id}
+                                  className="p-2.5 rounded-xl bg-background-secondary-default text-caption-1-regular space-y-0.5"
+                                >
+                                  <strong className="text-caption-2-semibold text-text-primary block">
+                                    {leaf.label}
+                                  </strong>
+                                  <span className="text-caption-2-regular text-text-secondary block">
+                                    {leaf.description}
+                                  </span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 6: REPORT                                             */}
+              {/* ========================================================= */}
+              {activeTab === "report" && processedDoc.report && (
+                <div className="space-y-6">
+                  <div className="p-5 rounded-2xl bg-background-secondary-default/50 border border-border-button-default space-y-2">
+                    <span className="text-caption-2-medium text-text-tertiary uppercase tracking-wider block">
+                      Analisis Pedagogis Eksekutif
+                    </span>
+                    <p className="text-body-1-regular text-text-secondary leading-relaxed">
+                      {processedDoc.report.executiveSummary}
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Core Competencies */}
+                    <div className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/30 space-y-3">
+                      <h4 className="text-body-1-semibold text-text-primary flex items-center gap-2">
+                        <RiCheckLine className="size-4 text-emerald-500" />
+                        <span>Kompetensi Sasaran</span>
+                      </h4>
+                      <ul className="space-y-2 text-caption-1-regular text-text-secondary">
+                        {processedDoc.report.coreCompetencies.map((comp, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-emerald-500 font-bold">•</span>
+                            <span>{comp}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Difficulty Hotspots */}
+                    <div className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/30 space-y-3">
+                      <h4 className="text-body-1-semibold text-text-primary flex items-center gap-2">
+                        <RiFireLine className="size-4 text-rose-500" />
+                        <span>Titik Kesulitan Siswa (Hotspots)</span>
+                      </h4>
+                      <ul className="space-y-2 text-caption-1-regular text-text-secondary">
+                        {processedDoc.report.difficultyHotspots.map((spot, i) => (
+                          <li key={i} className="flex items-start gap-2">
+                            <span className="text-rose-500 font-bold">•</span>
+                            <span>{spot}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  {/* Recommended Action */}
+                  <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20 text-caption-1-regular text-text-primary space-y-1">
+                    <strong className="text-blue-600 dark:text-blue-400 font-semibold block">
+                      Rekomendasi Tindakan di Kelas:
+                    </strong>
+                    <p className="text-text-secondary">{processedDoc.report.recommendedAction}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 7: DATA TABLE                                         */}
+              {/* ========================================================= */}
+              {activeTab === "table" && processedDoc.dataTable && (
+                <div className="space-y-4">
+                  <div className="rounded-2xl border border-border-button-default overflow-hidden bg-background-secondary-default/40">
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-caption-1-regular">
+                        <thead className="bg-background-primary-default border-b border-separator-border text-text-secondary">
+                          <tr>
+                            {processedDoc.dataTable.columns.map((col, i) => (
+                              <th key={i} className="py-3 px-4 font-semibold text-xs">
+                                {col}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-separator-border">
+                          {processedDoc.dataTable.rows.map((row, i) => (
+                            <tr key={i} className="hover:bg-background-secondary-default/80">
+                              {processedDoc.dataTable!.columns.map((col, j) => (
+                                <td key={j} className="py-3 px-4 text-text-primary text-xs">
+                                  {String(row[col] ?? "")}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ========================================================= */}
+              {/* TAB 8: INFOGRAPHIC                                        */}
+              {/* ========================================================= */}
+              {activeTab === "infographic" && processedDoc.infographic && (
+                <div className="space-y-6">
+                  {/* Central Banner */}
+                  <div className="p-6 rounded-3xl bg-gradient-to-r from-accent-700 to-accent-900 text-white shadow-card space-y-2 text-center">
+                    <span className="text-caption-2-medium uppercase tracking-wider opacity-80">
+                      Rangkuman Visual Esensial
+                    </span>
+                    <h3 className="text-title-1-bold">{processedDoc.infographic.title}</h3>
+                    <p className="text-body-2-regular opacity-90 max-w-xl mx-auto">
+                      {processedDoc.infographic.centralConcept}
+                    </p>
+                  </div>
+
+                  {/* 3 Pillars */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {processedDoc.infographic.pillars.map((pillar, i) => (
+                      <div
+                        key={i}
+                        className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/50 space-y-3 flex flex-col justify-between"
+                      >
+                        <div className="space-y-2">
+                          <h4 className="text-body-1-semibold text-text-primary">
+                            {pillar.title}
                           </h4>
-                          <ul className="space-y-2 text-body-regular text-text-secondary">
-                            {processedDoc.summary.keyTakeaways.map((point, i) => (
-                              <li key={i} className="flex items-start gap-2.5">
-                                <Badge color="primary" className="mt-0.5 shrink-0">
-                                  {i + 1}
-                                </Badge>
-                                <span className="text-text-primary">{point}</span>
+                          <ul className="space-y-1.5 text-caption-1-regular text-text-secondary">
+                            {pillar.keyPoints.map((pt, j) => (
+                              <li key={j} className="flex items-start gap-1.5">
+                                <span className="text-accent-700 font-bold">•</span>
+                                <span>{pt}</span>
                               </li>
                             ))}
                           </ul>
                         </div>
-
-                        <div className="space-y-3 pt-2 border-t border-separator-border">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div>
-                              <h4 className="text-headline-semibold text-text-primary">
-                                Glosarium Istilah Budaya
-                              </h4>
-                              <p className="text-caption-1-medium text-text-secondary">
-                                Klik baris istilah untuk melihat catatan pemakaian, menyalin definisi, atau menjadikannya Kartu Belajar 3D.
-                              </p>
-                            </div>
-                            <div className="w-full sm:w-56">
-                              <InputBase
-                                aria-label="Cari istilah budaya"
-                                leadingIcon={RiSearchLine}
-                                value={glossaryFilter}
-                                onChange={(e) => setGlossaryFilter(e.target.value)}
-                                placeholder="Cari istilah..."
-                                size="small"
-                              />
-                            </div>
-                          </div>
-
-                          <div className="rounded-2xl border border-border-table overflow-hidden">
-                            <Table
-                              className="bui-table"
-                              aria-label="Tabel Glosarium Budaya"
-                              size="sm"
-                            >
-                              <TableHeader>
-                                {glossaryTable.getHeaderGroups()[0].headers.map((header) => (
-                                  <TableColumn
-                                    key={header.id}
-                                    id={header.id}
-                                    isRowHeader={header.id === "term"}
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={header.column.getToggleSortingHandler()}
-                                      className="inline-flex items-center gap-1 cursor-pointer text-caption-1-medium text-text-tertiary hover:text-text-primary"
-                                    >
-                                      {flexRender(
-                                        header.column.columnDef.header,
-                                        header.getContext(),
-                                      )}
-                                      <ChevronSortDown
-                                        className={cx(
-                                          "size-4 shrink-0 transition-transform",
-                                          header.column.getIsSorted() === "asc" && "rotate-180",
-                                        )}
-                                      />
-                                    </button>
-                                  </TableColumn>
-                                ))}
-                              </TableHeader>
-                              <TableBody
-                                renderEmptyState={() => (
-                                  <div className="py-8 text-center text-body-2-medium text-text-tertiary">
-                                    Tidak ada istilah yang cocok dengan pencarian.
-                                  </div>
-                                )}
-                              >
-                                {glossaryTable.getRowModel().rows.map((row) => {
-                                  const termObj = row.original;
-                                  const isSelected = selectedGlossaryTerm?.term === termObj.term;
-                                  return (
-                                    <TableRow
-                                      key={row.id}
-                                      id={row.id}
-                                      onAction={() => setSelectedGlossaryTerm(termObj)}
-                                      onClick={() => setSelectedGlossaryTerm(termObj)}
-                                      className={cx(
-                                        "cursor-pointer transition-colors",
-                                        isSelected
-                                          ? "bg-background-secondary-default"
-                                          : "hover:bg-background-primary-hover",
-                                      )}
-                                    >
-                                      {row.getVisibleCells().map((cell) => (
-                                        <TableCell key={cell.id}>
-                                          {flexRender(
-                                            cell.column.columnDef.cell,
-                                            cell.getContext(),
-                                          )}
-                                        </TableCell>
-                                      ))}
-                                    </TableRow>
-                                  );
-                                })}
-                              </TableBody>
-                            </Table>
-                          </div>
-
-                          <AnimatePresence>
-                            {selectedGlossaryTerm && (
-                              <motion.div
-                                initial={{ opacity: 0, y: 6 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                exit={{ opacity: 0, y: 6 }}
-                                className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col sm:flex-row sm:items-center justify-between gap-4"
-                              >
-                                <div className="space-y-1">
-                                  <div className="flex items-center gap-2">
-                                    <span className="text-headline-semibold text-text-primary">
-                                      {selectedGlossaryTerm.term}
-                                    </span>
-                                    <Chip variant="caption" color="blue">
-                                      {selectedGlossaryTerm.category}
-                                    </Chip>
-                                  </div>
-                                  <p className="text-body-2-medium text-text-secondary">
-                                    {selectedGlossaryTerm.meaning}
-                                  </p>
-                                  <p className="text-caption-1-medium text-text-tertiary">
-                                    Catatan Kontekstual: Gunakan istilah ini dalam latihan percakapan kelas sesuai kaidah {selectedGlossaryTerm.category}.
-                                  </p>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-2 shrink-0">
-                                  <Button
-                                    type="button"
-                                    size="xs"
-                                    variant="ghost"
-                                    leadingIcon={RiFileCopyLine}
-                                    onClick={() => handleCopyGlossaryTerm(selectedGlossaryTerm)}
-                                  >
-                                    Salin Istilah
-                                  </Button>
-                                  <Button
-                                    type="button"
-                                    size="xs"
-                                    variant="secondary"
-                                    leadingIcon={RiAddLine}
-                                    onClick={() => handleConvertTermToFlashcard(selectedGlossaryTerm)}
-                                  >
-                                    Jadikan Kartu Belajar
-                                  </Button>
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                        <div className="pt-3 border-t border-separator-border text-caption-2-semibold text-accent-700 dark:text-accent-300 italic">
+                          &ldquo;{pillar.quoteOrMnemonic}&rdquo;
                         </div>
-                      </>
-                    )}
+                      </div>
+                    ))}
                   </div>
-                </TabPanel>
-
-                <TabPanel id="flashcards" className="pt-4">
-                  <div className="space-y-5">
-                    {processedDoc && currentFlashcard && (
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between">
-                          <span className="text-body-2-medium text-text-secondary">
-                            Kartu {activeFlashcardIndex + 1} dari {processedDoc.flashcards.length}
-                          </span>
-                          <Chip variant="caption" color="blue">
-                            {currentFlashcard.tag}
-                          </Chip>
-                        </div>
-
-                        <div
-                          className="relative min-h-[260px] w-full perspective-1000 cursor-pointer select-none"
-                          style={{ perspective: "1000px" }}
-                          onClick={() => setIsFlashcardFlipped((prev) => !prev)}
-                        >
-                          <div
-                            className="relative min-h-[260px] w-full transition-transform duration-500 preserve-3d"
-                            style={{
-                              transformStyle: "preserve-3d",
-                              transform: isFlashcardFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
-                            }}
-                          >
-                            <div
-                              className="absolute inset-0 backface-hidden rounded-3xl border border-border-button-default bg-background-secondary-default p-6 flex flex-col justify-between shadow-card"
-                              style={{ backfaceVisibility: "hidden" }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <Chip variant="caption" color="blue">
-                                  Sisi Depan (Pertanyaan / Konsep)
-                                </Chip>
-                                <RiRefreshLine className="size-4 text-text-tertiary" />
-                              </div>
-                              <div className="my-auto text-center px-4 space-y-2">
-                                <p className="text-title-3-semibold text-text-primary">
-                                  {currentFlashcard.front}
-                                </p>
-                                {currentFlashcard.hint && (
-                                  <p className="text-caption-1-medium text-text-secondary">
-                                    Petunjuk: {currentFlashcard.hint}
-                                  </p>
-                                )}
-                              </div>
-                              <span className="text-caption-1-medium text-text-tertiary text-center">
-                                Klik kartu untuk membalik ke jawaban
-                              </span>
-                            </div>
-
-                            <div
-                              className="absolute inset-0 backface-hidden rotate-y-180 rounded-3xl border border-border-button-default bg-background-secondary-default p-6 flex flex-col justify-between shadow-card"
-                              style={{
-                                backfaceVisibility: "hidden",
-                                transform: "rotateY(180deg)",
-                              }}
-                            >
-                              <div className="flex items-center justify-between">
-                                <Chip variant="caption" color="lime">
-                                  Sisi Belakang (Jawaban & Penjelasan)
-                                </Chip>
-                                <RiRefreshLine className="size-4 text-text-tertiary" />
-                              </div>
-                              <div className="my-auto text-center px-4">
-                                <p className="text-headline-semibold text-text-primary">
-                                  {currentFlashcard.back}
-                                </p>
-                              </div>
-                              <span className="text-caption-1-medium text-text-tertiary text-center">
-                                Klik untuk membalik kembali
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between pt-2">
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="small"
-                            leadingIcon={RiArrowLeftLine}
-                            onClick={() => {
-                              setIsFlashcardFlipped(false);
-                              setActiveFlashcardIndex((prev) => Math.max(0, prev - 1));
-                            }}
-                            disabled={activeFlashcardIndex === 0}
-                          >
-                            Sebelumnya
-                          </Button>
-
-                          <Button
-                            type="button"
-                            variant="primary"
-                            size="small"
-                            leadingIcon={RiRefreshLine}
-                            onClick={() => setIsFlashcardFlipped((prev) => !prev)}
-                          >
-                            Balik Kartu
-                          </Button>
-
-                          <Button
-                            type="button"
-                            variant="secondary"
-                            size="small"
-                            trailingIcon={RiArrowRightLine}
-                            onClick={() => {
-                              setIsFlashcardFlipped(false);
-                              setActiveFlashcardIndex((prev) =>
-                                Math.min(processedDoc.flashcards.length - 1, prev + 1),
-                              );
-                            }}
-                            disabled={activeFlashcardIndex === processedDoc.flashcards.length - 1}
-                          >
-                            Berikutnya
-                          </Button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </TabPanel>
-
-                <TabPanel id="quiz" className="pt-4">
-                  <div className="space-y-4">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                      <div>
-                        <h3 className="text-headline-semibold text-text-primary">
-                          Daftar Soal Latihan ({processedDoc ? processedDoc.quiz.length : 0} butir)
-                        </h3>
-                        <p className="text-caption-1-medium text-text-secondary">
-                          Klik di mana saja pada baris soal untuk membuka analisis pengecoh, mengedit, atau menghapus soal.
-                        </p>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="small"
-                          leadingIcon={RiAddLine}
-                          onClick={() => {
-                            setEditingQuestionIndex(null);
-                            setNewQuestionText("");
-                            setNewOptionA("");
-                            setNewOptionB("");
-                            setNewOptionC("");
-                            setNewOptionD("");
-                            setNewExplanation("");
-                            setNewConceptTag("");
-                            setShowAddQuestionForm((prev) => !prev);
-                          }}
-                        >
-                          Tambah Soal Baru
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="primary"
-                          size="small"
-                          leadingIcon={RiPlayCircleLine}
-                          onClick={handleLaunchRoom}
-                          disabled={launchingRoom}
-                        >
-                          Luncurkan Kuis
-                        </Button>
-                      </div>
-                    </div>
-
-                    <AnimatePresence>
-                      {showAddQuestionForm && (
-                        <motion.form
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: "auto" }}
-                          exit={{ opacity: 0, height: 0 }}
-                          onSubmit={handleAddCustomQuestion}
-                          className="p-5 rounded-3xl bg-background-secondary-default border border-border-button-default space-y-4 shadow-card"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="text-headline-semibold text-text-primary">
-                              {editingQuestionIndex !== null
-                                ? `Edit Butir Soal #${editingQuestionIndex + 1}`
-                                : "Tambah Butir Soal Baru"}
-                            </span>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="xs"
-                              onClick={() => {
-                                setEditingQuestionIndex(null);
-                                setShowAddQuestionForm(false);
-                              }}
-                            >
-                              Batal
-                            </Button>
-                          </div>
-
-                          <Input
-                            label="Pertanyaan Kuis"
-                            value={newQuestionText}
-                            onChange={setNewQuestionText}
-                            placeholder="Tulis pertanyaan Basa Bali atau Pasang Aksara..."
-                            size="small"
-                          />
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Input
-                              label="Opsi A"
-                              value={newOptionA}
-                              onChange={setNewOptionA}
-                              placeholder="Teks pilihan A"
-                              size="small"
-                            />
-                            <Input
-                              label="Opsi B"
-                              value={newOptionB}
-                              onChange={setNewOptionB}
-                              placeholder="Teks pilihan B"
-                              size="small"
-                            />
-                            <Input
-                              label="Opsi C"
-                              value={newOptionC}
-                              onChange={setNewOptionC}
-                              placeholder="Teks pilihan C"
-                              size="small"
-                            />
-                            <Input
-                              label="Opsi D"
-                              value={newOptionD}
-                              onChange={setNewOptionD}
-                              placeholder="Teks pilihan D"
-                              size="small"
-                            />
-                          </div>
-
-                          <div className="space-y-1.5">
-                            <span className="text-body-2-medium text-text-primary block">
-                              Pilih Kunci Jawaban Benar
-                            </span>
-                            <div className="flex items-center gap-2">
-                              {(["A", "B", "C", "D"] as const).map((letter) => (
-                                <Button
-                                  key={letter}
-                                  type="button"
-                                  size="small"
-                                  variant={newCorrectAnswer === letter ? "primary" : "secondary"}
-                                  onClick={() => setNewCorrectAnswer(letter)}
-                                >
-                                  Opsi {letter}
-                                </Button>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            <Input
-                              label="Tag Konsep / Kompetensi"
-                              value={newConceptTag}
-                              onChange={setNewConceptTag}
-                              placeholder="Contoh: Anggah-ungguhing Basa"
-                              size="small"
-                            />
-                            <Input
-                              label="Penjelasan Pedagogis"
-                              value={newExplanation}
-                              onChange={setNewExplanation}
-                              placeholder="Alasan mengapa kunci jawaban tersebut tepat..."
-                              size="small"
-                            />
-                          </div>
-
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              type="submit"
-                              variant="primary"
-                              size="small"
-                              leadingIcon={RiCheckLine}
-                            >
-                              Simpan ke Bank Soal
-                            </Button>
-                          </div>
-                        </motion.form>
-                      )}
-                    </AnimatePresence>
-
-                    {processedDoc && (
-                      <div className="space-y-4">
-                        <div className="w-full sm:w-64">
-                          <InputBase
-                            aria-label="Cari butir soal"
-                            leadingIcon={RiSearchLine}
-                            value={quizFilter}
-                            onChange={(e) => setQuizFilter(e.target.value)}
-                            placeholder="Cari pertanyaan atau konsep..."
-                            size="small"
-                          />
-                        </div>
-
-                        <div className="rounded-2xl border border-border-table overflow-hidden">
-                          <Table
-                            className="bui-table"
-                            aria-label="Tabel Bank Soal Kuis"
-                            size="sm"
-                          >
-                            <TableHeader>
-                              {quizTable.getHeaderGroups()[0].headers.map((header) => (
-                                <TableColumn
-                                  key={header.id}
-                                  id={header.id}
-                                  isRowHeader={header.id === "question"}
-                                >
-                                  <button
-                                    type="button"
-                                    onClick={header.column.getToggleSortingHandler()}
-                                    className="inline-flex items-center gap-1 cursor-pointer text-caption-1-medium text-text-tertiary hover:text-text-primary"
-                                  >
-                                    {flexRender(
-                                      header.column.columnDef.header,
-                                      header.getContext(),
-                                    )}
-                                    <ChevronSortDown
-                                      className={cx(
-                                        "size-4 shrink-0 transition-transform",
-                                        header.column.getIsSorted() === "asc" && "rotate-180",
-                                      )}
-                                    />
-                                  </button>
-                                </TableColumn>
-                              ))}
-                            </TableHeader>
-                            <TableBody
-                              renderEmptyState={() => (
-                                <div className="py-8 text-center text-body-2-medium text-text-tertiary">
-                                  Tidak ada butir soal yang cocok.
-                                </div>
-                              )}
-                            >
-                              {quizTable.getRowModel().rows.map((row) => {
-                                const isExpanded = expandedQuestionIndex === row.index;
-                                return (
-                                  <TableRow
-                                    key={row.id}
-                                    id={row.id}
-                                    onAction={() =>
-                                      setExpandedQuestionIndex(isExpanded ? null : row.index)
-                                    }
-                                    onClick={() =>
-                                      setExpandedQuestionIndex(isExpanded ? null : row.index)
-                                    }
-                                    className={cx(
-                                      "cursor-pointer transition-colors",
-                                      isExpanded
-                                        ? "bg-background-secondary-default"
-                                        : "hover:bg-background-primary-hover",
-                                    )}
-                                  >
-                                    {row.getVisibleCells().map((cell) => (
-                                      <TableCell key={cell.id}>
-                                        {flexRender(
-                                          cell.column.columnDef.cell,
-                                          cell.getContext(),
-                                        )}
-                                      </TableCell>
-                                    ))}
-                                  </TableRow>
-                                );
-                              })}
-                            </TableBody>
-                          </Table>
-                        </div>
-
-                        <AnimatePresence>
-                          {expandedQuestionIndex !== null &&
-                            processedDoc.quiz[expandedQuestionIndex] && (() => {
-                              const q = processedDoc.quiz[expandedQuestionIndex];
-                              const selectedTestOpt = testedAnswers[expandedQuestionIndex];
-
-                              return (
-                                <motion.div
-                                  key={`expanded-q-${expandedQuestionIndex}`}
-                                  initial={{ opacity: 0, y: 6 }}
-                                  animate={{ opacity: 1, y: 0 }}
-                                  exit={{ opacity: 0, y: 6 }}
-                                  className="p-5 rounded-3xl bg-background-secondary-default border border-border-button-default space-y-4 shadow-card"
-                                >
-                                  <div className="flex flex-wrap items-center justify-between gap-2">
-                                    <div className="flex items-center gap-2">
-                                      <Badge color="primary">
-                                        Soal #{expandedQuestionIndex + 1}
-                                      </Badge>
-                                      <span className="text-headline-semibold text-text-primary">
-                                        Uji Coba Jawaban & Analisis Pengecoh
-                                      </span>
-                                    </div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <Button
-                                        type="button"
-                                        variant="secondary"
-                                        size="xs"
-                                        leadingIcon={RiEditLine}
-                                        onClick={() => handleStartEditQuestion(expandedQuestionIndex)}
-                                      >
-                                        Edit Soal
-                                      </Button>
-                                      {processedDoc.quiz.length > 1 && (
-                                        <Button
-                                          type="button"
-                                          variant="ghost"
-                                          size="xs"
-                                          leadingIcon={RiDeleteBinLine}
-                                          onClick={() => handleDeleteQuestion(expandedQuestionIndex)}
-                                        >
-                                          Hapus Soal
-                                        </Button>
-                                      )}
-                                      <Chip variant="caption" color="lime">
-                                        Kunci Benar: Opsi {q.correctAnswer}
-                                      </Chip>
-                                    </div>
-                                  </div>
-
-                                  <p className="text-body-medium text-text-primary">
-                                    {q.question}
-                                  </p>
-
-                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                    {q.options?.map((opt) => {
-                                      const isTested = selectedTestOpt === opt.label;
-                                      const isCorrect =
-                                        opt.label === q.correctAnswer || opt.isCorrect;
-
-                                      return (
-                                        <Button
-                                          key={opt.label}
-                                          type="button"
-                                          variant="secondary"
-                                          onClick={() => {
-                                            setTestedAnswers((prev) => ({
-                                              ...prev,
-                                              [expandedQuestionIndex]: opt.label,
-                                            }));
-                                            if (isCorrect) {
-                                              soundEffects.playCorrect();
-                                            } else {
-                                              soundEffects.playIncorrect();
-                                            }
-                                          }}
-                                          className={cx(
-                                            "h-auto w-full flex-col items-stretch justify-between gap-2 p-4 rounded-2xl text-start whitespace-normal",
-                                            isTested
-                                              ? isCorrect
-                                                ? "bg-notification-success-background border-border-button-active text-text-primary"
-                                                : "bg-notification-error-background border-border-error-default text-text-primary"
-                                              : "bg-background-primary-default border-border-button-default text-text-primary",
-                                          )}
-                                        >
-                                          <div className="flex w-full items-center justify-between gap-2">
-                                            <Badge color={isTested ? "primary" : "neutral"}>
-                                              Opsi {opt.label}
-                                            </Badge>
-                                            {isTested && (
-                                              <Chip
-                                                variant="caption"
-                                                color={isCorrect ? "lime" : "rose"}
-                                              >
-                                                {isCorrect ? "Benar ✓" : "Keliru ✗"}
-                                              </Chip>
-                                            )}
-                                          </div>
-                                          <p className="text-body-medium text-text-primary">
-                                            {opt.text}
-                                          </p>
-                                          {opt.distractorRationale && (
-                                            <p className="text-caption-1-medium text-text-secondary pt-1.5 border-t border-separator-border">
-                                              {opt.distractorRationale}
-                                            </p>
-                                          )}
-                                        </Button>
-                                      );
-                                    })}
-                                  </div>
-
-                                  <div className="p-4 rounded-2xl bg-background-primary-default border border-border-button-default space-y-1.5">
-                                    <span className="text-body-2-medium text-text-primary block">
-                                      Penjelasan Lengkap:
-                                    </span>
-                                    <p className="text-body-regular text-text-secondary">
-                                      {q.explanation}
-                                    </p>
-                                    {q.culturalContext && (
-                                      <p className="text-caption-1-medium text-text-tertiary pt-1.5 border-t border-separator-border">
-                                        Konteks Budaya: {q.culturalContext}
-                                      </p>
-                                    )}
-                                  </div>
-                                </motion.div>
-                              );
-                            })()}
-                        </AnimatePresence>
-                      </div>
-                    )}
-                  </div>
-                </TabPanel>
-              </Tabs>
-            </div>
+                </div>
+              )}
+            </motion.div>
           </div>
         </div>
-      </div>
-
-      <footer className="border-t border-separator-border py-6 text-center bg-background-primary-default">
-        <p className="text-body-2-medium text-text-secondary">
-          Exile — Platform Asesmen Formatif Budaya Bali & Kurikulum Merdeka
-        </p>
-      </footer>
-    </main>
+      </main>
+    </div>
   );
 }
