@@ -10,7 +10,6 @@ import {
   RiPlayCircleLine,
   RiHashtag,
   RiRefreshLine,
-  RiFilmLine,
   RiShieldCheckLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
@@ -379,18 +378,6 @@ export default function LandingPage() {
                 )}
               </Button>
 
-              <Button
-                type="button"
-                variant="ghost"
-                size="medium"
-                leadingIcon={RiFilmLine}
-                onClick={() => {
-                  soundEffects.playClick();
-                  document.getElementById("demo-remotion")?.scrollIntoView({ behavior: "smooth" });
-                }}
-              >
-                Lihat Pratinjau Bergerak
-              </Button>
             </div>
           </div>
 
