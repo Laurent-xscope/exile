@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@remixicon/react": "^4.9.0",
+    "@remotion/player": "^4.0.540",
     "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-table": "^8.21.3",
     "canvas-confetti": "^1.9.4",
@@ -17,9 +18,11 @@
     "framer-motion": "^14.9.0",
     "lucide-react": "^1.67.0",
     "next": "16.4.4",
+    "next-themes": "^0.4.6",
     "react": "19.3.0",
     "react-aria-components": "^1.22.1",
     "react-dom": "19.3.0",
+    "remotion": "^4.0.540",
     "sonner": "^2.0.8",
     "tailwind-merge": "^3.7.0",
     "zod": "^4.6.7"

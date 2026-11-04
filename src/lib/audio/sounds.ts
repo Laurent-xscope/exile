@@ -4,6 +4,8 @@
 class SoundEngine {
   private ctx: AudioContext | null = null;
   private isMuted: boolean = false;
+  private volume: number = 0.8;
+  private countdownTicksEnabled: boolean = true;
 
   private getContext(): AudioContext | null {
     if (typeof window === "undefined") return null;
@@ -29,9 +31,30 @@ class SoundEngine {
     return this.isMuted;
   }
 
+  public setVolume(volPercent: number) {
+    const clamped = Math.max(0, Math.min(100, Number.isFinite(volPercent) ? volPercent : 80));
+    this.volume = clamped / 100;
+  }
+
+  public getVolume(): number {
+    return Math.round(this.volume * 100);
+  }
+
+  public setCountdownTicks(enabled: boolean) {
+    this.countdownTicksEnabled = Boolean(enabled);
+  }
+
+  public getCountdownTicks(): boolean {
+    return this.countdownTicksEnabled;
+  }
+
+  private scaleGain(baseGain: number): number {
+    return Math.max(0.0001, baseGain * (this.volume / 0.8));
+  }
+
   // Soft click for tactile button press
   public playClick() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.volume <= 0) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -43,7 +66,7 @@ class SoundEngine {
       osc.frequency.setValueAtTime(420, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.04);
 
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
+      gain.gain.setValueAtTime(this.scaleGain(0.08), ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
 
       osc.connect(gain);
@@ -58,7 +81,7 @@ class SoundEngine {
 
   // Countdown timer tick (woodblock rhythm)
   public playTick() {
-    if (this.isMuted) return;
+    if (this.isMuted || !this.countdownTicksEnabled || this.volume <= 0) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -70,7 +93,7 @@ class SoundEngine {
       osc.frequency.setValueAtTime(800, ctx.currentTime);
       osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.03);
 
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
+      gain.gain.setValueAtTime(this.scaleGain(0.05), ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.03);
 
       osc.connect(gain);
@@ -83,7 +106,7 @@ class SoundEngine {
 
   // Celebratory correct answer chime (gamelan/bell inspired harmonic overtone)
   public playCorrect() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.volume <= 0) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -97,7 +120,7 @@ class SoundEngine {
         osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.06);
 
         const startTime = ctx.currentTime + idx * 0.06;
-        gain.gain.setValueAtTime(0.12, startTime);
+        gain.gain.setValueAtTime(this.scaleGain(0.12), startTime);
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.35);
 
         osc.connect(gain);
@@ -111,7 +134,7 @@ class SoundEngine {
 
   // Gentle feedback for incorrect choice (non-punitive warm low chime)
   public playIncorrect() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.volume <= 0) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -125,7 +148,7 @@ class SoundEngine {
         osc.frequency.setValueAtTime(freq, ctx.currentTime + idx * 0.12);
 
         const startTime = ctx.currentTime + idx * 0.12;
-        gain.gain.setValueAtTime(0.09, startTime);
+        gain.gain.setValueAtTime(this.scaleGain(0.09), startTime);
         gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.28);
 
         osc.connect(gain);
@@ -139,7 +162,7 @@ class SoundEngine {
 
   // Victory fanfare for leaderboard / game completion
   public playVictory() {
-    if (this.isMuted) return;
+    if (this.isMuted || this.volume <= 0) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
@@ -162,7 +185,7 @@ class SoundEngine {
           osc.type = "sine";
           osc.frequency.setValueAtTime(freq, startTime);
 
-          gain.gain.setValueAtTime(0.08, startTime);
+          gain.gain.setValueAtTime(this.scaleGain(0.08), startTime);
           gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
 
           osc.connect(gain);
