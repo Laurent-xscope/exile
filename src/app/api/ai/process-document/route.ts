@@ -39,7 +39,7 @@ function getFallbackDocumentAnalysis(
   ) {
     return {
       title: "Modul Pasang Aksara Bali Baku & Aturan Adeg-adeg",
-      subjectArea: "Bahasa & Aksara Bali (Kurikulum Merdeka Mulok)",
+      subjectArea: "Bahasa & Aksara Bali",
       gradeLevel: "SMP Fase D (Kelas 7-9)",
       summary: {
         overview:
@@ -299,7 +299,7 @@ function getFallbackDocumentAnalysis(
   ) {
     return {
       title: "Modul Tri Hita Karana & Kearifan Lokal Subak",
-      subjectArea: "Budaya & Kearifan Lokal Bali (Kurikulum Merdeka Mulok)",
+      subjectArea: "Budaya & Kearifan Lokal Bali",
       gradeLevel: "SMP Fase D (Kelas 7-9)",
       summary: {
         overview:
@@ -558,7 +558,7 @@ function getFallbackDocumentAnalysis(
   ) {
     return {
       title: "Modul Anggah-ungguhing Basa Bali (Alus Singgih & Alus Sor)",
-      subjectArea: "Bahasa & Etika Komunikasi Bali (Kurikulum Merdeka Mulok)",
+      subjectArea: "Bahasa & Etika Komunikasi Bali",
       gradeLevel: "SMP Fase D (Kelas 7-9)",
       summary: {
         overview:
@@ -837,8 +837,8 @@ function getFallbackDocumentAnalysis(
   const extractedTakeaways = rawSentences.slice(0, 4);
   while (extractedTakeaways.length < 4) {
     const defaults = [
-      `Pemahaman konsep inti pada materi "${derivedTitle}" menekankan analisis kontekstual sesuai capaian Kurikulum Merdeka.`,
-      "Penerapan materi dalam kehidupan sehari-hari melatih penalaran kritis (HOTS) dan kepekaan sosial-budaya siswa.",
+      `Pemahaman konsep inti pada materi "${derivedTitle}" menekankan analisis kontekstual dan penalaran aktif.`,
+      "Penerapan materi dalam kehidupan sehari-hari melatih penalaran kritis dan kepekaan sosial-budaya siswa.",
       "Identifikasi istilah kunci pada teks membantu siswa membedakan konsep utama dari miskonsepsi umum.",
       "Refleksi formatif secara berkala memastikan penguasaan kompetensi merata di seluruh kelompok belajar.",
     ];
@@ -848,11 +848,11 @@ function getFallbackDocumentAnalysis(
   const overviewText =
     rawSource.length >= 40
       ? `Ringkasan analisis materi "${derivedTitle}": ${rawSource.slice(0, 260).trim()}${rawSource.length > 260 ? "..." : ""}`
-      : `Modul "${derivedTitle}" menyajikan intisari materi pembelajaran terstruktur beserta poin konsep utama, glosarium istilah penting, flashcard hafalan aktif, dan soal latihan diagnostik HOTS.`;
+      : `Modul "${derivedTitle}" menyajikan intisari materi pembelajaran terstruktur beserta poin konsep utama, kartu belajar mandiri, dan soal latihan diagnostik.`;
 
   return {
     title: derivedTitle,
-    subjectArea: userContext?.trim() || "Muatan Lokal & Literasi Kontekstual (Kurikulum Merdeka)",
+    subjectArea: userContext?.trim() || "Bahan Ajar & Literasi Terstruktur",
     gradeLevel: "SMP Fase D (Kelas 7-9)",
     summary: {
       overview: overviewText,
@@ -987,7 +987,7 @@ function getFallbackDocumentAnalysis(
         correctAnswer: "A",
         explanation: `Uraian dokumen menegaskan bahwa: ${extractedTakeaways[1]}`,
         conceptTag: `${derivedTitle.slice(0, 40)}: Analisis Pendukung`,
-        culturalContext: "Literasi Kritis Kurikulum Merdeka",
+        culturalContext: "Literasi Kritis",
       },
       {
         id: crypto.randomUUID(),
@@ -1038,7 +1038,7 @@ function enrichStudioArtifacts(analysis: DocumentAnalysis): DocumentAnalysis {
   const keyPoints = analysis.summary.keyTakeaways || [
     "Penguasaan konsep dasar dan relasi sosial tutur bahasa.",
     "Pencegahan miskonsepsi penerapan kaidah pada situasi nyata.",
-    "Integrasi nilai kearifan lokal Kurikulum Merdeka.",
+    "Integrasi nilai kearifan lokal.",
   ];
 
   // 1. Difficulty-Scaled Quizzes (Easy, Medium, Hard)
@@ -1382,7 +1382,7 @@ export async function POST(req: Request) {
       description: result.summary.overview.slice(0, 160) + "...",
       targetGrade: result.gradeLevel,
       category: result.subjectArea,
-      culturalTheme: "Muatan Lokal Kurikulum Merdeka",
+      culturalTheme: "Muatan Lokal",
       questions: result.quiz,
     });
 

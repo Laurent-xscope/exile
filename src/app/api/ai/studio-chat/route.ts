@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callGeminiWithRotation, geminiKeyPool } from "@/lib/ai/gateway";
-import { BALI_PEDAGOGICAL_SYSTEM_PROMPT } from "@/lib/ai/prompts";
 
 const ChatMessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
@@ -14,6 +13,12 @@ const StudioChatRequestSchema = z.object({
   documentTitle: z.string().optional(),
   currentTab: z.string().optional(),
   studentPov: z.boolean().optional().default(false),
+  image: z
+    .object({
+      base64: z.string(),
+      mimeType: z.string(),
+    })
+    .optional(),
 });
 
 export async function POST(req: Request) {
@@ -28,40 +33,85 @@ export async function POST(req: Request) {
       );
     }
 
-    const { messages, documentContext, documentTitle, currentTab, studentPov } = parsed.data;
+    const { messages, documentContext, documentTitle, currentTab, studentPov, image } =
+      parsed.data;
 
-    const systemInstruction = `${BALI_PEDAGOGICAL_SYSTEM_PROMPT}
+    const hasDocument = Boolean(documentContext && documentContext.trim().length > 15);
 
-PERAN ANDA:
-Anda adalah Exile Studio Copilot (Asisten Pedagogis Cerdas berbasis RAG & Reasoning).
+    const systemInstruction = `Anda adalah Exile Copilot, asisten pedagogis cerdas yang mendampingi pengajar di Exile Studio (https://www.exile.web.id/studio).
+
+IDENTITAS & PANDUAN UTAMA:
+1. Nama Anda adalah Exile Copilot.
+2. Anda memahami secara mendalam seluruh ekosistem dan fitur Exile Studio:
+   - Sumber bahan ajar: Input teks materi ajar, atau unggah dokumen (PDF, gambar lembar kerja, catatan teks).
+   - Buatkan artifak (Create): Menghasilkan artifak ajar secara on-demand setelah materi dimasukkan.
+   - Intisari: Ringkasan eksekutif materi dengan poin-poin penting esensial.
+   - Kartu belajar 3D: Kartu tanya-jawab interaktif tiga dimensi untuk memorisasi mandiri siswa dengan petunjuk praktis.
+   - Kuis adaptif: Bank soal bergradasi 3 tingkat kesulitan (Level 1: Dasar, Level 2: Sedang, Level 3: Menantang) dengan analisis jebakan pengecoh dan pembahasan pedagogis.
+   - Slide deck: Presentasi ringkas siap pakai lengkap dengan catatan pengajar (presenter notes).
+   - Mind map: Pohon konsep materi yang terstruktur hierarkis.
+   - Laporan pedagogis: Analisis capaian kompetensi, prasyarat belajar, dan titik keraguan siswa.
+   - Tabel data: Rekapitulasi indikator dan bobot kompetensi.
+   - Infografis: Rangkuman pilar inti dan jembatan keledai visual.
+   - Sudut pandang siswa: Mode simulasi untuk merasakan bagaimana murid mencerna materi, analogi yang masuk akal, dan menyembunyikan jawaban untuk latihan.
+   - Buka ruang kuis: Meluncurkan ruangan interaktif dengan kode PIN unik agar murid dapat bergabung dan berlomba secara real-time.
+
+ATURAN KONTEKS DOKUMEN:
 ${
-  studentPov
-    ? `MODE KHUSUS: SUDUT PANDANG SISWA (Student POV Simulator).
-Jawablah dari perspektif siswa SMP/SMA: jelaskan apa yang membuat materi ini sulit atau mudah dipahami, bagaimana siswa memikirkannya, analogi apa yang masuk akal bagi mereka, dan cara mereka belajar tanpa rasa takut salah.`
-    : `MODE KHUSUS: PANDUAN PENGAJAR (Teacher Curriculum Designer).
-Bantu guru menyempurnakan bahan ajar, menyusun strategi mengajar aktif, mengantisipasi miskonsepsi siswa, dan merancang asesmen adaptif berstandar Kurikulum Merdeka.`
+  hasDocument
+    ? `DOKUMEN AKTIF TERSEDIA:
+Judul: ${documentTitle || "Dokumen materi"}
+Tab yang sedang dibuka: ${currentTab || "Intisari"}
+--- ISI MATERI ---
+${documentContext?.slice(0, 5000)}
+--- AKHIR MATERI ---
+Jawablah pertanyaan pengajar dengan mengacu pada materi dokumen di atas.`
+    : `DOKUMEN BELUM DIUNGGAH / KOSONG:
+Pengguna BELUM mengunggah dokumen apapun. JANGAN PERNAH mengarang atau mengklaim bahwa pengguna telah mengunggah modul apapun (seperti modul bahasa tertentu atau materi spesifik lainnya). Sapa pengguna dengan ramah sebagai Exile Copilot, jelaskan langkah mudah untuk memulai (ketik/unggah materi di kolom sebelah kiri lalu klik Buatkan), dan bantu jelaskan fitur-fitur Exile jika ditanyakan.`
 }
 
-KONTEKS DOKUMEN AKTIF:
-Judul Materi: ${documentTitle || "Dokumen Studio"}
-Artifak Terpilih: ${currentTab || "Rangkuman Intisari"}
+${
+  studentPov
+    ? `MODE KHUSUS: SUDUT PANDANG SISWA.
+Jawab dari sudut pandang siswa: jelaskan apa yang membuat konsep ini menantang, analogi santai yang relatable untuk siswa, dan cara mereka memahaminya tanpa rasa takut salah.`
+    : `MODE KHUSUS: PANDUAN PENGAJAR.
+Bantu pengajar menyempurnakan strategi mengajar, mengantisipasi miskonsepsi siswa, atau memahami cara kerja fitur Exile Studio.`
+}
 
---- ISI MATERI TERDOKUMENTASI ---
-${(documentContext || "Materi Kurikulum Merdeka Bahasa & Budaya Bali").slice(0, 6000)}
---- AKHIR MATERI ---
+ANALISIS GAMBAR / TANGKAPAN LAYAR (JIKA DILAMPIRKAN):
+Jika pengajar melampirkan gambar tangkapan layar fitur atau tampilan layar Exile Studio, analisislah gambar tersebut. Kenali bagian tombol, menu, atau kartu mana yang ditampilkan, lalu jelaskan fungsinya secara lugas dan ramah kepada pengajar.
 
-PANDUAN INTERAKSI:
-1. Memori Konteks: Rujuk percakapan sebelumnya jika ada kaitan. Jangan lupakan detail dokumen.
-2. Lugas, berbobot, berbasis bukti teks (grounded RAG).
-3. Sertakan analogi cerdas atau contoh kalimat nyata bila menjelaskan istilah atau kaidah.
-4. Format respon dengan markdown terstruktur (bold, bullet points) agar nyaman dibaca.`;
+GAYA KOMUNIKASI:
+- Hangat, profesional, langsung ke inti jawaban.
+- Hindari huruf kapital berlebihan (tanpa all-caps). Gunakan kalimat normal dan rapi.
+- Format teks dengan markdown (bullet points, bold) agar nyaman dibaca.`;
 
     if (geminiKeyPool.hasConfiguredKeys()) {
-      // Build multi-turn contents for Gemini
-      const geminiContents = messages.map((m) => ({
-        role: m.role === "assistant" ? "model" : "user",
-        parts: [{ text: m.content }],
-      }));
+      // Build contents for Gemini multi-turn
+      const geminiContents = messages.map((m, index) => {
+        const isLatest = index === messages.length - 1;
+        const parts: Array<{ text?: string; inlineData?: { mimeType: string; data: string } }> = [
+          { text: m.content },
+        ];
+
+        // Attach image to the latest user message if provided
+        if (isLatest && m.role === "user" && image && image.base64) {
+          const cleanBase64 = image.base64.includes(",")
+            ? image.base64.split(",")[1]
+            : image.base64;
+          parts.unshift({
+            inlineData: {
+              mimeType: image.mimeType || "image/png",
+              data: cleanBase64,
+            },
+          });
+        }
+
+        return {
+          role: m.role === "assistant" ? "model" : "user",
+          parts,
+        };
+      });
 
       try {
         const reply = await callGeminiWithRotation(
@@ -71,11 +121,11 @@ PANDUAN INTERAKSI:
             },
             contents: geminiContents,
             generationConfig: {
-              temperature: 0.4,
+              temperature: 0.35,
               maxOutputTokens: 1024,
             },
           },
-          5000
+          6000
         );
 
         if (reply && reply.trim().length > 0) {
@@ -85,29 +135,27 @@ PANDUAN INTERAKSI:
           });
         }
       } catch (err) {
-        console.warn("[Studio Chat] Gemini call failed, falling back:", err);
+        console.warn("[Studio Chat] Gemini call failed, using guided fallback:", err);
       }
     }
 
-    // Deterministic fallback if keys are unavailable or API rate-limited
+    // Deterministic fallback response
     const latestUserMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
     let fallbackReply = "";
 
-    if (studentPov) {
-      if (latestUserMsg.includes("susah") || latestUserMsg.includes("bingung") || latestUserMsg.includes("sulit")) {
-        fallbackReply = `Dari sudut pandang siswa, bagian paling membingungkan adalah **membedakan kruna untuk diri sendiri vs orang lain**. Siswa sering merasa takut salah berbicara sehingga memilih diam.\n\n*Tips ramah siswa:* Ingat rumus praktis **'Singgih = tinggikan orang lain/guru'** dan **'Sor = rendahkan diri sendiri (titiang matur)'**. Tidak perlu cemas, pembiasaan sehari-hari di kelas akan membuatnya otomatis!`;
-      } else if (latestUserMsg.includes("contoh") || latestUserMsg.includes("soal")) {
-        fallbackReply = `Berikut contoh percakapan santun di depan kelas:\n- **Siswa ke Guru:** *"Ritatkala Bapak Guru ngandika, titiang mirengang becik-becik."*\n- **Penjelasan Siswa:** Kata *ngandika* menghormati guru, sedangkan *titiang* dan *mirengang* menunjukkan sikap santun siswa.`;
+    if (image) {
+      fallbackReply = `Terima kasih telah melampirkan gambar tangkapan layar! Gambar ini menampilkan antarmuka Exile Studio. Di Exile Studio, Anda dapat:\n1. **Memasukkan Materi:** Mengisi teks atau mengunggah PDF/gambar lembar kerja di panel kiri.\n2. **Buatkan Artifak:** Mengklik tombol untuk menghasilkan intisari, kartu 3D, kuis adaptif, slide, mind map, dan infografis.\n3. **Buka Ruang Kuis:** Membagikan kode PIN unik agar murid dapat berpartisipasi langsung dari perangkat mereka.\n\nApakah ada bagian spesifik dari tampilan ini yang ingin Anda tanyakan lebih lanjut?`;
+    } else if (!hasDocument) {
+      if (latestUserMsg.includes("cara") || latestUserMsg.includes("fitur") || latestUserMsg.includes("pakai")) {
+        fallbackReply = `Berikut panduan ringkas menggunakan **Exile Studio**:\n1. **Masukkan Materi:** Ketik teks bahan ajar atau unggah berkas (PDF / Gambar lembar kerja / Teks) di panel kiri.\n2. **Klik 'Buatkan Artifak':** Sistem akan bernalar dan menyusun 8 artifak ajar (intisari, kartu 3D, kuis adaptif, slide, mind map, laporan, tabel, dan infografis).\n3. **Buka Ruang Kuis:** Klik tombol 'Buka Ruang Kuis' di sudut kanan atas untuk mendapatkan kode PIN kelas interaktif bagi siswa.\n4. **Sudut Pandang Siswa:** Gunakan tombol sakelar di pojok atas untuk melihat materi dari kacamata pemikiran murid!`;
       } else {
-        fallbackReply = `Sebagai siswa yang baru mempelajari materi ini, konsep utamanya sangat menarik karena seperti **aturan etika bermain game bersama**: ada tingkatan kata untuk menghormati lawan bicara dan menjaga keharmonisan (Tri Hita Karana).\n\nApakah ada bagian istilah tertentu yang ingin dijelaskan dengan analogi sehari-hari?`;
+        fallbackReply = `Halo! Saya **Exile Copilot**. Saat ini belum ada dokumen materi yang diunggah.\n\nSilakan masukkan teks materi ajar Anda di panel kiri atau unggah berkas lembar kerja (PDF/Gambar/Teks), lalu klik tombol **Buatkan Artifak**. Saya siap membantu Anda menyusun kuis, merancang presentasi, atau menjawab pertanyaan seputar fitur Exile!`;
       }
     } else {
-      if (latestUserMsg.includes("asesmen") || latestUserMsg.includes("kuis") || latestUserMsg.includes("soal")) {
-        fallbackReply = `Untuk asesmen materi ini, disarankan menggunakan **3 tingkat scaffolding**:\n1. **Level Dasar:** Identifikasi kruna ASI vs ASO.\n2. **Level Penerapan:** Memilih kalimat santun dalam konteks simulasi paruman atau kelas.\n3. **Level Analisis HOTS:** Mendeteksi kekeliruan etika tutur dalam studi kasus percakapan.`;
-      } else if (latestUserMsg.includes("remedial") || latestUserMsg.includes("miskonsepsi")) {
-        fallbackReply = `Miskonsepsi dominan adalah **siswa memakai kruna Alus Singgih untuk diri sendiri** (misal *"titiang ngandika"*).\n\n**Tindakan Remedial 5 Menit:**\nLakukan *roleplay* berpasangan: Siswa A berperan sebagai Guru, Siswa B sebagai Murid yang memohon izin. Evaluasi langsung pilihan kata kerja yang digunakan.`;
+      if (studentPov) {
+        fallbackReply = `Dari sudut pandang siswa, poin utama materi ini dapat dipahami lebih mudah bila dihubungkan dengan pengalaman nyata sehari-hari. Siswa terbantu jika kita memberikan analogi konkret sebelum masuk ke istilah teknis.\n\nAda konsep tertentu yang ingin dijelaskan dengan bahasa ramah siswa?`;
       } else {
-        fallbackReply = `Berdasarkan dokumen materi yang sedang dibuka, fokus esensial Kurikulum Merdeka adalah **penguasaan kontekstual, bukan sekadar hafalan kamus**.\n\nAnda dapat meluncurkan kuis interaktif langsung ke murid lewat tombol **Buka Ruang Kuis Siswa**, atau memanfaatkan kartu belajar 3D untuk apersepsi awal pertemuan.`;
+        fallbackReply = `Berdasarkan materi yang telah diproses, Anda dapat mengeksplorasi setiap artifak pada tab di atas: **Intisari**, **Kartu 3D**, **Kuis Adaptif**, **Slide Deck**, **Mind Map**, dan **Infografis**. Bila Anda ingin menguji pemahaman kelas, gunakan tombol **Buka Ruang Kuis** di kanan atas.`;
       }
     }
 

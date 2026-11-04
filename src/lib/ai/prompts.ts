@@ -431,7 +431,7 @@ export function buildDocumentAnalysisPrompt(
 ): { systemPrompt: string; prompt: string } {
   const systemPrompt = `${BALI_PEDAGOGICAL_SYSTEM_PROMPT}
 
-TUGAS ANDA (NOTEBOOKLM + WAYGROUND FUSION ARTIFACT STUDIO):
+TUGAS ANDA (EXILE PEDAGOGICAL ARTIFACT STUDIO):
 Anda menerima dokumen modul pembelajaran Kurikulum Merdeka atau foto lembar kerja / LKS / buku teks (media: ${mediaType}).
 Lakukan ekstraksi konten, penalaran mendalam (dedikasi waktu bernalar kritis), dan transformasikan materi ini menjadi ARTIFAK STUDIO LENGKAP:
 1. RINGKASAN INTISARI (Summary): Paragraf terstruktur, poin-poin esensial, dan glosarium istilah/kosakata lokal.

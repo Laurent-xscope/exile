@@ -27,7 +27,7 @@ const ClassDiagnosticRequestSchema = z.object({
   roomId: z.string().optional(),
   roomCode: z.string().optional(),
   quizId: z.string().optional(),
-  topic: z.string().optional().default("Asesmen Muatan Lokal Bali & Kurikulum Merdeka"),
+  topic: z.string().optional().default("Asesmen Muatan Lokal Bali"),
   teacherNotes: z.string().optional(),
   submissions: z.array(SubmissionItemSchema).optional(),
 });
@@ -161,7 +161,7 @@ export async function POST(req: Request) {
     console.error("[class-diagnostic error]", err);
     // Fallback safe return
     const { systemPrompt, prompt } = buildClassDiagnosticPrompt(
-      "Asesmen Muatan Lokal Bali & Kurikulum Merdeka",
+      "Asesmen Muatan Lokal Bali",
       {
         totalStudents: 20,
         averageScore: 70,
