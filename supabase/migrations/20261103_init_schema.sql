@@ -1,5 +1,5 @@
 -- ==============================================================================
--- exile.org — Supabase Database Migration
+-- Exile — Database Migration
 -- File: supabase/migrations/20261103_init_schema.sql
 -- Topic: Closed-Loop Localized Gamified Learning & AI Diagnostic Platform
 -- Bali DigiFest 2026 | Kurikulum Merdeka & Muatan Lokal Bali
@@ -147,10 +147,6 @@ DECLARE
     v_q3_id UUID := 'a3333333-3333-3333-3333-333333333333'::uuid;
     v_q4_id UUID := 'a4444444-4444-4444-4444-444444444444'::uuid;
     v_q5_id UUID := 'a5555555-5555-5555-5555-555555555555'::uuid;
-    v_player1_id UUID := 'b1111111-1111-1111-1111-111111111111'::uuid;
-    v_player2_id UUID := 'b2222222-2222-2222-2222-222222222222'::uuid;
-    v_player3_id UUID := 'b3333333-3333-3333-3333-333333333333'::uuid;
-    v_player4_id UUID := 'b4444444-4444-4444-4444-444444444444'::uuid;
 BEGIN
     -- 10.1 Insert Pre-loaded Quiz
     INSERT INTO public.quizzes (id, title, description, grade_level, category, cultural_theme)
@@ -266,57 +262,5 @@ BEGIN
         'Sistem Kemasyarakatan Banjar Adat Bali'
     )
     ON CONFLICT (id) DO NOTHING;
-
-    -- 10.3 Insert Pre-loaded Demo Game Room (PIN 849201)
-    INSERT INTO public.game_rooms (room_code, quiz_id, host_name, status, current_question_index, settings)
-    VALUES (
-        '849201',
-        v_quiz_id,
-        'Guru Sujana',
-        'active',
-        0,
-        '{"timePerQuestionSec": 20, "streakBonus": true}'::jsonb
-    )
-    ON CONFLICT (room_code) DO UPDATE SET
-        host_name = EXCLUDED.host_name,
-        status = EXCLUDED.status;
-
-    -- 10.4 Insert Demo Connected Players
-    INSERT INTO public.players (id, room_code, nickname, avatar, score, streak, is_connected)
-    VALUES
-        (v_player1_id, '849201', 'Wayan Satria', 'garuda', 940, 2, true),
-        (v_player2_id, '849201', 'Made Ayu', 'barong', 880, 1, true),
-        (v_player3_id, '849201', 'Nyoman Surya', 'dragon', 790, 1, true),
-        (v_player4_id, '849201', 'Ketut Lestari', 'lion', 650, 0, true)
-    ON CONFLICT (room_code, nickname) DO NOTHING;
-
-    -- 10.5 Insert Demo Submissions for Question 1
-    INSERT INTO public.submissions (room_code, player_id, question_id, selected_option, is_correct, response_time_ms, score_awarded, micro_feedback)
-    VALUES
-        ('849201', v_player1_id, v_q1_id, 'A', true, 3200, 940, 'Bagus pisan! Kruna Alus Sor (titiang) sampun tepat kaanggen ngasorang raga majeng ring guru.'),
-        ('849201', v_player2_id, v_q1_id, 'A', true, 4100, 880, 'Tepat sekali! Memilih Alus Sor untuk berbicara dengan guru.'),
-        ('849201', v_player3_id, v_q1_id, 'A', true, 5500, 790, 'Tepat! Kata titiang adalah bentuk kesantunan Alus Sor.'),
-        ('849201', v_player4_id, v_q1_id, 'B', false, 7200, 0, 'Kata icang adalah basa andap untuk teman sebaya, bukan untuk guru.')
-    ON CONFLICT DO NOTHING;
-
-    -- 10.6 Insert Pre-loaded Initial Diagnostic Summary
-    INSERT INTO public.class_diagnostics (room_code, quiz_id, class_mastery_rate, summary_text, cluster_analysis, recommended_reteaching, adaptive_remedial_questions)
-    VALUES (
-        '849201',
-        v_quiz_id,
-        75.00,
-        'Kelas menunjukkan penguasaan sangat baik pada konsep Basa Alus Sor (75%), namun perlu penguatan pada aturan penulisan Surang dan pembedaan Pawongan.',
-        '[
-            {"concept": "Anggah-ungguhing Basa: Alus Singgih vs Alus Sor", "errorRate": 25, "primaryMisconception": "Tertukar antara Alus Singgih dan Basa Andap", "affectedStudentsCount": 1},
-            {"concept": "Pasang Aksara: Pangangge Tengenan", "errorRate": 20, "primaryMisconception": "Siswa ragu antara Surang dan Adeg-adeg", "affectedStudentsCount": 1}
-        ]'::jsonb,
-        '{
-            "focusConcept": "Anggah-ungguhing Basa Bali: Alus Singgih vs Alus Sor",
-            "pedagogicalStrategy": "Roleplay 10 menit percakapan santun di kelas",
-            "quickActionableStep": "Latihan 3 pasang kalimat: Titiang nunas (ASO) vs Guru ngandika (ASI)"
-        }'::jsonb,
-        '[]'::jsonb
-    )
-    ON CONFLICT DO NOTHING;
 
 END $$;

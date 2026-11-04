@@ -18,6 +18,7 @@ import { InputBase } from "@/components/base/input/input";
 import { Chip } from "@/components/base/badges/chip";
 import { Spinner } from "@/components/base/spinner/spinner";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { LanguageToggle } from "@/components/theme/language-toggle";
 import { SettingsButton } from "@/components/settings/settings-modal";
 import { UserNav } from "@/components/auth/user-nav";
 import { useAuth } from "@/lib/auth/use-auth";
@@ -31,10 +32,7 @@ const ExileProductDemo = dynamic(
     ssr: false,
     loading: () => (
       <div className="w-full aspect-[16/9] rounded-3xl bg-background-primary-default border border-border-button-default flex flex-col items-center justify-center gap-3 text-text-secondary">
-        <Spinner size="md" aria-label="Memuat animasi interaktif..." />
-        <span className="text-caption-1-medium text-text-secondary">
-          Memuat animasi pratinjau produk Exile...
-        </span>
+        <Spinner size="md" aria-label="Memuat trailer..." />
       </div>
     ),
   }
@@ -64,90 +62,90 @@ interface WorkbenchModule {
 const WORKBENCH_MODULES: Record<"modul-1" | "modul-2" | "modul-3", WorkbenchModule> = {
   "modul-1": {
     id: "modul-1",
-    shortTitle: "Anggah-ungguhing Basa",
+    shortTitle: "Tingkatan Bahasa Bali",
     category: "Anggah-ungguhing Basa",
     concept: "Alus Sor (ASO) vs Alus Singgih (ASI)",
     question:
-      "Rikala mabaos majeng ring Bapak utawi Ibu Guru ring sekolah, kruna sane patut kaanggen nyihnayang raga (diri sendiri) mangda manut ring anggah-ungguhing basa inggih punika...",
+      "Ketika berbicara kepada Bapak atau Ibu Guru di sekolah, kata yang tepat digunakan untuk menyebut diri sendiri agar sesuai dengan etika kesantunan berbahasa Bali adalah...",
     options: [
       {
         label: "A",
         text: "Titiang",
         isCorrect: true,
         rationale:
-          "Tepat! Kruna Alus Sor (ASO) kaanggen ngasorang raga majeng ring sang sane kasinggihang sakadi guru. 'Singgihang anake lianan, andapang ragane padidi.'",
+          "Tepat! Kata Alus Sor (ASO) 'Titiang' digunakan untuk merendahkan diri sendiri di hadapan orang yang dihormati seperti guru (prinsip: hormati orang lain, rendahkan diri sendiri).",
       },
       {
         label: "B",
         text: "Icang",
         isCorrect: false,
         rationale:
-          "Miskonsepsi: Icang punika Basa Andap sane wantah dados kaanggen majeng ring timpal sebaya sane sampun raket.",
+          "Miskonsepsi: 'Icang' adalah Basa Andap (ragam ngoko/akrab) yang hanya boleh dipakai kepada teman sebaya yang sudah sangat dekat.",
       },
       {
         label: "C",
         text: "Kai",
         isCorrect: false,
         rationale:
-          "Keliru: Kai punika kruna kasar pisan, nenten dados kaanggen ring lingkungan pasamuan formal sekolah.",
+          "Keliru: 'Kai' adalah kata ganti orang pertama ragam kasar yang dilarang digunakan dalam komunikasi formal di sekolah.",
       },
       {
         label: "D",
         text: "Iraga",
         isCorrect: false,
         rationale:
-          "Pengecoh: Iraga punika kata ganti jamak (kita/kami), nenten tepat kaanggen nyihnayang raga tunggal majeng ring guru.",
+          "Pengecoh: 'Iraga' adalah kata ganti jamak (kita/kami), kurang tepat untuk merujuk diri tunggal secara santun di depan guru.",
       },
     ],
     flashcard: {
-      front: "Kruna Alus Singgih (ASI) anggen kruna 'ngomong' majeng ring Bapak Guru inggih punika...",
+      front: "Apa kata Alus Singgih (ASI) untuk kata 'berbicara/ngomong' ketika ditujukan kepada Bapak Guru?",
       backTitle: "Ngandika",
       backDetail:
-        "Kaanggen ngamuliayang sang kasinggihang. Yening anggen raga pribadi majeng ring guru: 'Matur' (Alus Sor).",
+        "Digunakan untuk menghormati orang yang ditinggikan (Guru). Jika untuk diri sendiri saat berbicara ke guru, gunakan kata Alus Sor: 'Matur'.",
     },
   },
   "modul-2": {
     id: "modul-2",
-    shortTitle: "Pasang Aksara",
+    shortTitle: "Pasang Aksara Bali",
     category: "Pasang Aksara",
-    concept: "Uger-uger Adeg-adeg & Gantungan",
+    concept: "Aturan Adeg-adeg & Gantungan",
     question:
-      "Manut ring Pedoman Pasang Aksara Bali Baku, panganggen adeg-adeg sane patut ring panyuratan lengkara inggih punika...",
+      "Menurut Pedoman Pasang Aksara Bali Baku, penempatan tanda adeg-adeg (tanda pemati vokal) yang benar dalam penulisan kalimat adalah...",
     options: [
       {
         label: "A",
-        text: "Ring panguntat kruna utawi panguntat lengkara sadurung carik.",
+        text: "Di akhir kata atau akhir kalimat tepat sebelum tanda carik.",
         isCorrect: true,
         rationale:
-          "Tepat! Adeg-adeg hanya boleh ditempatkan di akhir kata atau akhir kalimat tepat sebelum tanda carik.",
+          "Tepat! Adeg-adeg hanya boleh diletakkan di akhir kata atau akhir kalimat sebelum tanda carik (titik/koma).",
       },
       {
         label: "B",
-        text: "Ring tengahing kruna anggen ngentosin gantungan.",
+        text: "Di tengah kata untuk menggantikan gantungan aksara.",
         isCorrect: false,
         rationale:
-          "Miskonsepsi: konsonan mati di tengah kata wajib memakai gantungan atau gempelan, pantang memakai adeg-adeg.",
+          "Miskonsepsi: Konsonan mati di tengah kata wajib menggunakan gantungan atau gempelan, tidak boleh menggunakan adeg-adeg.",
       },
       {
         label: "C",
-        text: "Ring pangawit lengkara sadurung aksara wianjana.",
+        text: "Di awal kalimat sebelum aksara wianjana.",
         isCorrect: false,
         rationale:
-          "Keliru: adeg-adeg berfungsi mematikan vokal aksara sebelumnya, sehingga tidak mungkin berada di awal kalimat.",
+          "Keliru: Adeg-adeg berfungsi mematikan vokal pada aksara sebelumnya, sehingga tidak mungkin diletakkan di awal kalimat.",
       },
       {
         label: "D",
-        text: "Ring sabilang kruna sane madaging pangangge suara ulu.",
+        text: "Di setiap kata yang memuat pengangge suara ulu.",
         isCorrect: false,
         rationale:
-          "Pengecoh: ulu adalah pengangge suara vokal /i/, bukan penanda konsonan mati.",
+          "Pengecoh: Ulu adalah penanda vokal /i/, bukan tanda pemati konsonan.",
       },
     ],
     flashcard: {
-      front: "Aksara wianjana napi manten sane pasanganipun kasurat majajar ring tengen (gempelan)?",
-      backTitle: "Pa, Sa, miwah Pa Kapal",
+      front: "Aksara wianjana apa saja yang bentuk pasangannya ditulis sejajar di sebelah kanan (gempelan)?",
+      backTitle: "Pa, Sa, dan Pa Kapal",
       backDetail:
-        "Pasangan Pa, Sa, dan Pa Kapal ditulis di sebelah kanan aksara yang dimatikan, sedangkan aksara lain ditulis menggantung di bawah.",
+        "Pasangan aksara Pa, Sa, dan Pa Kapal ditulis sejajar di kanan aksara yang dimatikan (disebut gempelan), sedangkan aksara lainnya ditulis menggantung di bawah (gantungan).",
     },
   },
   "modul-3": {
@@ -156,42 +154,42 @@ const WORKBENCH_MODULES: Record<"modul-1" | "modul-2" | "modul-3", WorkbenchModu
     category: "Tri Hita Karana",
     concept: "Pawongan & Demokrasi Adat Subak",
     question:
-      "Krama subak melaksanakan paruman (sangketan) untuk menyepakati jadwal giliran air secara adil. Parikrama puniki nyihnayang nilai Tri Hita Karana bagian...",
+      "Krama subak mengadakan paruman (musyawarah) untuk menyepakati jadwal giliran air sawah secara adil. Kegiatan ini mencerminkan pengamalan nilai Tri Hita Karana pada pilar...",
     options: [
       {
         label: "A",
         text: "Parahyangan",
         isCorrect: false,
         rationale:
-          "Miskonsepsi: Parahyangan berfokus pada hubungan spiritual manusia dengan Tuhan melalui upacara di Pura Subak.",
+          "Miskonsepsi: Parahyangan berfokus pada hubungan spiritual antara manusia dengan Tuhan (upacara di Pura Ulun Danu / Pura Subak).",
       },
       {
         label: "B",
         text: "Pawongan",
         isCorrect: true,
         rationale:
-          "Tepat! Musyawarah mufakat antarpetani mencerminkan keharmonisan hubungan sesama manusia (Pawongan).",
+          "Tepat! Musyawarah mufakat dan gotong royong antarpetani mencerminkan keharmonisan hubungan sesama manusia (Pawongan).",
       },
       {
         label: "C",
         text: "Palemahan",
         isCorrect: false,
         rationale:
-          "Pengecoh: Palemahan berfokus pada tindakan merawat saluran irigasi dan menjaga ekosistem sawah.",
+          "Pengecoh: Palemahan berfokus pada hubungan manusia dengan kelestarian alam dan saluran irigasi.",
       },
       {
         label: "D",
         text: "Wariga",
         isCorrect: false,
         rationale:
-          "Pengecoh: Wariga adalah perhitungan dewasa ayu (kalender tradisional), bukan unsur Tri Hita Karana.",
+          "Pengecoh: Wariga adalah sistem kalender dan perhitungan hari baik (dewasa ayu), bukan bagian dari Tri Hita Karana.",
       },
     ],
     flashcard: {
-      front: "Sira sane ngenterang paruman miwah ngawasin pembagian toya ring organisasi Subak?",
-      backTitle: "Pekaseh",
+      front: "Siapa pemimpin adat yang dipilih krama subak untuk mengatur pembagian air irigasi secara adil?",
+      backTitle: "Pekaseh (Kelian Subak)",
       backDetail:
-        "Pekaseh dipilih secara demokratis oleh krama subak untuk mengatur pembagian air (tektek) dan menegakkan awig-awig.",
+        "Pekaseh dipilih secara demokratis oleh petani (krama) untuk mengatur pembagian air (tektek), memimpin musyawarah, dan menegakkan aturan adat (awig-awig).",
     },
   },
 };
@@ -331,6 +329,7 @@ export default function LandingPage() {
           </div>
 
           <div className="flex items-center gap-2">
+            <LanguageToggle />
             <ThemeToggle />
             <SettingsButton />
             <UserNav />
@@ -442,7 +441,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
           <div className="space-y-1">
             <h2 className="text-title-2-semibold sm:text-title-1-semibold text-text-primary">
-              Simulasi Asesmen & Diagnostik Miskonsepsi
+              Trailer Perdana exile.org
             </h2>
           </div>
 

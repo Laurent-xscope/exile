@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import TeacherHostClient from "./TeacherHostClient";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/base/spinner/spinner";
 
 async function HostInner({
   params,
@@ -19,9 +19,11 @@ export default function TeacherHostPage({
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400 gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-          <p className="text-sm">Menghubungkan ke Ruang Guru exile.org...</p>
+        <div className="min-h-screen bg-background-full flex flex-col items-center justify-center text-text-secondary gap-4">
+          <Spinner size="md" aria-label="Menghubungkan ke Ruang Guru Exile" />
+          <p className="text-body-regular text-text-secondary">
+            Menghubungkan ke Ruang Guru Exile...
+          </p>
         </div>
       }
     >

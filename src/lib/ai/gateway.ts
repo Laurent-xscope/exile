@@ -8,9 +8,6 @@ import {
   type ClassDiagnostic,
 } from "./prompts";
 
-/**
- * LRU In-Memory Cache with TTL
- */
 interface CacheEntry<T> {
   value: T;
   expiresAt: number;
@@ -36,7 +33,6 @@ class LRUCache<T> {
       return null;
     }
 
-    // Refresh LRU position by re-inserting
     this.cache.delete(key);
     this.cache.set(key, entry);
     return entry.value;
@@ -46,7 +42,6 @@ class LRUCache<T> {
     if (this.cache.has(key)) {
       this.cache.delete(key);
     } else if (this.cache.size >= this.maxEntries) {
-      // Evict oldest entry (first item in Map iterator)
       const oldestKey = this.cache.keys().next().value;
       if (oldestKey) this.cache.delete(oldestKey);
     }
@@ -62,18 +57,257 @@ class LRUCache<T> {
   }
 }
 
-// Global in-memory cache instance across request cycles
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const aiMemoryCache = new LRUCache<any>(250, 60 * 60 * 1000);
 
-/**
- * Robust JSON extraction helper
- * Handles markdown code fences (```json ... ```), trailing commas, and prefix/suffix text
- */
+export interface KeySlotState {
+  slotId: string;
+  key: string;
+  model: string;
+  unsupported: boolean;
+  cooldownUntil: number;
+  dailyExhaustedUntil: number;
+  lastErrorStatus?: number;
+  lastErrorReason?: string;
+  successCount: number;
+  failureCount: number;
+}
+
+const RPM_COOLDOWN_MS = 65 * 1000;
+const DAILY_QUOTA_COOLDOWN_MS = 60 * 60 * 1000;
+const INVALID_KEY_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+const SERVER_ERR_COOLDOWN_MS = 20 * 1000;
+const GEMINI_MODEL_CANDIDATES = [
+  "gemini-3.1-flash-lite-preview",
+  "gemini-2.5-flash",
+  "gemini-3-flash-preview",
+];
+
+class GeminiKeyPool {
+  private slots = new Map<string, KeySlotState>();
+  private keyCursor = 0;
+
+  private parseConfiguredKeys(): string[] {
+    const rawPool = [
+      process.env.GEMINI_API_KEYS || "",
+      process.env.GEMINI_API_KEY || "",
+    ]
+      .join(",")
+      .split(/[\s,;]+/)
+      .map((k) => k.trim())
+      .filter((k) => k.length > 8 && !k.includes("placeholder"));
+
+    return Array.from(new Set(rawPool));
+  }
+
+  private syncPool(): KeySlotState[] {
+    const uniqueKeys = this.parseConfiguredKeys();
+    const orderedSlots: KeySlotState[] = [];
+
+    // Interleave keys first across each model tier so consecutive requests rotate keys before repeating the same key
+    for (const model of GEMINI_MODEL_CANDIDATES) {
+      for (const key of uniqueKeys) {
+        const slotId = `${key}::${model}`;
+        if (!this.slots.has(slotId)) {
+          this.slots.set(slotId, {
+            slotId,
+            key,
+            model,
+            unsupported: false,
+            cooldownUntil: 0,
+            dailyExhaustedUntil: 0,
+            successCount: 0,
+            failureCount: 0,
+          });
+        }
+        orderedSlots.push(this.slots.get(slotId)!);
+      }
+    }
+
+    return orderedSlots;
+  }
+
+  public hasConfiguredKeys(): boolean {
+    return this.parseConfiguredKeys().length > 0;
+  }
+
+  public getAllStates(): KeySlotState[] {
+    return this.syncPool();
+  }
+
+  public getOrderedCandidates(): KeySlotState[] {
+    const allSlots = this.syncPool();
+    const numKeys = this.parseConfiguredKeys().length;
+    if (allSlots.length === 0 || numKeys === 0) return [];
+
+    const now = Date.now();
+    const offset = this.keyCursor % numKeys;
+    this.keyCursor = (this.keyCursor + 1) % numKeys;
+
+    // Rotate within each model tier by `offset` so every call starts on the next key in the pool
+    const rotated: KeySlotState[] = [];
+    for (let m = 0; m < GEMINI_MODEL_CANDIDATES.length; m++) {
+      const tierStart = m * numKeys;
+      const tier = allSlots.slice(tierStart, tierStart + numKeys);
+      rotated.push(...tier.slice(offset), ...tier.slice(0, offset));
+    }
+
+    const supported = rotated.filter((s) => !s.unsupported);
+    const available = supported.filter(
+      (s) => now >= s.cooldownUntil && now >= s.dailyExhaustedUntil
+    );
+
+    if (available.length > 0) {
+      return available;
+    }
+
+    // All supported slots are in cooldown; try the one whose cooldown expires soonest
+    const sortedBySoonest = [...supported].sort((a, b) => {
+      const aReady = Math.max(a.cooldownUntil, a.dailyExhaustedUntil);
+      const bReady = Math.max(b.cooldownUntil, b.dailyExhaustedUntil);
+      return aReady - bReady;
+    });
+    return sortedBySoonest.slice(0, 2);
+  }
+
+  public markSuccess(slotId: string): void {
+    const state = this.slots.get(slotId);
+    if (!state) return;
+    state.cooldownUntil = 0;
+    state.dailyExhaustedUntil = 0;
+    state.lastErrorStatus = undefined;
+    state.lastErrorReason = undefined;
+    state.successCount += 1;
+  }
+
+  public markFailure(
+    slotId: string,
+    status: number,
+    errorBody: string,
+    retryAfterHeader?: string | null
+  ): void {
+    const state = this.slots.get(slotId);
+    if (!state) return;
+    state.failureCount += 1;
+    state.lastErrorStatus = status;
+
+    const now = Date.now();
+    const lowerBody = errorBody.toLowerCase();
+
+    if (status === 404) {
+      state.unsupported = true;
+      state.lastErrorReason = "model_unsupported_404";
+      return;
+    }
+
+    let retryAfterMs = 0;
+    if (retryAfterHeader) {
+      const parsedSec = Number(retryAfterHeader);
+      if (!Number.isNaN(parsedSec) && parsedSec > 0) {
+        retryAfterMs = parsedSec * 1000;
+      }
+    }
+    const retryDelayMatch = errorBody.match(/"retryDelay"\s*:\s*"(\d+(?:\.\d+)?)s"/);
+    if (retryDelayMatch && retryDelayMatch[1]) {
+      const delaySec = parseFloat(retryDelayMatch[1]);
+      if (!Number.isNaN(delaySec) && delaySec > 0) {
+        retryAfterMs = Math.max(retryAfterMs, Math.ceil(delaySec * 1000));
+      }
+    }
+
+    if (status === 429) {
+      const isPerMinute =
+        lowerBody.includes("perminute") ||
+        lowerBody.includes("per_minute") ||
+        lowerBody.includes("per minute");
+      const isDailyQuota =
+        !isPerMinute &&
+        (lowerBody.includes("perday") ||
+          lowerBody.includes("per_day") ||
+          lowerBody.includes("per day") ||
+          lowerBody.includes("generaterequestsperday") ||
+          lowerBody.includes("daily limit"));
+
+      if (isDailyQuota) {
+        state.dailyExhaustedUntil =
+          now + Math.max(retryAfterMs, DAILY_QUOTA_COOLDOWN_MS);
+        state.lastErrorReason = "daily_quota_exhausted";
+      } else {
+        state.cooldownUntil =
+          now + (retryAfterMs > 0 ? retryAfterMs : RPM_COOLDOWN_MS);
+        state.lastErrorReason = "rate_limited_429_rpm";
+      }
+    } else if (status === 400 || status === 401 || status === 403) {
+      if (lowerBody.includes("api_key_invalid") || status === 401 || status === 403) {
+        for (const s of this.slots.values()) {
+          if (s.key === state.key) {
+            s.dailyExhaustedUntil = now + INVALID_KEY_COOLDOWN_MS;
+            s.lastErrorReason = `auth_invalid_${status}`;
+          }
+        }
+      } else {
+        state.cooldownUntil = now + SERVER_ERR_COOLDOWN_MS;
+        state.lastErrorReason = `bad_request_${status}`;
+      }
+    } else {
+      state.cooldownUntil = now + SERVER_ERR_COOLDOWN_MS;
+      state.lastErrorReason = `http_${status}`;
+    }
+  }
+}
+
+export const geminiKeyPool = new GeminiKeyPool();
+
+export async function callGeminiWithRotation(
+  bodyPayload: Record<string, unknown>,
+  timeoutMs = 4500
+): Promise<string | null> {
+  const candidates = geminiKeyPool.getOrderedCandidates();
+  if (candidates.length === 0) return null;
+
+  for (const candidate of candidates) {
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${candidate.model}:generateContent?key=${encodeURIComponent(candidate.key)}`;
+
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(bodyPayload),
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const candidateText =
+          data?.candidates?.[0]?.content?.parts?.[0]?.text;
+        if (candidateText && typeof candidateText === "string") {
+          geminiKeyPool.markSuccess(candidate.slotId);
+          return candidateText;
+        }
+      } else {
+        const errBody = await response.text().catch(() => "");
+        geminiKeyPool.markFailure(
+          candidate.slotId,
+          response.status,
+          errBody,
+          response.headers.get("retry-after")
+        );
+      }
+    } catch (err) {
+      geminiKeyPool.markFailure(
+        candidate.slotId,
+        503,
+        err instanceof Error ? err.message : "network_timeout"
+      );
+    }
+  }
+
+  return null;
+}
+
 export function extractJSON<T>(rawText: string, schema?: z.ZodType<T>): T {
   let cleaned = rawText.trim();
 
-  // Strip markdown code fences if present
   if (cleaned.includes("```")) {
     const match = cleaned.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
     if (match && match[1]) {
@@ -81,7 +315,6 @@ export function extractJSON<T>(rawText: string, schema?: z.ZodType<T>): T {
     }
   }
 
-  // Find outermost JSON structure (brace or bracket)
   const firstBrace = cleaned.indexOf("{");
   const firstBracket = cleaned.indexOf("[");
 
@@ -100,7 +333,6 @@ export function extractJSON<T>(rawText: string, schema?: z.ZodType<T>): T {
     cleaned = cleaned.substring(startIdx, endIdx + 1);
   }
 
-  // Remove trailing commas before closing braces/brackets
   cleaned = cleaned.replace(/,\s*([}\]])/g, "$1");
 
   const parsed = JSON.parse(cleaned);
@@ -117,13 +349,7 @@ export function extractJSON<T>(rawText: string, schema?: z.ZodType<T>): T {
   return parsed as T;
 }
 
-/**
- * High-Quality Deterministic Pedagogical Fallback Providers
- * Ensures the system NEVER throws 500 or crashes during hackathon demos,
- * offline presentations, rate limits, or quota exhaustion.
- */
 function getDeterministicQuizFallback(prompt: string): Quiz {
-  // Check if topic is Pasang Aksara, Tri Hita Karana, or Anggah-ungguhing Basa Bali
   const lowerPrompt = prompt.toLowerCase();
 
   if (lowerPrompt.includes("aksara") || lowerPrompt.includes("pasang")) {
@@ -303,7 +529,6 @@ function getDeterministicQuizFallback(prompt: string): Quiz {
     };
   }
 
-  // Default: Anggah-ungguhing Basa Bali & Tri Hita Karana
   return {
     title: "Asesmen Muatan Lokal Bali: Anggah-ungguhing Basa & Tri Hita Karana",
     description: "Evaluasi pemahaman tingkatan bicara Basa Bali Alus serta penerapan etika Tri Hita Karana di sekolah.",
@@ -506,7 +731,7 @@ function getDeterministicMicroExplanationFallback(prompt: string): MicroExplanat
   };
 }
 
-function getDeterministicDiagnosticFallback(prompt: string): ClassDiagnostic {
+function getDeterministicDiagnosticFallback(_prompt: string): ClassDiagnostic {
   return {
     topic: "Asesmen Muatan Lokal Bali & Kurikulum Merdeka",
     classMasteryRate: 68.5,
@@ -640,10 +865,6 @@ function getDeterministicDiagnosticFallback(prompt: string): ClassDiagnostic {
   };
 }
 
-/**
- * Main Resilient AI Gateway
- * Guaranteed to NEVER crash or throw 500 error.
- */
 export async function callAI<T>(
   prompt: string,
   schema?: z.ZodType<T>,
@@ -652,85 +873,51 @@ export async function callAI<T>(
   const systemPrompt = options?.systemPrompt || "";
   const temperature = options?.temperature ?? 0.7;
 
-  // 1. Check LRU In-memory Cache
   const cacheKey = `${systemPrompt}::${prompt}::${temperature}`;
   const cached = aiMemoryCache.get(cacheKey);
   if (cached !== null) {
     return cached as T;
   }
 
-  // 2. Attempt Google Gemini 2.5 Flash if API Key is configured
-  const apiKey = process.env.GEMINI_API_KEY;
+  if (geminiKeyPool.hasConfiguredKeys()) {
+    const contents = [
+      {
+        role: "user",
+        parts: [{ text: prompt }],
+      },
+    ];
 
-  if (apiKey && apiKey.trim() !== "" && !apiKey.includes("placeholder")) {
-    try {
-      const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey.trim()}`;
+    const bodyPayload: Record<string, unknown> = {
+      contents,
+      generationConfig: {
+        temperature,
+        responseMimeType: "application/json",
+      },
+    };
 
-      const contents = [
-        {
-          role: "user",
-          parts: [{ text: prompt }],
-        },
-      ];
-
-      // Format payload according to Google Gemini REST specification
-      const bodyPayload: Record<string, unknown> = {
-        contents,
-        generationConfig: {
-          temperature,
-          responseMimeType: "application/json",
-        },
+    if (systemPrompt) {
+      bodyPayload.systemInstruction = {
+        parts: [{ text: systemPrompt }],
       };
+    }
 
-      if (systemPrompt) {
-        bodyPayload.systemInstruction = {
-          parts: [{ text: systemPrompt }],
-        };
-      }
-
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(bodyPayload),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        const candidateText =
-          data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
-        if (candidateText && typeof candidateText === "string") {
-          try {
-            const extracted = extractJSON<T>(candidateText, schema);
-            aiMemoryCache.set(cacheKey, extracted);
-            return extracted;
-          } catch (parseErr) {
-            console.warn(
-              "[AI Gateway] Gemini returned unparseable or non-conforming JSON, falling back to deterministic engine:",
-              parseErr
-            );
-          }
-        }
-      } else {
+    const candidateText = await callGeminiWithRotation(bodyPayload, 4000);
+    if (candidateText) {
+      try {
+        const extracted = extractJSON<T>(candidateText, schema);
+        aiMemoryCache.set(cacheKey, extracted);
+        return extracted;
+      } catch (parseErr) {
         console.warn(
-          `[AI Gateway] Gemini API returned HTTP ${response.status}: ${await response.text().catch(() => "")}. Falling back to deterministic engine.`
+          "[AI Gateway] Gemini returned non-conforming JSON, falling back to deterministic engine:",
+          parseErr
         );
       }
-    } catch (networkErr) {
-      console.warn(
-        "[AI Gateway] Network error while calling Google Gemini API, activating resilient deterministic engine:",
-        networkErr
-      );
     }
   }
 
-  // 3. Fallback Provider: High-fidelity deterministic pedagogical generator
-  // Guarantees zero 500s on stage or under judge evaluation
   let fallbackResult: unknown;
 
-  // Identify type of query by schema or prompt markers
   const schemaRef = schema as unknown;
   if (schemaRef === QuizSchema || prompt.includes("Hasilkan kuis") || prompt.includes("questions")) {
     fallbackResult = getDeterministicQuizFallback(prompt);
@@ -747,11 +934,9 @@ export async function callAI<T>(
   ) {
     fallbackResult = getDeterministicDiagnosticFallback(prompt);
   } else {
-    // Attempt best heuristic fallback
     fallbackResult = getDeterministicQuizFallback(prompt);
   }
 
-  // Validate fallback against schema if supplied
   if (schema) {
     const validated = schema.safeParse(fallbackResult);
     if (validated.success) {

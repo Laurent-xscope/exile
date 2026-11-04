@@ -11,6 +11,7 @@ import {
 const ActionSchema = z.object({
   action: z.enum([
     "get_teacher_state",
+    "start_quiz",
     "advance_question",
     "show_leaderboard",
     "resume_quiz",
@@ -56,33 +57,38 @@ export async function POST(
       case "advance_question": {
         const result = await advanceRoomQuestion(roomCode);
         const state = await getGameRoomState(roomCode);
+        const details = await getTeacherRoomDetails(roomCode);
         return NextResponse.json({
           success: result.success,
           isFinished: result.isFinished,
           state,
+          details,
         });
       }
 
       case "show_leaderboard": {
         await setRoomStatus(roomCode, "showing_leaderboard");
         const state = await getGameRoomState(roomCode);
-        return NextResponse.json({ success: true, state });
+        const details = await getTeacherRoomDetails(roomCode);
+        return NextResponse.json({ success: true, state, details });
       }
 
+      case "start_quiz":
       case "resume_quiz": {
         await setRoomStatus(roomCode, "active");
         const state = await getGameRoomState(roomCode);
-        return NextResponse.json({ success: true, state });
+        const details = await getTeacherRoomDetails(roomCode);
+        return NextResponse.json({ success: true, state, details });
       }
 
       case "finish_game": {
         await setRoomStatus(roomCode, "finished");
         const state = await getGameRoomState(roomCode);
-        return NextResponse.json({ success: true, state });
+        const details = await getTeacherRoomDetails(roomCode);
+        return NextResponse.json({ success: true, state, details });
       }
 
       case "simulate_answer": {
-        // Handy for live demo: simulate a submission from one of the demo players
         const state = await getGameRoomState(roomCode);
         if (!state || !state.currentQuestion) {
           return NextResponse.json(
@@ -92,20 +98,27 @@ export async function POST(
         }
 
         const simulatedPlayerId =
-          playerId || state.players[Math.floor(Math.random() * state.players.length)]?.id;
+          playerId ||
+          state.players[Math.floor(Math.random() * state.players.length)]?.id;
+
+        if (!simulatedPlayerId) {
+          return NextResponse.json(
+            { error: "Belum ada peserta di ruangan ini" },
+            { status: 400 }
+          );
+        }
+
         const option =
           selectedOption ||
           ["A", "B", "C", "D"][Math.floor(Math.random() * 4)];
 
-        if (simulatedPlayerId) {
-          await recordAnswerSubmission({
-            roomCode,
-            playerId: simulatedPlayerId,
-            questionId: state.currentQuestion.id || "q1",
-            selectedOption: option,
-            responseTimeMs: Math.floor(2000 + Math.random() * 4000),
-          });
-        }
+        await recordAnswerSubmission({
+          roomCode,
+          playerId: simulatedPlayerId,
+          questionId: state.currentQuestion.id || "",
+          selectedOption: option,
+          responseTimeMs: Math.floor(2000 + Math.random() * 4000),
+        });
 
         const updatedDetails = await getTeacherRoomDetails(roomCode);
         return NextResponse.json({ success: true, details: updatedDetails });

@@ -39,13 +39,20 @@ export interface GameRoomRecord {
     shuffleQuestions?: boolean;
   };
   questions: Question[];
-  players: Map<string, PlayerRecord>; // keyed by playerId
+  players: Map<string, PlayerRecord>;
   submissions: SubmissionRecord[];
   createdAt: string;
   updatedAt: string;
+  lastSyncedAt?: number;
 }
 
-// Pre-loaded seed questions for demo & fallback
+function withTimeout<T>(promise: PromiseLike<T>, ms = 1500): Promise<T | null> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
+  ]);
+}
+
 export const SEED_BALI_QUESTIONS: Question[] = [
   {
     id: "a1111111-1111-1111-1111-111111111111",
@@ -253,137 +260,13 @@ export const SEED_BALI_QUESTIONS: Question[] = [
   },
 ];
 
-// In-Memory Global Rooms Registry
 const inMemoryRooms = new Map<string, GameRoomRecord>();
 
-// Pre-initialize demo room 849201 as specified in hackathon README
-function initDemoRoom() {
-  const demoPin = "849201";
-  if (!inMemoryRooms.has(demoPin)) {
-    const demoPlayers = new Map<string, PlayerRecord>();
-    const p1: PlayerRecord = {
-      id: "b1111111-1111-1111-1111-111111111111",
-      roomCode: demoPin,
-      nickname: "Wayan Satria",
-      avatar: "garuda",
-      score: 940,
-      streak: 2,
-      isConnected: true,
-      lastSeenAt: new Date().toISOString(),
-    };
-    const p2: PlayerRecord = {
-      id: "b2222222-2222-2222-2222-222222222222",
-      roomCode: demoPin,
-      nickname: "Made Ayu",
-      avatar: "barong",
-      score: 880,
-      streak: 1,
-      isConnected: true,
-      lastSeenAt: new Date().toISOString(),
-    };
-    const p3: PlayerRecord = {
-      id: "b3333333-3333-3333-3333-333333333333",
-      roomCode: demoPin,
-      nickname: "Nyoman Surya",
-      avatar: "dragon",
-      score: 790,
-      streak: 1,
-      isConnected: true,
-      lastSeenAt: new Date().toISOString(),
-    };
-    const p4: PlayerRecord = {
-      id: "b4444444-4444-4444-4444-444444444444",
-      roomCode: demoPin,
-      nickname: "Ketut Lestari",
-      avatar: "lion",
-      score: 650,
-      streak: 0,
-      isConnected: true,
-      lastSeenAt: new Date().toISOString(),
-    };
-
-    demoPlayers.set(p1.id, p1);
-    demoPlayers.set(p2.id, p2);
-    demoPlayers.set(p3.id, p3);
-    demoPlayers.set(p4.id, p4);
-
-    const demoSubmissions: SubmissionRecord[] = [
-      {
-        id: "s1",
-        roomCode: demoPin,
-        playerId: p1.id,
-        questionId: SEED_BALI_QUESTIONS[0].id || "q1",
-        selectedOption: "A",
-        isCorrect: true,
-        responseTimeMs: 3200,
-        scoreAwarded: 940,
-        microFeedback: "Bagus pisan! Kruna Alus Sor (titiang) tepat kaanggen.",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "s2",
-        roomCode: demoPin,
-        playerId: p2.id,
-        questionId: SEED_BALI_QUESTIONS[0].id || "q1",
-        selectedOption: "A",
-        isCorrect: true,
-        responseTimeMs: 4100,
-        scoreAwarded: 880,
-        microFeedback: "Tepat sekali!",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "s3",
-        roomCode: demoPin,
-        playerId: p3.id,
-        questionId: SEED_BALI_QUESTIONS[0].id || "q1",
-        selectedOption: "A",
-        isCorrect: true,
-        responseTimeMs: 5500,
-        scoreAwarded: 790,
-        microFeedback: "Tepat!",
-        createdAt: new Date().toISOString(),
-      },
-      {
-        id: "s4",
-        roomCode: demoPin,
-        playerId: p4.id,
-        questionId: SEED_BALI_QUESTIONS[0].id || "q1",
-        selectedOption: "B",
-        isCorrect: false,
-        responseTimeMs: 7200,
-        scoreAwarded: 0,
-        microFeedback: "Kata icang adalah basa andap untuk teman sebaya, bukan guru.",
-        createdAt: new Date().toISOString(),
-      },
-    ];
-
-    inMemoryRooms.set(demoPin, {
-      id: "demo-room-849201",
-      roomCode: demoPin,
-      quizId: "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
-      hostName: "Guru Sujana",
-      status: "active",
-      currentQuestionIndex: 0,
-      questionStartTime: new Date().toISOString(),
-      settings: {
-        timePerQuestionSec: 20,
-        streakBonus: true,
-      },
-      questions: SEED_BALI_QUESTIONS,
-      players: demoPlayers,
-      submissions: demoSubmissions,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    });
-  }
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export function isValidUuid(val?: string | null): boolean {
+  return Boolean(val && UUID_REGEX.test(val));
 }
 
-initDemoRoom();
-
-/**
- * Generate a random 6-digit PIN that is not currently in use
- */
 export function generateRoomCode(): string {
   let pin = "";
   let attempts = 0;
@@ -394,9 +277,6 @@ export function generateRoomCode(): string {
   return pin;
 }
 
-/**
- * Create a new Game Room
- */
 export async function createGameRoom(params: {
   quizId?: string;
   hostName?: string;
@@ -411,15 +291,46 @@ export async function createGameRoom(params: {
   const roomId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  const questions =
-    params.questions && params.questions.length > 0
-      ? params.questions
-      : SEED_BALI_QUESTIONS;
+  const hasCustomQuestions = Boolean(params.questions && params.questions.length > 0);
+  let questions: Question[] = hasCustomQuestions
+    ? params.questions!.map((q, idx) => ({
+        ...q,
+        id: isValidUuid(q.id) ? q.id : crypto.randomUUID(),
+        questionOrder: q.questionOrder ?? idx + 1,
+      }))
+    : SEED_BALI_QUESTIONS.map((q) => ({ ...q }));
+
+  if (params.settings?.shuffleQuestions) {
+    questions = [...questions];
+    for (let i = questions.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [questions[i], questions[j]] = [questions[j], questions[i]];
+    }
+    questions = questions.map((q, idx) => ({
+      ...q,
+      questionOrder: idx + 1,
+    }));
+  }
+
+  let resolvedQuizId = isValidUuid(params.quizId)
+    ? params.quizId!
+    : "e1a84f3c-5026-4d2c-9749-34b865fa7b21";
+
+  if (!isValidUuid(params.quizId) || hasCustomQuestions) {
+    const stored = await storeQuiz({
+      id: isValidUuid(params.quizId) ? params.quizId! : crypto.randomUUID(),
+      title: "Kuis Kelas Exile",
+      description: "Asesmen interaktif Kurikulum Merdeka",
+      questions,
+    });
+    resolvedQuizId = stored.id;
+    questions = stored.questions;
+  }
 
   const newRoom: GameRoomRecord = {
     id: roomId,
     roomCode,
-    quizId: params.quizId || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
+    quizId: resolvedQuizId,
     hostName: params.hostName?.trim() || "Guru",
     status: "waiting",
     currentQuestionIndex: 0,
@@ -433,26 +344,29 @@ export async function createGameRoom(params: {
     submissions: [],
     createdAt: now,
     updatedAt: now,
+    lastSyncedAt: Date.now(),
   };
 
   inMemoryRooms.set(roomCode, newRoom);
 
-  // Asynchronously mirror to Supabase (best-effort, non-blocking)
   try {
     const isPlaceholder =
       process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
 
     if (!isPlaceholder) {
-      await supabase.from("game_rooms").insert({
-        id: roomId,
-        room_code: roomCode,
-        quiz_id: newRoom.quizId,
-        host_name: newRoom.hostName,
-        status: newRoom.status,
-        current_question_index: 0,
-        settings: newRoom.settings,
-      });
+      await withTimeout(
+        supabase.from("game_rooms").insert({
+          id: roomId,
+          room_code: roomCode,
+          quiz_id: newRoom.quizId,
+          host_name: newRoom.hostName,
+          status: newRoom.status,
+          current_question_index: 0,
+          settings: newRoom.settings,
+        }),
+        1500
+      );
     }
   } catch (err) {
     console.warn("[RoomStore] Supabase sync omitted, in-memory active:", err);
@@ -461,36 +375,40 @@ export async function createGameRoom(params: {
   return newRoom;
 }
 
-/**
- * Ensure Room is Loaded into In-Memory Cache (Hydrating from Supabase Cloud if Needed)
- */
 export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord | null> {
-  initDemoRoom();
-  const cached = inMemoryRooms.get(roomCode);
-  if (cached) return cached;
+  const cached = inMemoryRooms.get(roomCode) || null;
+  if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 1500) {
+    return cached;
+  }
 
   try {
     const isPlaceholder =
       process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
 
-    if (isPlaceholder) return null;
+    if (isPlaceholder) return cached;
 
-    const { data: roomData, error: roomErr } = await supabase
-      .from("game_rooms")
-      .select("*")
-      .eq("room_code", roomCode)
-      .maybeSingle();
+    const synced = await withTimeout(
+      Promise.all([
+        supabase.from("game_rooms").select("*").eq("room_code", roomCode).maybeSingle(),
+        supabase.from("players").select("*").eq("room_code", roomCode),
+        supabase.from("submissions").select("*").eq("room_code", roomCode),
+      ]),
+      2000
+    );
 
-    if (roomErr || !roomData) return null;
+    if (!synced) return cached;
 
-    // Fetch players for this room
-    const { data: playersData } = await supabase
-      .from("players")
-      .select("*")
-      .eq("room_code", roomCode);
+    const [{ data: roomData, error: roomErr }, { data: playersData }, { data: subData }] = synced;
+
+    if (roomErr || !roomData) return cached;
 
     const playerMap = new Map<string, PlayerRecord>();
+    if (cached) {
+      for (const [k, v] of cached.players.entries()) {
+        playerMap.set(k, v);
+      }
+    }
     if (playersData) {
       for (const p of playersData) {
         playerMap.set(p.id, {
@@ -506,34 +424,42 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
       }
     }
 
-    // Fetch submissions for this room
-    const { data: subData } = await supabase
-      .from("submissions")
-      .select("*")
-      .eq("room_code", roomCode);
+    const submissionsMap = new Map<string, SubmissionRecord>();
+    if (cached) {
+      for (const s of cached.submissions) {
+        submissionsMap.set(s.id, s);
+      }
+    }
+    if (subData) {
+      for (const s of subData) {
+        submissionsMap.set(s.id, {
+          id: s.id,
+          roomCode: s.room_code,
+          playerId: s.player_id,
+          questionId: s.question_id || "",
+          selectedOption: s.selected_option,
+          isCorrect: s.is_correct,
+          responseTimeMs: s.response_time_ms,
+          scoreAwarded: s.score_awarded,
+          microFeedback: s.micro_feedback || undefined,
+          createdAt: s.created_at,
+        });
+      }
+    }
+    const submissions = Array.from(submissionsMap.values());
 
-    const submissions: SubmissionRecord[] = (subData || []).map((s) => ({
-      id: s.id,
-      roomCode: s.room_code,
-      playerId: s.player_id,
-      questionId: s.question_id || "",
-      selectedOption: s.selected_option,
-      isCorrect: s.is_correct,
-      responseTimeMs: s.response_time_ms,
-      scoreAwarded: s.score_awarded,
-      microFeedback: s.micro_feedback || undefined,
-      createdAt: s.created_at,
-    }));
+    let questions: Question[] = cached?.questions || SEED_BALI_QUESTIONS;
+    if ((!cached || cached.questions.length === 0) && roomData.quiz_id) {
+      const qRes = await withTimeout(
+        supabase
+          .from("questions")
+          .select("*")
+          .eq("quiz_id", roomData.quiz_id)
+          .order("question_order", { ascending: true }),
+        2000
+      );
 
-    // Fetch questions if quiz_id is set
-    let questions: Question[] = SEED_BALI_QUESTIONS;
-    if (roomData.quiz_id) {
-      const { data: qData } = await supabase
-        .from("questions")
-        .select("*")
-        .eq("quiz_id", roomData.quiz_id)
-        .order("question_order", { ascending: true });
-
+      const qData = qRes?.data;
       if (qData && qData.length > 0) {
         questions = qData.map((q) => ({
           id: q.id,
@@ -551,30 +477,28 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
     const restoredRoom: GameRoomRecord = {
       id: roomData.id,
       roomCode: roomData.room_code,
-      quizId: roomData.quiz_id || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
-      hostName: roomData.host_name || "Guru",
-      status: roomData.status || "waiting",
-      currentQuestionIndex: roomData.current_question_index || 0,
-      questionStartTime: roomData.question_start_time || undefined,
-      settings: roomData.settings || { timePerQuestionSec: 20, streakBonus: true },
+      quizId: roomData.quiz_id || cached?.quizId || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
+      hostName: roomData.host_name || cached?.hostName || "Guru",
+      status: roomData.status || cached?.status || "waiting",
+      currentQuestionIndex: roomData.current_question_index ?? cached?.currentQuestionIndex ?? 0,
+      questionStartTime: roomData.question_start_time || cached?.questionStartTime || undefined,
+      settings: roomData.settings || cached?.settings || { timePerQuestionSec: 20, streakBonus: true },
       questions,
       players: playerMap,
       submissions,
-      createdAt: roomData.created_at || new Date().toISOString(),
-      updatedAt: roomData.updated_at || new Date().toISOString(),
+      createdAt: roomData.created_at || cached?.createdAt || new Date().toISOString(),
+      updatedAt: roomData.updated_at || cached?.updatedAt || new Date().toISOString(),
+      lastSyncedAt: Date.now(),
     };
 
     inMemoryRooms.set(roomCode, restoredRoom);
     return restoredRoom;
   } catch (err) {
     console.warn("[RoomStore] Failed to restore room from Supabase:", err);
-    return null;
+    return cached;
   }
 }
 
-/**
- * Join an existing Game Room
- */
 export async function joinGameRoom(params: {
   roomCode: string;
   nickname: string;
@@ -586,7 +510,6 @@ export async function joinGameRoom(params: {
     return null;
   }
 
-  // Check if player with same nickname already exists
   let existingPlayer: PlayerRecord | undefined;
   for (const p of room.players.values()) {
     if (p.nickname.toLowerCase() === params.nickname.trim().toLowerCase()) {
@@ -598,6 +521,27 @@ export async function joinGameRoom(params: {
   if (existingPlayer) {
     existingPlayer.isConnected = true;
     existingPlayer.lastSeenAt = new Date().toISOString();
+    room.lastSyncedAt = Date.now();
+    try {
+      const isPlaceholder =
+        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
+      if (!isPlaceholder) {
+        await withTimeout(
+          supabase
+            .from("players")
+            .update({
+              is_connected: true,
+              last_seen_at: existingPlayer.lastSeenAt,
+            })
+            .match({ id: existingPlayer.id }),
+          1500
+        );
+      }
+    } catch (err) {
+      console.warn("[RoomStore] Supabase player reconnect sync omitted:", err);
+    }
     return { player: existingPlayer, room };
   }
 
@@ -615,23 +559,26 @@ export async function joinGameRoom(params: {
 
   room.players.set(playerId, newPlayer);
   room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
 
-  // Asynchronously mirror player to Supabase
   try {
     const isPlaceholder =
       process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
 
     if (!isPlaceholder) {
-      await supabase.from("players").insert({
-        id: playerId,
-        room_code: params.roomCode,
-        nickname: newPlayer.nickname,
-        avatar: newPlayer.avatar,
-        score: 0,
-        streak: 0,
-        is_connected: true,
-      });
+      await withTimeout(
+        supabase.from("players").insert({
+          id: playerId,
+          room_code: params.roomCode,
+          nickname: newPlayer.nickname,
+          avatar: newPlayer.avatar,
+          score: 0,
+          streak: 0,
+          is_connected: true,
+        }),
+        1500
+      );
     }
   } catch (err) {
     console.warn("[RoomStore] Supabase player sync omitted:", err);
@@ -640,9 +587,6 @@ export async function joinGameRoom(params: {
   return { player: newPlayer, room };
 }
 
-/**
- * Get Room State & Leaderboard
- */
 export async function getGameRoomState(roomCode: string) {
   const room = await ensureRoomLoaded(roomCode);
 
@@ -671,10 +615,11 @@ export async function getGameRoomState(roomCode: string) {
           id: currentQ.id,
           questionOrder: currentQ.questionOrder ?? room.currentQuestionIndex + 1,
           question: currentQ.question,
+          // Mask answer key and rationale from live client payloads.
           options: currentQ.options.map((opt) => ({
             label: opt.label,
             text: opt.text,
-          })), // Mask isCorrect and distractorRationale from live client to prevent client inspection cheating
+          })),
           conceptTag: currentQ.conceptTag,
           culturalContext: currentQ.culturalContext,
         }
@@ -697,12 +642,10 @@ export async function getGameRoomState(roomCode: string) {
     })),
     settings: room.settings,
     totalSubmissionsCount: room.submissions.length,
+    updatedAt: room.updatedAt,
   };
 }
 
-/**
- * Submit Player Answer & Compute Gamified Score
- */
 export async function recordAnswerSubmission(params: {
   roomCode: string;
   playerId: string;
@@ -714,19 +657,46 @@ export async function recordAnswerSubmission(params: {
   const room = await ensureRoomLoaded(params.roomCode);
   if (!room) return null;
 
+  const isPlaceholder =
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
   let player = room.players.get(params.playerId);
   if (!player) {
+    const resolvedPlayerId = isValidUuid(params.playerId)
+      ? params.playerId
+      : crypto.randomUUID();
     player = {
-      id: params.playerId,
+      id: resolvedPlayerId,
       roomCode: params.roomCode,
-      nickname: `Siswa ${params.playerId.slice(-3)}`,
+      nickname: `Siswa ${resolvedPlayerId.slice(-3)}`,
       avatar: "garuda",
       score: 0,
       streak: 0,
       isConnected: true,
       lastSeenAt: new Date().toISOString(),
     };
-    room.players.set(params.playerId, player);
+    room.players.set(resolvedPlayerId, player);
+
+    if (!isPlaceholder) {
+      try {
+        await withTimeout(
+          supabase.from("players").upsert({
+            id: player.id,
+            room_code: params.roomCode,
+            nickname: player.nickname,
+            avatar: player.avatar,
+            score: player.score,
+            streak: player.streak,
+            is_connected: true,
+            last_seen_at: player.lastSeenAt,
+          }),
+          1500
+        );
+      } catch (err) {
+        console.warn("[RoomStore] Supabase fallback player upsert omitted:", err);
+      }
+    }
   }
 
   const question = room.questions.find(
@@ -736,7 +706,7 @@ export async function recordAnswerSubmission(params: {
     ? question.correctAnswer === params.selectedOption.toUpperCase()
     : false;
 
-  // Gamification formula: Max 1000 pts per question, decay with time, streak multiplier
+  // Base 500 + up to 500 speed bonus, plus 50 per streak step.
   let scoreAwarded = 0;
   if (isCorrect) {
     const timeLimitMs = (room.settings.timePerQuestionSec || 20) * 1000;
@@ -751,11 +721,17 @@ export async function recordAnswerSubmission(params: {
     player.streak = 0;
   }
 
+  const validQuestionId = isValidUuid(params.questionId)
+    ? params.questionId
+    : question && isValidUuid(question.id)
+      ? question.id!
+      : null;
+
   const submission: SubmissionRecord = {
     id: crypto.randomUUID(),
     roomCode: params.roomCode,
-    playerId: params.playerId,
-    questionId: params.questionId,
+    playerId: player.id,
+    questionId: validQuestionId || params.questionId,
     selectedOption: params.selectedOption,
     isCorrect,
     responseTimeMs: params.responseTimeMs,
@@ -765,65 +741,54 @@ export async function recordAnswerSubmission(params: {
   };
 
   room.submissions.push(submission);
+  room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
 
-  // Asynchronously mirror submission & updated score to Supabase
   try {
-    const isPlaceholder =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
-
     if (!isPlaceholder) {
-      // 1. Update player's score and streak
-      supabase
-        .from("players")
-        .update({
-          score: player.score,
-          streak: player.streak,
-          last_seen_at: new Date().toISOString(),
-        })
-        .match({ room_code: params.roomCode, id: player.id })
-        .then();
-
-      // 2. Insert submission record (ensure questionId is UUID or null)
-      const validQuestionId =
-        params.questionId && params.questionId.includes("-")
-          ? params.questionId
-          : null;
-
-      supabase
-        .from("submissions")
-        .insert({
-          id: submission.id,
-          room_code: params.roomCode,
-          player_id: player.id,
-          question_id: validQuestionId,
-          selected_option: params.selectedOption,
-          is_correct: isCorrect,
-          response_time_ms: params.responseTimeMs,
-          score_awarded: scoreAwarded,
-          micro_feedback: params.microFeedback || null,
-        })
-        .then();
+      await withTimeout(
+        Promise.all([
+          supabase
+            .from("players")
+            .update({
+              score: player.score,
+              streak: player.streak,
+              last_seen_at: new Date().toISOString(),
+            })
+            .match({ room_code: params.roomCode, id: player.id }),
+          supabase.from("submissions").insert({
+            id: submission.id,
+            room_code: params.roomCode,
+            player_id: player.id,
+            question_id: validQuestionId,
+            selected_option: params.selectedOption,
+            is_correct: isCorrect,
+            response_time_ms: params.responseTimeMs,
+            score_awarded: scoreAwarded,
+            micro_feedback: params.microFeedback || null,
+          }),
+        ]),
+        1500
+      );
     }
   } catch (err) {
     console.warn("[RoomStore] Supabase submission sync omitted:", err);
   }
 
-  return { submission, updatedPlayer: player };
+  return {
+    submission,
+    updatedPlayer: player,
+    correctAnswer: question?.correctAnswer || "A",
+    explanation: question?.explanation || "",
+  };
 }
 
-/**
- * Get Room Submissions for Diagnostic Clustering
- */
 export async function getRoomSubmissions(roomCode: string) {
   const room = await ensureRoomLoaded(roomCode);
   if (!room) return [];
   return room.submissions;
 }
 
-/**
- * Get Room Questions
- */
 export async function getRoomQuestions(roomCode: string): Promise<Question[]> {
   const room = await ensureRoomLoaded(roomCode);
   return room ? room.questions : SEED_BALI_QUESTIONS;
@@ -842,36 +807,44 @@ export interface StoredQuizRecord {
 
 const inMemoryQuizzes = new Map<string, StoredQuizRecord>();
 
-export function storeQuiz(quiz: Omit<StoredQuizRecord, "createdAt">): StoredQuizRecord {
+export async function storeQuiz(
+  quiz: Omit<StoredQuizRecord, "createdAt">
+): Promise<StoredQuizRecord> {
+  const normalizedQuizId = isValidUuid(quiz.id) ? quiz.id : crypto.randomUUID();
+  const normalizedQuestions = (quiz.questions || []).map((q, index) => ({
+    ...q,
+    id: isValidUuid(q.id) ? q.id : crypto.randomUUID(),
+    questionOrder: q.questionOrder || index + 1,
+  }));
+
   const record: StoredQuizRecord = {
     ...quiz,
+    id: normalizedQuizId,
+    questions: normalizedQuestions,
     createdAt: new Date().toISOString(),
   };
   inMemoryQuizzes.set(record.id, record);
 
-  // Asynchronously mirror quiz and questions to Supabase
   try {
     const isPlaceholder =
       process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
 
     if (!isPlaceholder) {
-      // Upsert quiz
-      supabase
-        .from("quizzes")
-        .upsert({
-          id: record.id,
-          title: record.title,
-          description: record.description || null,
-          grade_level: record.targetGrade || "Fase D (SMP)",
-          category: record.category || "Muatan Lokal Bali",
-          cultural_theme: record.culturalTheme || null,
-        })
-        .then(() => {
-          // Insert questions
+      await withTimeout(
+        (async () => {
+          await supabase.from("quizzes").upsert({
+            id: record.id,
+            title: record.title,
+            description: record.description || null,
+            grade_level: record.targetGrade || "Fase D (SMP)",
+            category: record.category || "Muatan Lokal Bali",
+            cultural_theme: record.culturalTheme || null,
+          });
+
           if (record.questions && record.questions.length > 0) {
             const questionRows = record.questions.map((q, index) => ({
-              id: q.id && q.id.includes("-") ? q.id : crypto.randomUUID(),
+              id: q.id!,
               quiz_id: record.id,
               question_order: q.questionOrder || index + 1,
               question_text: q.question,
@@ -881,9 +854,11 @@ export function storeQuiz(quiz: Omit<StoredQuizRecord, "createdAt">): StoredQuiz
               concept_tag: q.conceptTag,
               cultural_context: q.culturalContext || null,
             }));
-            supabase.from("questions").upsert(questionRows).then();
+            await supabase.from("questions").upsert(questionRows);
           }
-        });
+        })(),
+        1500
+      );
     }
   } catch (err) {
     console.warn("[RoomStore] Supabase quiz sync omitted:", err);
@@ -896,9 +871,6 @@ export function getStoredQuiz(quizId: string): StoredQuizRecord | null {
   return inMemoryQuizzes.get(quizId) || null;
 }
 
-/**
- * Advance room to next question or change state
- */
 export async function advanceRoomQuestion(roomCode: string): Promise<{
   success: boolean;
   isFinished: boolean;
@@ -907,10 +879,33 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
   const room = await ensureRoomLoaded(roomCode);
   if (!room) return { success: false, isFinished: false, currentQuestionIndex: 0 };
 
+  const isPlaceholder =
+    process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+
   const nextIndex = room.currentQuestionIndex + 1;
   if (nextIndex >= room.questions.length) {
     room.status = "finished";
     room.updatedAt = new Date().toISOString();
+    room.lastSyncedAt = Date.now();
+
+    try {
+      if (!isPlaceholder) {
+        await withTimeout(
+          supabase
+            .from("game_rooms")
+            .update({
+              status: "finished",
+              updated_at: room.updatedAt,
+            })
+            .match({ room_code: roomCode }),
+          1500
+        );
+      }
+    } catch (err) {
+      console.warn("[RoomStore] Supabase finish sync omitted:", err);
+    }
+
     return { success: true, isFinished: true, currentQuestionIndex: room.currentQuestionIndex };
   }
 
@@ -918,24 +913,22 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
   room.status = "active";
   room.questionStartTime = new Date().toISOString();
   room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
 
-  // Asynchronously mirror question advance to Supabase
   try {
-    const isPlaceholder =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
-
     if (!isPlaceholder) {
-      supabase
-        .from("game_rooms")
-        .update({
-          current_question_index: nextIndex,
-          status: "active",
-          question_start_time: room.questionStartTime,
-          updated_at: room.updatedAt,
-        })
-        .match({ room_code: roomCode })
-        .then();
+      await withTimeout(
+        supabase
+          .from("game_rooms")
+          .update({
+            current_question_index: nextIndex,
+            status: "active",
+            question_start_time: room.questionStartTime,
+            updated_at: room.updatedAt,
+          })
+          .match({ room_code: roomCode }),
+        1500
+      );
     }
   } catch (err) {
     console.warn("[RoomStore] Supabase question advance sync omitted:", err);
@@ -944,9 +937,6 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
   return { success: true, isFinished: false, currentQuestionIndex: nextIndex };
 }
 
-/**
- * Update room status (e.g. showing_leaderboard, finished, active)
- */
 export async function setRoomStatus(
   roomCode: string,
   status: GameRoomRecord["status"]
@@ -954,23 +944,32 @@ export async function setRoomStatus(
   const room = await ensureRoomLoaded(roomCode);
   if (!room) return false;
   room.status = status;
+  if (status === "active") {
+    room.questionStartTime = new Date().toISOString();
+  }
   room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
 
-  // Asynchronously mirror room status to Supabase
   try {
     const isPlaceholder =
       process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
 
     if (!isPlaceholder) {
-      supabase
-        .from("game_rooms")
-        .update({
-          status,
-          updated_at: room.updatedAt,
-        })
-        .match({ room_code: roomCode })
-        .then();
+      const updatePayload: Record<string, unknown> = {
+        status,
+        updated_at: room.updatedAt,
+      };
+      if (status === "active") {
+        updatePayload.question_start_time = room.questionStartTime;
+      }
+      await withTimeout(
+        supabase
+          .from("game_rooms")
+          .update(updatePayload)
+          .match({ room_code: roomCode }),
+        1500
+      );
     }
   } catch (err) {
     console.warn("[RoomStore] Supabase status sync omitted:", err);
@@ -979,9 +978,6 @@ export async function setRoomStatus(
   return true;
 }
 
-/**
- * Get full teacher details including unmasked answers and live question statistics
- */
 export async function getTeacherRoomDetails(roomCode: string) {
   const room = await ensureRoomLoaded(roomCode);
   if (!room) return null;
@@ -991,7 +987,6 @@ export async function getTeacherRoomDetails(roomCode: string) {
     ? room.submissions.filter((s) => s.questionId === currentQ.id)
     : [];
 
-  // Distribution of answers A, B, C, D
   const optionCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
   let correctCount = 0;
   for (const sub of submissionsForCurrentQ) {
@@ -1015,7 +1010,7 @@ export async function getTeacherRoomDetails(roomCode: string) {
     status: room.status,
     currentQuestionIndex: room.currentQuestionIndex,
     totalQuestions: room.questions.length,
-    currentQuestion: currentQ, // unmasked for teacher!
+    currentQuestion: currentQ,
     stats: {
       submissionsCount: submissionsForCurrentQ.length,
       totalPlayers: playersList.length,
@@ -1037,4 +1032,3 @@ export async function getTeacherRoomDetails(roomCode: string) {
     players: playersList,
   };
 }
-

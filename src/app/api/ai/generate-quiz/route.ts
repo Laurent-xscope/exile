@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import { callAI } from "@/lib/ai/gateway";
 import { buildQuizGenerationPrompt, QuizSchema } from "@/lib/ai/prompts";
+import { storeQuiz } from "@/lib/rooms/store";
 
 const GenerateQuizRequestSchema = z.object({
   topic: z.string().min(2, "Topic must be at least 2 characters"),
@@ -40,9 +41,23 @@ export async function POST(req: Request) {
       temperature: 0.7,
     });
 
+    const stored = await storeQuiz({
+      id: crypto.randomUUID(),
+      title: quiz.title,
+      description: quiz.description,
+      targetGrade: grade,
+      category,
+      culturalTheme: quiz.culturalTheme,
+      questions: quiz.questions,
+    });
+
     return NextResponse.json({
       success: true,
-      quiz,
+      quizId: stored.id,
+      quiz: {
+        ...quiz,
+        questions: stored.questions,
+      },
     });
   } catch (err: unknown) {
     console.error("[generate-quiz error]", err);
@@ -55,9 +70,23 @@ export async function POST(req: Request) {
     );
     const fallbackQuiz = await callAI(prompt, QuizSchema, { systemPrompt });
 
+    const stored = await storeQuiz({
+      id: crypto.randomUUID(),
+      title: fallbackQuiz.title,
+      description: fallbackQuiz.description,
+      targetGrade: "Fase D (SMP Kelas 7-9)",
+      category: "Muatan Lokal Bali",
+      culturalTheme: fallbackQuiz.culturalTheme,
+      questions: fallbackQuiz.questions,
+    });
+
     return NextResponse.json({
       success: true,
-      quiz: fallbackQuiz,
+      quizId: stored.id,
+      quiz: {
+        ...fallbackQuiz,
+        questions: stored.questions,
+      },
       fallbackActivated: true,
     });
   }

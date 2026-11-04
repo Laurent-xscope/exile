@@ -6,8 +6,10 @@ import {
   ClassDiagnosticSchema,
 } from "@/lib/ai/prompts";
 import {
+  ensureRoomLoaded,
   getRoomSubmissions,
   getRoomQuestions,
+  isValidUuid,
 } from "@/lib/rooms/store";
 import { supabase } from "@/lib/supabase";
 
@@ -46,13 +48,20 @@ export async function POST(req: Request) {
       );
     }
 
-    const targetRoom = parsed.data.roomCode || parsed.data.roomId || "849201";
+    const targetRoom = parsed.data.roomCode || parsed.data.roomId;
+    if (!targetRoom) {
+      return NextResponse.json(
+        { success: false, error: "roomCode atau roomId wajib disertakan." },
+        { status: 400 }
+      );
+    }
     const { quizId, topic, submissions: customSubmissions } = parsed.data;
 
-    // 1. Gather submissions from request body or in-memory room store
+    // 1. Gather room, submissions, and questions from request body or room store
+    const room = await ensureRoomLoaded(targetRoom);
     let submissions = customSubmissions;
     if (!submissions || submissions.length === 0) {
-      const roomSubmissions = await getRoomSubmissions(targetRoom);
+      const roomSubmissions = room ? room.submissions : await getRoomSubmissions(targetRoom);
       submissions = roomSubmissions.map((s) => ({
         playerId: s.playerId,
         questionId: s.questionId,
@@ -62,19 +71,21 @@ export async function POST(req: Request) {
       }));
     }
 
-    const roomQuestions = await getRoomQuestions(targetRoom);
+    const roomQuestions = room ? room.questions : await getRoomQuestions(targetRoom);
 
     // 2. Synthesize aggregate question breakdown and error rates
     let totalQuestions = roomQuestions.length;
     if (totalQuestions === 0) totalQuestions = 5;
 
-    let totalStudents = new Set(submissions.map((s) => s.playerId)).size;
-    if (totalStudents === 0) totalStudents = 18; // default realistic classroom size
+    const totalStudents = Math.max(
+      room?.players.size || 0,
+      new Set(submissions.map((s) => s.playerId).filter(Boolean)).size
+    );
 
     const correctCount = submissions.filter((s) => s.isCorrect).length;
     const totalCount = submissions.length || 1;
     const computedMastery = Math.round((correctCount / totalCount) * 100);
-    const averageScore = submissions.length > 0 ? computedMastery : 68;
+    const averageScore = submissions.length > 0 ? computedMastery : 0;
 
     const questionBreakdown = roomQuestions.map((q) => {
       const qSubmissions = submissions.filter(
@@ -84,7 +95,7 @@ export async function POST(req: Request) {
       const errorRate =
         qSubmissions.length > 0
           ? Math.round((qWrong.length / qSubmissions.length) * 100)
-          : 35;
+          : 0;
 
       const wrongOptionsCount: Record<string, number> = {};
       qWrong.forEach((w) => {
@@ -120,16 +131,17 @@ export async function POST(req: Request) {
       temperature: 0.6,
     });
 
-    // 5. Asynchronously persist to Supabase if configured
+    // 5. Persist to Supabase if configured and quizId is valid UUID
     try {
       const isPlaceholder =
         process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
 
-      if (!isPlaceholder) {
+      const actualQuizId = quizId || room?.quizId;
+      if (!isPlaceholder && isValidUuid(actualQuizId)) {
         await supabase.from("class_diagnostics").insert({
           room_code: targetRoom,
-          quiz_id: quizId || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
+          quiz_id: actualQuizId,
           class_mastery_rate: diagnostic.classMasteryRate,
           summary_text: diagnostic.summaryText,
           cluster_analysis: diagnostic.clusterAnalysis,

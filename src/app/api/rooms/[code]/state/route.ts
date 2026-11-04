@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getGameRoomState } from "@/lib/rooms/store";
 
 export async function GET(
-  _req: Request,
+  req: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
   try {
@@ -27,10 +27,32 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      ...state,
-    });
+    // Compute lightweight ETag based on room state version
+    const etag = `"${state.status}-${state.currentQuestionIndex}-${state.players.length}-${state.totalSubmissionsCount}-${state.updatedAt || ""}"`;
+
+    const clientEtag = req.headers.get("if-none-match");
+    if (clientEtag && clientEtag === etag) {
+      return new Response(null, {
+        status: 304,
+        headers: {
+          ETag: etag,
+          "Cache-Control": "private, no-cache, no-transform",
+        },
+      });
+    }
+
+    return NextResponse.json(
+      {
+        success: true,
+        ...state,
+      },
+      {
+        headers: {
+          ETag: etag,
+          "Cache-Control": "private, no-cache, no-transform",
+        },
+      }
+    );
   } catch (err: unknown) {
     console.error("[rooms/[code]/state error]", err);
     return NextResponse.json(

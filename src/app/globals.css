@@ -1,42 +1,4 @@
-@import "tailwindcss";
-
-:root {
-  --background: #140D08;
-  --foreground: #F5E6D3;
-}
-
-@theme {
-  --font-serif: var(--font-spectral), Georgia, Cambria, "Times New Roman", serif;
-  --font-display: var(--font-cinzel), Georgia, serif;
-
-  --color-quest-bg: #140D08;
-  --color-quest-surface: #24160E;
-  --color-quest-elevated: #331F14;
-  --color-quest-border: #4A2E1F;
-  --color-quest-border-light: #5C3D2E;
-  --color-quest-gold: #CA8A04;
-  --color-quest-gold-hover: #D97706;
-  --color-quest-gold-light: #EAB308;
-  --color-quest-parchment: #F5E6D3;
-  --color-quest-muted: #BFA98A;
-  --color-quest-dark-muted: #7E6351;
-  --color-quest-crimson: #991B1B;
-  --color-quest-crimson-light: #B91C1C;
-  --color-quest-forest: #16A34A;
-  --color-quest-forest-dark: #14532D;
-}
-
-body {
-  background-color: var(--color-quest-bg, #140D08);
-  color: var(--color-quest-parchment, #F5E6D3);
-  font-family: var(--font-spectral), Georgia, Cambria, serif;
-}
-
-h1, h2, h3, h4, .font-heading {
-  font-family: var(--font-spectral), Georgia, Cambria, "Times New Roman", serif;
-  font-variant: normal;
-  text-transform: none;
-}
+@import "../styles/globals.css";
 
 /* 3D Flashcard transforms */
 .perspective-1000 {
@@ -56,21 +18,37 @@ h1, h2, h3, h4, .font-heading {
   transform: rotateY(180deg);
 }
 
-/* Clean scrollbar */
+/* Accessibility & Density Helpers */
+.high-contrast {
+  --color-border-button-default: var(--color-neutral-400);
+  --color-separator-border: var(--color-neutral-400);
+}
+
+.dark.high-contrast,
+.dark .high-contrast {
+  --color-border-button-default: var(--color-neutral-500);
+  --color-separator-border: var(--color-neutral-500);
+}
+
+.compact-density {
+  --spacing-density-scale: 0.85;
+}
+
+/* Clean accessible scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #1A0F0A;
+  background: transparent;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #4A2E1F;
-  border-radius: 3px;
+  background: rgba(120, 120, 128, 0.25);
+  border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #CA8A04;
+  background: rgba(120, 120, 128, 0.45);
 }

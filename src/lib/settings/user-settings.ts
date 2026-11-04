@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { soundEffects } from "@/lib/audio/sounds";
 
 export interface ExileSettings {
+  // Language
+  language: "id" | "en";
   // Theme
   theme: "system" | "light" | "dark";
   // Audio
@@ -23,6 +25,7 @@ export interface ExileSettings {
 }
 
 export const DEFAULT_SETTINGS: ExileSettings = {
+  language: "id",
   theme: "system",
   soundEnabled: true,
   soundVolume: 80,
@@ -55,6 +58,7 @@ function applySettingsEffects(settings: ExileSettings): void {
   soundEffects.setVolume(settings.soundVolume);
   soundEffects.setCountdownTicks(settings.countdownTicks);
   if (typeof document !== "undefined" && document.documentElement) {
+    document.documentElement.lang = settings.language || "id";
     document.documentElement.classList.toggle("high-contrast", Boolean(settings.highContrast));
     document.documentElement.classList.toggle("compact-density", Boolean(settings.compactDensity));
   }

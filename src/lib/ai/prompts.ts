@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 /**
- * Zod Schemas for exile.org Pedagogical Engine
+ * Zod Schemas for Exile Pedagogical Engine
  */
 
 export const OptionSchema = z.object({

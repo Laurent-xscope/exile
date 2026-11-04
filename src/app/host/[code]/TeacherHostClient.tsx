@@ -2,7 +2,8 @@
 
 import React, { useEffect, useState } from "react";
 import Link from "next/link";
-import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
 import {
   RiBookOpenLine,
   RiTrophyLine,
@@ -10,17 +11,40 @@ import {
   RiFileCopyLine,
   RiArrowRightLine,
   RiCheckLine,
-  RiSparklingLine,
-  RiRefreshLine,
-  RiCloseLine,
+  RiBarChartBoxLine,
+  RiFileTextLine,
   RiLightbulbLine,
-  RiShieldCheckLine,
-  RiFlashlightLine,
+  RiPlayCircleLine,
+  RiShieldKeyholeLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/lib/auth/use-auth";
 import { soundEffects } from "@/lib/audio/sounds";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
+import { LanguageToggle } from "@/components/theme/language-toggle";
+import { SettingsButton } from "@/components/settings/settings-modal";
+import { Button } from "@/components/base/buttons/button";
+import { IconLinkButton } from "@/components/base/buttons/icon-button";
+import { Chip } from "@/components/base/badges/chip";
+import { StatusDot } from "@/components/base/badges/status-dot";
+import { Badge } from "@/components/base/badges/badge";
+import { Avatar } from "@/components/base/avatar/avatar";
+import { ProgressTrack } from "@/components/base/progress/progress";
+import { Tabs, TabList, Tab, TabPanel } from "@/components/base/tabs/tabs";
+import {
+  Modal,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@/components/base/modal/modal";
+import { Spinner } from "@/components/base/spinner/spinner";
+import {
+  ScrollFade,
+  useScrollFade,
+} from "@/components/foundations/scroll-fade/scroll-fade";
+import { cx } from "@/utils/cx";
 
 interface QuestionOption {
   label: string;
@@ -54,7 +78,12 @@ interface TeacherRoomState {
   roomCode: string;
   quizId: string;
   hostName: string;
-  status: "waiting" | "active" | "question_active" | "showing_leaderboard" | "finished";
+  status:
+    | "waiting"
+    | "active"
+    | "question_active"
+    | "showing_leaderboard"
+    | "finished";
   currentQuestionIndex: number;
   totalQuestions: number;
   currentQuestion: Question | null;
@@ -109,14 +138,77 @@ interface DiagnosticResult {
   adaptiveRemedialQuestions: RemedialQuestion[];
 }
 
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    return `${parts[0][0] || ""}${parts[1][0] || ""}`.toUpperCase();
+  }
+  return name.slice(0, 2).toUpperCase() || "S";
+}
+
+function getStatusMeta(status?: TeacherRoomState["status"]): {
+  label: string;
+  chipColor: "yellow" | "lime" | "blue" | "neutral";
+  dotColor: "yellow" | "green" | "indigo";
+} {
+  switch (status) {
+    case "waiting":
+      return {
+        label: "Menunggu Siswa",
+        chipColor: "yellow",
+        dotColor: "yellow",
+      };
+    case "showing_leaderboard":
+      return {
+        label: "Papan Skor Ditampilkan",
+        chipColor: "blue",
+        dotColor: "indigo",
+      };
+    case "finished":
+      return {
+        label: "Kuis Selesai",
+        chipColor: "neutral",
+        dotColor: "indigo",
+      };
+    case "active":
+    case "question_active":
+    default:
+      return {
+        label: "Kuis Berlangsung",
+        chipColor: "lime",
+        dotColor: "green",
+      };
+  }
+}
+
 export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
+  const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
+
   const [state, setState] = useState<TeacherRoomState | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
   const [diagnosticLoading, setDiagnosticLoading] = useState(false);
-  const [diagnosticData, setDiagnosticData] = useState<DiagnosticResult | null>(null);
-  const [activeTab, setActiveTab] = useState<"question" | "leaderboard" | "players">("question");
+  const [diagnosticData, setDiagnosticData] = useState<DiagnosticResult | null>(
+    null
+  );
+  const [activeTab, setActiveTab] = useState<
+    "question" | "leaderboard" | "players"
+  >("question");
+  const [selectedRemedialOption, setSelectedRemedialOption] = useState<
+    Record<number, string>
+  >({});
+  const [creatingRemedialRoom, setCreatingRemedialRoom] = useState(false);
+
+  const leaderboardFade = useScrollFade();
+  const playersFade = useScrollFade();
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      router.replace(`/login?next=${encodeURIComponent(`/host/${roomCode}`)}`);
+    }
+  }, [authLoading, user, roomCode, router]);
 
   const fetchRoomState = async () => {
     try {
@@ -140,8 +232,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     fetchRoomState();
     const interval = setInterval(fetchRoomState, 2500);
 
-    // Supabase Realtime subscription for live classroom feedback
-    let channel: any = null;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
     try {
       const isPlaceholder =
         process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
@@ -177,7 +268,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
           .subscribe();
       }
     } catch (realtimeErr) {
-      console.warn("[TeacherHost] Supabase Realtime subscription skipped:", realtimeErr);
+      console.warn(
+        "[TeacherHost] Realtime subscription skipped:",
+        realtimeErr
+      );
     }
 
     return () => {
@@ -219,23 +313,6 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     }
   };
 
-  const handleSimulateAnswer = async () => {
-    try {
-      const res = await fetch(`/api/rooms/${roomCode}/action`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "simulate_answer" }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setState(data.details);
-        toast.info("Simulasi respon siswa ditambahkan");
-      }
-    } catch {
-      toast.error("Gagal melakukan simulasi");
-    }
-  };
-
   const handleRunDiagnostic = async () => {
     setDiagnosticLoading(true);
     setShowDiagnosticModal(true);
@@ -246,7 +323,9 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomCode,
-          teacherNotes: "Evaluasi pemahaman Basa Bali Alus dan Pasang Aksara.",
+          quizId: state?.quizId,
+          teacherNotes:
+            "Evaluasi pemahaman Basa Bali Alus dan Pasang Aksara.",
         }),
       });
 
@@ -254,12 +333,71 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
       if (!res.ok) throw new Error(data.error || "Gagal memproses diagnostik");
 
       setDiagnosticData(data.diagnostic);
+      // Pre-select the correct option on each remedial question by default so rationale is visible immediately
+      if (Array.isArray(data.diagnostic?.adaptiveRemedialQuestions)) {
+        const defaults: Record<number, string> = {};
+        data.diagnostic.adaptiveRemedialQuestions.forEach(
+          (rq: RemedialQuestion, idx: number) => {
+            const correctOpt = rq.options.find((o) => o.isCorrect);
+            defaults[idx] =
+              correctOpt?.label || rq.options[0]?.label || "A";
+          }
+        );
+        setSelectedRemedialOption(defaults);
+      }
       toast.success("Laporan diagnostik berhasil disusun");
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal menyusun diagnostik";
+      const msg =
+        err instanceof Error ? err.message : "Gagal menyusun diagnostik";
       toast.error(msg);
     } finally {
       setDiagnosticLoading(false);
+    }
+  };
+
+  const handleCreateRemedialRoom = async () => {
+    if (!diagnosticData?.adaptiveRemedialQuestions?.length) return;
+    soundEffects.playClick();
+    setCreatingRemedialRoom(true);
+
+    try {
+      const res = await fetch("/api/rooms/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          quizId: state?.quizId,
+          hostName: state?.hostName || "Pengajar Exile",
+          questions: diagnosticData.adaptiveRemedialQuestions.map(
+            (rq, idx) => ({
+              id: `remedial-${Date.now()}-${idx + 1}`,
+              questionOrder: idx + 1,
+              question: rq.question,
+              options: rq.options,
+              correctAnswer:
+                rq.options.find((o) => o.isCorrect)?.label || "A",
+              explanation: rq.explanation,
+              conceptTag: rq.conceptTag || diagnosticData.topic,
+              culturalContext:
+                rq.culturalContext || "Remedial Adaptif Kurikulum Merdeka",
+            })
+          ),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok || !data.roomCode) {
+        throw new Error(data.error || "Gagal membuat ruang remedial");
+      }
+
+      setShowDiagnosticModal(false);
+      toast.success(`Ruang remedial berhasil dibuat (PIN: ${data.roomCode})`);
+      router.push(`/host/${data.roomCode}`);
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error ? err.message : "Gagal membuat ruang remedial";
+      toast.error(msg);
+    } finally {
+      setCreatingRemedialRoom(false);
     }
   };
 
@@ -268,11 +406,48 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     toast.success("PIN kuis disalin");
   };
 
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen bg-background-full flex flex-col items-center justify-center p-6 text-center">
+        <div className="max-w-md w-full bg-background-primary-default border border-border-button-default rounded-3xl p-8 flex flex-col items-center gap-4 shadow-card">
+          <div className="size-12 rounded-2xl bg-background-secondary-default border border-border-button-default text-foreground-icon-primary flex items-center justify-center shadow-sm">
+            <RiShieldKeyholeLine className="size-6 text-accent-600" />
+          </div>
+          <div className="space-y-1">
+            <h1 className="text-title-2-semibold text-text-primary">
+              Autentikasi Pengajar Diperlukan
+            </h1>
+            <p className="text-body-regular text-text-secondary">
+              Akses ke Ruang Kontrol Guru #{roomCode} memerlukan izin akun pengajar terdaftar. Mengalihkan ke laman masuk...
+            </p>
+          </div>
+          <div className="flex items-center gap-2 text-text-tertiary">
+            <Spinner size="sm" aria-label="Memverifikasi sesi pengajar" />
+            <span className="text-caption-1-regular">Memverifikasi kredensial pengajar...</span>
+          </div>
+          <Button
+            type="button"
+            size="medium"
+            variant="primary"
+            onClick={() => {
+              router.push(`/login?next=${encodeURIComponent(`/host/${roomCode}`)}`);
+            }}
+            className="w-full mt-2"
+          >
+            Masuk Akun Pengajar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading && !state) {
     return (
-      <div className="min-h-screen bg-[#140D08] flex flex-col items-center justify-center text-[#BFA98A] gap-3">
-        <span className="w-5 h-5 border-2 border-[#CA8A04]/30 border-t-[#CA8A04] rounded-full animate-spin" />
-        <p className="text-xs">Menyambungkan ke ruang guru...</p>
+      <div className="min-h-screen bg-background-full flex flex-col items-center justify-center text-text-secondary gap-3">
+        <Spinner size="md" aria-label="Menyambungkan ke ruang guru" />
+        <p className="text-caption-1-medium text-text-secondary">
+          Menyambungkan ke ruang guru...
+        </p>
       </div>
     );
   }
@@ -280,510 +455,780 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const currentQ = state?.currentQuestion;
   const stats = state?.stats;
   const submissionsCount = stats?.submissionsCount || 0;
-  const totalPlayers = stats?.totalPlayers || 1;
-  const progressPercent = Math.min(100, Math.round((submissionsCount / totalPlayers) * 100));
+  const totalPlayers = stats?.totalPlayers ?? state?.players?.length ?? 0;
+  const progressPercent =
+    totalPlayers > 0
+      ? Math.min(100, Math.round((submissionsCount / totalPlayers) * 100))
+      : 0;
+  const denom = Math.max(stats?.submissionsCount || 0, 1);
+  const statusMeta = getStatusMeta(state?.status);
 
   return (
-    <main className="min-h-screen bg-[#140D08] text-[#F5E6D3] flex flex-col">
-      {/* Top Header */}
-      <header className="border-b border-[#331F14] bg-[#1A0F0A]/95 sticky top-0 z-40 backdrop-blur-sm">
+    <main className="min-h-screen bg-background-secondary-default text-text-primary flex flex-col transition-colors">
+      <header className="border-b border-separator-border bg-background-primary-default/90 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <Link
+          <div className="flex items-center gap-3 min-w-0">
+            <IconLinkButton
               href="/"
-              className="w-8 h-8 rounded bg-[#2C1A10] border border-[#CA8A04]/40 flex items-center justify-center text-[#CA8A04] hover:border-[#CA8A04] transition"
-            >
-              <RiBookOpenLine className="w-4 h-4" />
-            </Link>
-            <div>
-              <div className="flex items-center gap-2">
-                <h1 className="font-heading font-bold text-sm sm:text-base text-[#F5E6D3]">
+              icon={RiBookOpenLine}
+              size="medium"
+              aria-label="Kembali ke Beranda"
+            />
+            <div className="min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-headline-semibold text-text-primary">
                   Ruang Kontrol Guru
                 </h1>
-                <span className="text-[11px] px-2 py-0.5 rounded bg-[#14532D]/30 text-[#22C55E] border border-[#16A34A]/30">
-                  Kuis berlangsung
-                </span>
+                <Chip
+                  variant="caption"
+                  color={statusMeta.chipColor}
+                  className="gap-1.5"
+                >
+                  <StatusDot color={statusMeta.dotColor} />
+                  <span>{statusMeta.label}</span>
+                </Chip>
               </div>
-              <p className="text-xs text-[#BFA98A]">
-                Pengajar: {state?.hostName || "Guru Sujana"} • Kurikulum Merdeka Bali
+              <p className="text-caption-1-regular text-text-secondary truncate">
+                Pengajar: {state?.hostName || "Pengajar Exile"} • Kurikulum
+                Merdeka Bali
               </p>
             </div>
           </div>
 
-          {/* PIN Card */}
-          <div className="flex items-center gap-3">
-            <div
-              onClick={copyPin}
-              className="cursor-pointer flex items-center gap-3 px-4 py-1.5 rounded bg-[#24160E] border border-[#CA8A04]/50 hover:border-[#CA8A04] transition"
-            >
-              <div>
-                <span className="text-[10px] text-[#BFA98A] block">PIN ruang kuis</span>
-                <span className="font-heading font-bold text-lg text-[#CA8A04] leading-tight">
-                  {roomCode}
-                </span>
-              </div>
-              <RiFileCopyLine className="w-3.5 h-3.5 text-[#BFA98A]" />
-            </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <LanguageToggle />
+            <ThemeToggle />
+            <SettingsButton />
 
-            <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded bg-[#24160E] border border-[#331F14] text-xs">
-              <RiGroupLine className="w-3.5 h-3.5 text-[#BFA98A]" />
-              <span className="text-[#D6C5B2]">
-                {state?.players.length || 0} siswa terhubung
+            <button
+              type="button"
+              onClick={copyPin}
+              className={cx(
+                "cursor-pointer flex items-center gap-3 px-3.5 py-1.5 rounded-xl",
+                "bg-background-primary-default hover:bg-background-primary-hover",
+                "border border-border-button-default hover:border-border-button-hover",
+                "transition shadow-card outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+              )}
+              title="Klik untuk menyalin PIN"
+            >
+              <div className="text-start">
+                <span className="text-caption-2-medium text-text-secondary block">
+                  PIN Ruang Kuis
+                </span>
+                <bdi className="font-mono text-body-bold text-text-primary">
+                  {roomCode}
+                </bdi>
+              </div>
+              <RiFileCopyLine
+                className="size-4 text-foreground-icon-secondary shrink-0"
+                aria-hidden
+              />
+            </button>
+
+            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-background-primary-default border border-border-button-default shadow-card">
+              <RiGroupLine
+                className="size-4 text-foreground-icon-secondary"
+                aria-hidden
+              />
+              <span className="text-caption-1-medium text-text-primary tabular-nums">
+                {totalPlayers} siswa terhubung
               </span>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Grid */}
       <div className="max-w-7xl mx-auto px-6 py-6 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Left Column: Live Question & Stats (8 Cols) */}
         <div className="lg:col-span-8 flex flex-col gap-5">
-          {/* Tabs & Controls */}
-          <div className="flex items-center justify-between border-b border-[#331F14] pb-2">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setActiveTab("question")}
-                className={`text-xs sm:text-sm font-semibold pb-2.5 -mb-2.5 transition relative flex items-center gap-1.5 ${
-                  activeTab === "question"
-                    ? "text-[#CA8A04] border-b-2 border-[#CA8A04]"
-                    : "text-[#BFA98A] hover:text-[#F5E6D3]"
-                }`}
-              >
-                <RiBookOpenLine className="w-4 h-4" />
-                Pertanyaan aktif
-              </button>
-
-              <button
-                onClick={() => setActiveTab("leaderboard")}
-                className={`text-xs sm:text-sm font-semibold pb-2.5 -mb-2.5 transition relative flex items-center gap-1.5 ${
-                  activeTab === "leaderboard"
-                    ? "text-[#CA8A04] border-b-2 border-[#CA8A04]"
-                    : "text-[#BFA98A] hover:text-[#F5E6D3]"
-                }`}
-              >
-                <RiTrophyLine className="w-4 h-4" />
-                Papan skor
-              </button>
-
-              <button
-                onClick={() => setActiveTab("players")}
-                className={`text-xs sm:text-sm font-semibold pb-2.5 -mb-2.5 transition relative flex items-center gap-1.5 ${
-                  activeTab === "players"
-                    ? "text-[#CA8A04] border-b-2 border-[#CA8A04]"
-                    : "text-[#BFA98A] hover:text-[#F5E6D3]"
-                }`}
-              >
-                <RiGroupLine className="w-4 h-4" />
-                Daftar siswa ({state?.players.length || 0})
-              </button>
-            </div>
-
-            <button
-              onClick={handleSimulateAnswer}
-              className="text-xs px-2.5 py-1 rounded bg-[#24160E] hover:bg-[#331F14] border border-[#4A2E1F] text-[#CA8A04] transition flex items-center gap-1 font-medium"
-            >
-              <RiFlashlightLine className="w-3.5 h-3.5" />
-              Simulasi jawaban murid
-            </button>
-          </div>
-
-          {/* Tab 1: Current Question Stage */}
-          {activeTab === "question" && currentQ && (
+          {state?.status === "waiting" && (
             <motion.div
-              initial={{ opacity: 0, y: 6 }}
+              initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="space-y-4"
+              className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
-              <div className="bg-[#1A0F0A] border border-[#331F14] rounded-lg p-5 sm:p-6 shadow-sm space-y-4">
-                <div className="flex items-center justify-between text-xs text-[#BFA98A]">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2 py-0.5 rounded bg-[#24160E] border border-[#4A2E1F] text-[#CA8A04] font-medium">
-                      Soal {(state?.currentQuestionIndex || 0) + 1} dari {state?.totalQuestions || 5}
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <StatusDot color="yellow" />
+                  <span className="text-body-semibold text-text-primary">
+                    Lobi Ruang Kuis Menunggu Siswa
+                  </span>
+                  <Chip variant="caption" color="yellow">
+                    {totalPlayers} siswa siap
+                  </Chip>
+                </div>
+                <p className="text-caption-1-regular text-text-secondary">
+                  Bagikan PIN <bdi className="font-mono font-semibold text-text-primary">{roomCode}</bdi> kepada siswa. Klik tombol di samping untuk mengaktifkan Soal 1 tanpa melompati pertanyaan pertama.
+                </p>
+              </div>
+
+              <Button
+                variant="primary"
+                leadingIcon={RiPlayCircleLine}
+                onClick={() => handleAction("resume_quiz")}
+                disabled={actionLoading}
+                className="shrink-0"
+              >
+                Mulai Kuis Sekarang (Soal 1)
+              </Button>
+            </motion.div>
+          )}
+
+          <Tabs
+            selectedKey={activeTab}
+            onSelectionChange={(key) =>
+              setActiveTab(
+                String(key) as "question" | "leaderboard" | "players"
+              )
+            }
+          >
+            <TabList aria-label="Navigasi Ruang Guru">
+              <Tab id="question" icon={RiBookOpenLine}>
+                Pertanyaan Aktif
+              </Tab>
+              <Tab
+                id="leaderboard"
+                icon={RiTrophyLine}
+                count={state?.leaderboard?.length ?? 0}
+              >
+                Papan Skor
+              </Tab>
+              <Tab id="players" icon={RiGroupLine} count={totalPlayers}>
+                Daftar Siswa
+              </Tab>
+            </TabList>
+
+            <TabPanel id="question">
+              {currentQ ? (
+                <motion.div
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-5"
+                >
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Chip variant="subtle" color="gray">
+                        Soal {(state?.currentQuestionIndex || 0) + 1} dari{" "}
+                        {state?.totalQuestions || 5}
+                      </Chip>
+                      {currentQ.conceptTag && (
+                        <Chip variant="caption" color="blue">
+                          {currentQ.conceptTag}
+                        </Chip>
+                      )}
+                    </div>
+
+                    <span className="text-caption-1-medium text-text-secondary tabular-nums">
+                      Respon masuk:{" "}
+                      <strong className="text-text-primary">
+                        {submissionsCount}
+                      </strong>
+                      /{totalPlayers} siswa
                     </span>
-                    {currentQ.conceptTag && (
-                      <span className="text-xs text-[#D6C5B2]">{currentQ.conceptTag}</span>
-                    )}
                   </div>
 
-                  <span className="text-xs text-[#BFA98A]">
-                    Respon masuk: <strong className="text-[#F5E6D3]">{submissionsCount}</strong>/{totalPlayers} siswa
-                  </span>
-                </div>
+                  <ProgressTrack percentage={progressPercent} size="md" />
 
-                {/* Progress track */}
-                <div className="w-full h-1.5 bg-[#140D08] rounded-full overflow-hidden border border-[#331F14]">
-                  <div
-                    className="h-full bg-[#CA8A04] transition-all duration-300"
-                    style={{ width: `${progressPercent}%` }}
-                  />
-                </div>
+                  <h2 className="text-title-3-semibold text-text-primary">
+                    {currentQ.question}
+                  </h2>
 
-                {/* Question Text */}
-                <h2 className="text-base sm:text-lg font-medium text-[#F5E6D3] leading-relaxed">
-                  {currentQ.question}
-                </h2>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
+                    {currentQ.options.map((option) => {
+                      const optKey = option.label.toUpperCase();
+                      const voteCount = stats?.optionCounts?.[optKey] || 0;
+                      const votePercent =
+                        (stats?.submissionsCount || 0) > 0
+                          ? Math.round((voteCount / denom) * 100)
+                          : 0;
 
-                {/* 4 Options Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
-                  {currentQ.options.map((option) => {
-                    const optKey = option.label.toUpperCase();
-                    const voteCount = stats?.optionCounts?.[optKey] || 0;
-                    const votePercent =
-                      submissionsCount > 0 ? Math.round((voteCount / submissionsCount) * 100) : 0;
+                      return (
+                        <div
+                          key={option.label}
+                          className={cx(
+                            "p-4 rounded-2xl border transition relative overflow-hidden space-y-2",
+                            option.isCorrect
+                              ? "bg-status-lime-background/35 border-border-button-hover"
+                              : "bg-background-secondary-default border-border-button-default"
+                          )}
+                        >
+                          <div className="flex items-start justify-between gap-2 relative z-10">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <span
+                                className={cx(
+                                  "size-6 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0",
+                                  option.isCorrect
+                                    ? "bg-status-lime-background text-status-lime-text"
+                                    : "bg-background-tertiary-default text-text-primary"
+                                )}
+                              >
+                                {option.label}
+                              </span>
+                              <span className="text-body-medium text-text-primary">
+                                {option.text}
+                              </span>
+                            </div>
 
-                    return (
-                      <div
-                        key={option.label}
-                        className={`p-3.5 rounded-lg border text-xs transition relative overflow-hidden ${
-                          option.isCorrect
-                            ? "bg-[#14532D]/15 border-[#16A34A]/50"
-                            : "bg-[#24160E] border-[#4A2E1F]"
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-2 mb-1.5 relative z-10">
-                          <div className="flex items-center gap-2">
-                            <span
-                              className={`w-6 h-6 rounded flex items-center justify-center font-bold text-xs ${
-                                option.isCorrect
-                                  ? "bg-[#16A34A] text-[#140D08]"
-                                  : "bg-[#331F14] text-[#BFA98A] border border-[#4A2E1F]"
-                              }`}
+                            <Chip
+                              variant="caption"
+                              color={option.isCorrect ? "lime" : "neutral"}
+                              className="shrink-0 tabular-nums"
                             >
-                              {option.label}
-                            </span>
-                            <span className="font-medium text-[#F5E6D3]">{option.text}</span>
+                              {voteCount} ({votePercent}%)
+                            </Chip>
                           </div>
 
-                          <span className="text-[11px] text-[#BFA98A] font-medium shrink-0">
-                            {voteCount} ({votePercent}%)
-                          </span>
+                          {option.distractorRationale && (
+                            <p className="text-caption-1-regular text-text-secondary border-t border-separator-border pt-2">
+                              <strong className="text-caption-1-semibold text-text-primary">
+                                {option.isCorrect
+                                  ? "Kunci jawaban: "
+                                  : "Analisis pengecoh: "}
+                              </strong>
+                              {option.distractorRationale}
+                            </p>
+                          )}
                         </div>
+                      );
+                    })}
+                  </div>
 
-                        {option.distractorRationale && (
-                          <p className="text-[11px] text-[#BFA98A] italic border-t border-[#331F14] pt-1.5 mt-1.5">
-                            {option.isCorrect ? "Kunci jawaban: " : "Analisis pengecoh: "}
-                            {option.distractorRationale}
-                          </p>
-                        )}
-                      </div>
-                    );
-                  })}
+                  {currentQ.explanation && (
+                    <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-1.5">
+                      <span className="text-caption-1-semibold text-text-primary flex items-center gap-1.5">
+                        <RiLightbulbLine
+                          className="size-4 text-status-orange-text shrink-0"
+                          aria-hidden
+                        />
+                        Intisari Penjelasan Pedagogis
+                      </span>
+                      <p className="text-body-regular text-text-secondary">
+                        {currentQ.explanation}
+                      </p>
+                    </div>
+                  )}
+                </motion.div>
+              ) : (
+                <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-8 text-center shadow-card">
+                  <p className="text-body-regular text-text-secondary">
+                    Belum ada soal yang aktif.
+                  </p>
+                </div>
+              )}
+            </TabPanel>
+
+            <TabPanel id="leaderboard">
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-headline-semibold text-text-primary">
+                    Peringkat Nilai Siswa
+                  </h2>
+                  <Chip variant="caption" color="soft">
+                    {state?.leaderboard?.length ?? 0} peserta
+                  </Chip>
                 </div>
 
-                {/* Pedagogical Explanation Callout */}
-                {currentQ.explanation && (
-                  <div className="p-3.5 rounded bg-[#24160E] border border-[#4A2E1F] text-xs space-y-1">
-                    <span className="font-semibold text-[#CA8A04] flex items-center gap-1">
-                      <RiLightbulbLine className="w-3.5 h-3.5" /> Intisari penjelasan
-                    </span>
-                    <p className="text-[#D6C5B2] leading-relaxed">
-                      {currentQ.explanation}
-                    </p>
+                {state?.leaderboard && state.leaderboard.length > 0 ? (
+                  <div className="relative min-h-0">
+                    <div
+                      onScroll={leaderboardFade.onScroll}
+                      className="space-y-2 max-h-96 overflow-y-auto pe-1"
+                    >
+                      {state.leaderboard.map((player) => (
+                        <div
+                          key={player.id}
+                          className="flex items-center justify-between p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default"
+                        >
+                          <div className="flex items-center gap-3 min-w-0">
+                            <Badge
+                              color={player.rank === 1 ? "primary" : "neutral"}
+                            >
+                              #{player.rank}
+                            </Badge>
+                            <Avatar
+                              size="sm"
+                              color={player.rank === 1 ? "lime" : "neutral"}
+                              initials={getInitials(player.nickname)}
+                            />
+                            <div className="min-w-0">
+                              <span className="text-body-medium text-text-primary block truncate">
+                                {player.nickname}
+                              </span>
+                              <span className="text-caption-1-regular text-text-secondary">
+                                Lambang: {player.avatar}
+                              </span>
+                            </div>
+                          </div>
+
+                          <Chip
+                            variant="subtle"
+                            color={player.rank === 1 ? "lime" : "gray"}
+                            className="tabular-nums"
+                          >
+                            {player.score.toLocaleString()} poin
+                          </Chip>
+                        </div>
+                      ))}
+                    </div>
+                    <ScrollFade
+                      progress={leaderboardFade.progress}
+                      surfaceClassName="from-background-primary-default"
+                    />
                   </div>
+                ) : (
+                  <p className="text-body-regular text-text-secondary py-6 text-center">
+                    Belum ada siswa yang bergabung ke ruangan ini.
+                  </p>
                 )}
-              </div>
-            </motion.div>
-          )}
+              </motion.div>
+            </TabPanel>
 
-          {/* Tab 2: Leaderboard */}
-          {activeTab === "leaderboard" && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[#1A0F0A] border border-[#331F14] rounded-lg p-5 shadow-sm space-y-3"
-            >
-              <h2 className="text-sm font-heading font-semibold text-[#F5E6D3] mb-3">
-                Peringkat nilai siswa
-              </h2>
+            <TabPanel id="players">
+              <motion.div
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-headline-semibold text-text-primary">
+                    Daftar Siswa yang Terhubung
+                  </h2>
+                  <Chip variant="caption" color="lime">
+                    {totalPlayers} terhubung
+                  </Chip>
+                </div>
 
-              <div className="space-y-2">
-                {state?.leaderboard.map((player) => (
-                  <div
-                    key={player.id}
-                    className="flex items-center justify-between p-3 rounded bg-[#24160E] border border-[#331F14] text-xs"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="w-6 h-6 rounded bg-[#140D08] border border-[#4A2E1F] text-[#CA8A04] font-bold flex items-center justify-center">
-                        {player.rank}
-                      </span>
-                      <div>
-                        <span className="font-semibold text-[#F5E6D3] block">{player.nickname}</span>
-                        <span className="text-[11px] text-[#BFA98A]">Lambang: {player.avatar}</span>
-                      </div>
+                {state?.players && state.players.length > 0 ? (
+                  <div className="relative min-h-0">
+                    <div
+                      onScroll={playersFade.onScroll}
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pe-1"
+                    >
+                      {state.players.map((p) => (
+                        <div
+                          key={p.id}
+                          className="p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default flex items-center justify-between gap-2"
+                        >
+                          <div className="flex items-center gap-2.5 min-w-0">
+                            <StatusDot
+                              color={p.isConnected ? "green" : "yellow"}
+                            />
+                            <Avatar
+                              size="xs"
+                              color="blue"
+                              initials={getInitials(p.nickname)}
+                            />
+                            <span className="text-body-medium text-text-primary truncate">
+                              {p.nickname}
+                            </span>
+                          </div>
+                          <Chip
+                            variant="caption"
+                            color="soft"
+                            className="tabular-nums shrink-0"
+                          >
+                            {p.score.toLocaleString()} poin
+                          </Chip>
+                        </div>
+                      ))}
                     </div>
-
-                    <div className="text-right">
-                      <span className="font-semibold text-[#CA8A04]">{player.score}</span>
-                      <span className="text-[11px] text-[#BFA98A] ml-1">poin</span>
-                    </div>
+                    <ScrollFade
+                      progress={playersFade.progress}
+                      surfaceClassName="from-background-primary-default"
+                    />
                   </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {/* Tab 3: Connected Players */}
-          {activeTab === "players" && (
-            <motion.div
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-[#1A0F0A] border border-[#331F14] rounded-lg p-5 shadow-sm space-y-3"
-            >
-              <h2 className="text-sm font-heading font-semibold text-[#F5E6D3] mb-3">
-                Daftar siswa yang terhubung
-              </h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {state?.players.map((p) => (
-                  <div
-                    key={p.id}
-                    className="p-3 rounded bg-[#24160E] border border-[#331F14] flex items-center justify-between text-xs"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <span className="w-2 h-2 rounded-full bg-[#22C55E]" />
-                      <span className="font-medium text-[#F5E6D3]">{p.nickname}</span>
-                    </div>
-                    <span className="text-[#CA8A04] font-medium">{p.score} poin</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          )}
+                ) : (
+                  <p className="text-body-regular text-text-secondary py-6 text-center">
+                    Menunggu siswa bergabung melalui halaman{" "}
+                    <bdi className="font-mono">/play</bdi> dengan PIN{" "}
+                    <bdi className="font-mono font-semibold text-text-primary">
+                      {roomCode}
+                    </bdi>
+                    .
+                  </p>
+                )}
+              </motion.div>
+            </TabPanel>
+          </Tabs>
         </div>
 
-        {/* Right Column: Host Controls & Diagnostic (4 Cols) */}
         <div className="lg:col-span-4 space-y-5">
-          {/* Controls Card */}
-          <div className="bg-[#1A0F0A] border border-[#331F14] rounded-lg p-5 shadow-sm space-y-3">
-            <h3 className="text-xs font-semibold text-[#BFA98A] uppercase tracking-wide">
-              Kontrol ruang kelas
+          <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-4">
+            <h3 className="text-caption-1-semibold text-text-secondary uppercase">
+              Kontrol Ruang Kelas
             </h3>
 
-            <div className="space-y-2">
-              <button
+            <div className="flex flex-col gap-2.5">
+              {state?.status === "waiting" && (
+                <Button
+                  variant="primary"
+                  leadingIcon={RiPlayCircleLine}
+                  onClick={() => handleAction("resume_quiz")}
+                  disabled={actionLoading}
+                  className="w-full"
+                >
+                  Mulai Kuis Sekarang (Soal 1)
+                </Button>
+              )}
+
+              {state?.status === "showing_leaderboard" && (
+                <Button
+                  variant="secondary"
+                  leadingIcon={RiPlayCircleLine}
+                  onClick={() => handleAction("resume_quiz")}
+                  disabled={actionLoading}
+                  className="w-full"
+                >
+                  Kembali ke Soal Aktif
+                </Button>
+              )}
+
+              <Button
+                variant={state?.status === "waiting" ? "secondary" : "primary"}
+                leadingIcon={RiArrowRightLine}
                 onClick={() => handleAction("advance_question")}
                 disabled={actionLoading}
-                className="w-full py-2.5 px-3 rounded bg-[#CA8A04] hover:bg-[#D97706] text-[#140D08] font-bold text-xs transition flex items-center justify-center gap-2 disabled:opacity-50 shadow-sm"
+                className="w-full"
               >
-                <RiArrowRightLine className="w-4 h-4" />
-                Lanjut ke pertanyaan berikutnya
-              </button>
+                Lanjut ke Pertanyaan Berikutnya
+              </Button>
 
-              <button
+              <Button
+                variant="secondary"
+                leadingIcon={RiTrophyLine}
                 onClick={() => handleAction("show_leaderboard")}
                 disabled={actionLoading}
-                className="w-full py-2 px-3 rounded bg-[#24160E] hover:bg-[#331F14] border border-[#4A2E1F] text-[#D6C5B2] text-xs font-medium transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full"
               >
-                <RiTrophyLine className="w-4 h-4 text-[#CA8A04]" />
-                Tampilkan papan skor di layar
-              </button>
+                Tampilkan Papan Skor di Layar
+              </Button>
 
-              <button
+              <Button
+                variant="ghost"
+                leadingIcon={RiCheckLine}
                 onClick={() => handleAction("finish_game")}
                 disabled={actionLoading}
-                className="w-full py-2 px-3 rounded bg-[#140D08] hover:bg-[#24160E] border border-[#331F14] text-[#BFA98A] text-xs transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full"
               >
-                <RiCheckLine className="w-4 h-4 text-[#22C55E]" />
-                Selesaikan sesi kuis
-              </button>
+                Selesaikan Sesi Kuis
+              </Button>
             </div>
           </div>
 
-          {/* AI Misconception Diagnostic Launcher */}
-          <div className="bg-[#1A0F0A] border border-[#4A2E1F] rounded-lg p-5 shadow-sm space-y-3">
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded bg-[#2C1A10] border border-[#CA8A04]/40 flex items-center justify-center text-[#CA8A04]">
-                <RiSparklingLine className="w-4 h-4" />
+          <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="size-9 rounded-xl bg-status-lime-background text-status-lime-text flex items-center justify-center shrink-0">
+                <RiBarChartBoxLine className="size-5" aria-hidden />
               </div>
               <div>
-                <h3 className="font-heading font-bold text-sm text-[#F5E6D3]">
+                <h3 className="text-body-semibold text-text-primary">
                   Diagnostik Miskonsepsi Kelas
                 </h3>
-                <p className="text-[11px] text-[#BFA98A]">Siklus evaluasi Kurikulum Merdeka</p>
+                <p className="text-caption-1-regular text-text-secondary">
+                  Siklus Evaluasi Kurikulum Merdeka
+                </p>
               </div>
             </div>
 
-            <p className="text-xs text-[#BFA98A] leading-relaxed">
-              Kaji kekeliruan jawaban siswa sekelas untuk menemukan pola materi yang belum dipahami,
-              serta susun tiga butir soal remedial terarah.
+            <p className="text-body-2-regular text-text-secondary">
+              Kaji kekeliruan jawaban siswa sekelas untuk menemukan pola materi
+              yang belum dipahami, serta susun butir soal remedial terarah.
             </p>
 
-            <button
+            <Button
+              variant="primary"
+              leadingIcon={diagnosticLoading ? undefined : RiBarChartBoxLine}
               onClick={handleRunDiagnostic}
               disabled={diagnosticLoading}
-              className="w-full py-2.5 px-3 rounded bg-[#24160E] hover:bg-[#331F14] border border-[#CA8A04]/60 text-[#CA8A04] hover:text-[#F5E6D3] font-semibold text-xs transition flex items-center justify-center gap-2 disabled:opacity-50"
+              className="w-full"
             >
               {diagnosticLoading ? (
-                <>
-                  <RiRefreshLine className="w-4 h-4 animate-spin" />
-                  Menganalisis jawaban murid...
-                </>
+                <span className="inline-flex items-center gap-2">
+                  <Spinner
+                    size="xs"
+                    className="text-text-white"
+                    aria-hidden
+                  />
+                  <span>Menganalisis jawaban murid...</span>
+                </span>
               ) : (
-                <>
-                  <RiSparklingLine className="w-4 h-4" />
-                  Buka laporan diagnostik kelas
-                </>
+                "Buka Laporan Diagnostik Kelas"
               )}
-            </button>
+            </Button>
           </div>
 
-          {/* Quick Guide */}
-          <div className="bg-[#1A0F0A] border border-[#331F14] rounded-lg p-4 text-xs text-[#BFA98A] space-y-2">
-            <span className="font-semibold text-[#F5E6D3] block">Petunjuk cepat pengajar:</span>
-            <ul className="space-y-1 list-disc list-inside text-xs leading-relaxed">
-              <li>Siswa masuk dari tautan <Link href="/play" className="text-[#CA8A04] underline">/play</Link> dengan PIN <strong>{roomCode}</strong>.</li>
-              <li>Klik tombol simulasi untuk menguji respon sebelum siswa mulai menjawab.</li>
-              <li>Selesai kuis, buka laporan diagnostik untuk melihat rekomendasi intervensi.</li>
+          <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-2">
+            <span className="text-caption-1-semibold text-text-primary block">
+              Petunjuk cepat pengajar:
+            </span>
+            <ul className="space-y-1.5 list-disc list-inside text-caption-1-regular text-text-secondary">
+              <li>
+                Siswa masuk dari tautan{" "}
+                <Link
+                  href="/play"
+                  className="text-text-primary underline font-medium"
+                >
+                  /play
+                </Link>{" "}
+                dengan PIN{" "}
+                <bdi className="font-mono font-semibold text-text-primary">
+                  {roomCode}
+                </bdi>
+                .
+              </li>
+              <li>
+                Gunakan tombol Mulai Kuis pada lobi agar Soal 1 langsung aktif
+                di perangkat siswa.
+              </li>
+              <li>
+                Selesai kuis, buka laporan diagnostik untuk melihat rekomendasi
+                intervensi dan membuat ruang remedial adaptif.
+              </li>
             </ul>
           </div>
         </div>
       </div>
 
-      {/* AI Diagnostic Modal */}
-      <AnimatePresence>
-        {showDiagnosticModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.98 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.98 }}
-              className="bg-[#1A0F0A] border border-[#4A2E1F] rounded-lg max-w-2xl w-full max-h-[85vh] overflow-y-auto p-6 shadow-xl space-y-5"
-            >
-              <div className="flex items-center justify-between border-b border-[#331F14] pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-7 h-7 rounded bg-[#2C1A10] border border-[#CA8A04]/40 flex items-center justify-center text-[#CA8A04]">
-                    <RiSparklingLine className="w-4 h-4" />
-                  </div>
-                  <h3 className="text-base font-heading font-bold text-[#F5E6D3]">
-                    Laporan Diagnostik Miskonsepsi Kelas
-                  </h3>
-                </div>
+      <Modal
+        isOpen={showDiagnosticModal}
+        onOpenChange={setShowDiagnosticModal}
+        size="xl"
+      >
+        <ModalHeader
+          title="Laporan Diagnostik Miskonsepsi Kelas"
+          description={
+            diagnosticData?.topic ||
+            "Evaluasi Penguasaan Kompetensi & Rekomendasi Remedial Adaptif"
+          }
+          icon={RiBarChartBoxLine}
+        />
 
-                <button
-                  onClick={() => setShowDiagnosticModal(false)}
-                  className="w-7 h-7 rounded bg-[#24160E] text-[#BFA98A] hover:text-[#F5E6D3] flex items-center justify-center transition border border-[#331F14]"
-                >
-                  <RiCloseLine className="w-4 h-4" />
-                </button>
+        <ModalBody className="space-y-5 py-2">
+          {diagnosticLoading ? (
+            <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
+              <Spinner
+                size="lg"
+                aria-label="Menganalisis klaster miskonsepsi siswa"
+              />
+              <p className="text-body-regular text-text-secondary">
+                Menganalisis klaster miskonsepsi siswa sekelas...
+              </p>
+            </div>
+          ) : diagnosticData ? (
+            <div className="space-y-5">
+              <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2.5">
+                <div className="flex items-center justify-between gap-2 flex-wrap">
+                  <span className="text-body-semibold text-text-primary">
+                    Rangkuman Diagnostik Kelas
+                  </span>
+                  <Chip
+                    variant="subtle"
+                    color={
+                      diagnosticData.classMasteryRate >= 70 ? "lime" : "orange"
+                    }
+                  >
+                    Penguasaan Materi: {diagnosticData.classMasteryRate}%
+                  </Chip>
+                </div>
+                <p className="text-body-regular text-text-secondary">
+                  {diagnosticData.summaryText}
+                </p>
               </div>
 
-              {diagnosticLoading ? (
-                <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
-                  <span className="w-6 h-6 border-2 border-[#CA8A04]/30 border-t-[#CA8A04] rounded-full animate-spin" />
-                  <p className="text-xs text-[#D6C5B2]">
-                    Menganalisis klaster miskonsepsi siswa sekelas...
-                  </p>
+              {diagnosticData.clusterAnalysis?.length > 0 && (
+                <div className="space-y-2.5">
+                  <h4 className="text-caption-1-semibold text-text-secondary uppercase">
+                    Pola Materi yang Sering Keliru
+                  </h4>
+                  <div className="space-y-2.5">
+                    {diagnosticData.clusterAnalysis.map((cluster, idx) => (
+                      <div
+                        key={idx}
+                        className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-1.5"
+                      >
+                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                          <span className="text-body-semibold text-text-primary">
+                            {cluster.concept}
+                          </span>
+                          <Chip variant="caption" color="rose">
+                            Salah: {cluster.errorRate}% (
+                            {cluster.affectedStudentsCount} siswa)
+                          </Chip>
+                        </div>
+                        <p className="text-body-2-regular text-text-secondary">
+                          {cluster.primaryMisconception}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              ) : diagnosticData ? (
-                <div className="space-y-4">
-                  {/* Summary Card with Mastery Rate */}
-                  <div className="p-4 rounded bg-[#24160E] border border-[#4A2E1F] space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-[#CA8A04]">
-                        Rangkuman diagnostik kelas
-                      </span>
-                      <span className="text-xs px-2 py-0.5 rounded bg-[#140D08] border border-[#4A2E1F] text-[#F5E6D3] font-medium">
-                        Penguasaan materi: {diagnosticData.classMasteryRate}%
-                      </span>
-                    </div>
-                    <p className="text-xs text-[#D6C5B2] leading-relaxed">
-                      {diagnosticData.summaryText}
-                    </p>
+              )}
+
+              {diagnosticData.recommendedReteaching && (
+                <div className="p-4 rounded-2xl bg-status-lime-background/35 border border-border-button-default space-y-2">
+                  <span className="text-caption-1-semibold text-status-lime-text uppercase block">
+                    Rekomendasi Langkah Ajar Ulang
+                  </span>
+                  <p className="text-body-semibold text-text-primary">
+                    {diagnosticData.recommendedReteaching.focusConcept}
+                  </p>
+                  <p className="text-body-2-regular text-text-secondary">
+                    {diagnosticData.recommendedReteaching.pedagogicalStrategy}
+                  </p>
+                  <div className="pt-1">
+                    <Chip variant="subtle" color="lime">
+                      Langkah cepat 10 menit:{" "}
+                      {diagnosticData.recommendedReteaching.quickActionableStep}
+                    </Chip>
+                  </div>
+                </div>
+              )}
+
+              {diagnosticData.adaptiveRemedialQuestions?.length > 0 && (
+                <div className="space-y-3 pt-1">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <h4 className="text-body-semibold text-text-primary flex items-center gap-1.5">
+                      <RiFileTextLine
+                        className="size-4 text-status-lime-text"
+                        aria-hidden
+                      />
+                      Soal Remedial Adaptif (Klik Opsi untuk Inspeksi Rasional)
+                    </h4>
+                    <Chip variant="caption" color="blue">
+                      {diagnosticData.adaptiveRemedialQuestions.length} butir
+                      soal
+                    </Chip>
                   </div>
 
-                  {/* Clusters of Misconceptions */}
-                  {diagnosticData.clusterAnalysis?.length > 0 && (
-                    <div className="space-y-2">
-                      <h4 className="text-xs font-semibold text-[#BFA98A]">
-                        Pola materi yang sering keliru:
-                      </h4>
-                      <div className="space-y-2">
-                        {diagnosticData.clusterAnalysis.map((cluster, idx) => (
-                          <div
-                            key={idx}
-                            className="p-3 rounded bg-[#140D08] border border-[#331F14] space-y-1 text-xs"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-[#F5E6D3]">{cluster.concept}</span>
-                              <span className="text-[11px] text-[#F87171] px-1.5 py-0.5 rounded bg-[#451A1A]/30 border border-[#991B1B]/30">
-                                Salah: {cluster.errorRate}% ({cluster.affectedStudentsCount} siswa)
-                              </span>
-                            </div>
-                            <p className="text-xs text-[#BFA98A] leading-relaxed">
-                              {cluster.primaryMisconception}
+                  <div className="space-y-3">
+                    {diagnosticData.adaptiveRemedialQuestions.map((rq, idx) => {
+                      const activeOptLabel =
+                        selectedRemedialOption[idx] ||
+                        rq.options.find((o) => o.isCorrect)?.label ||
+                        rq.options[0]?.label ||
+                        "A";
+                      const inspectedOption = rq.options.find(
+                        (o) => o.label === activeOptLabel
+                      );
+
+                      return (
+                        <div
+                          key={idx}
+                          className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-3"
+                        >
+                          <div className="flex items-center justify-between gap-2 flex-wrap">
+                            <span className="text-body-semibold text-text-primary">
+                              Soal Remedial #{idx + 1}
+                            </span>
+                            {rq.conceptTag && (
+                              <Chip variant="caption" color="soft">
+                                {rq.conceptTag}
+                              </Chip>
+                            )}
+                          </div>
+
+                          <p className="text-body-medium text-text-primary">
+                            {rq.question}
+                          </p>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {rq.options.map((opt) => {
+                              const isSelected = activeOptLabel === opt.label;
+                              return (
+                                <button
+                                  key={opt.label}
+                                  type="button"
+                                  onClick={() =>
+                                    setSelectedRemedialOption((prev) => ({
+                                      ...prev,
+                                      [idx]: opt.label,
+                                    }))
+                                  }
+                                  className={cx(
+                                    "p-2.5 rounded-xl border text-start transition flex items-center justify-between gap-2 cursor-pointer",
+                                    "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+                                    isSelected
+                                      ? opt.isCorrect
+                                        ? "bg-status-lime-background/50 border-border-button-hover"
+                                        : "bg-status-rose-background/40 border-border-error-default"
+                                      : "bg-background-primary-default hover:bg-background-primary-hover border-border-button-default"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span
+                                      className={cx(
+                                        "size-6 rounded-md flex items-center justify-center text-caption-1-semibold shrink-0",
+                                        opt.isCorrect
+                                          ? "bg-status-lime-background text-status-lime-text"
+                                          : "bg-background-tertiary-default text-text-primary"
+                                      )}
+                                    >
+                                      {opt.label}
+                                    </span>
+                                    <span className="text-body-2-medium text-text-primary truncate">
+                                      {opt.text}
+                                    </span>
+                                  </div>
+                                  {opt.isCorrect && (
+                                    <Chip
+                                      variant="caption"
+                                      color="lime"
+                                      className="shrink-0"
+                                    >
+                                      Kunci
+                                    </Chip>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          <div className="p-3 rounded-xl bg-background-primary-default border border-border-button-default space-y-1">
+                            <span className="text-caption-1-semibold text-text-primary block">
+                              {inspectedOption?.isCorrect
+                                ? `Rasional Kunci Jawaban (${inspectedOption.label}):`
+                                : `Rasional Pengecoh (${inspectedOption?.label || activeOptLabel}):`}
+                            </span>
+                            <p className="text-caption-1-regular text-text-secondary">
+                              {inspectedOption?.distractorRationale ||
+                                rq.explanation}
                             </p>
                           </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Recommendation Card */}
-                  {diagnosticData.recommendedReteaching && (
-                    <div className="p-3.5 rounded bg-[#14532D]/15 border border-[#16A34A]/30 text-xs text-[#D6C5B2] space-y-1.5">
-                      <span className="font-semibold text-[#22C55E] block">
-                        Rekomendasi langkah ajar ulang:
-                      </span>
-                      <p className="font-medium text-[#F5E6D3]">
-                        {diagnosticData.recommendedReteaching.focusConcept}
-                      </p>
-                      <p className="text-xs text-[#BFA98A]">
-                        {diagnosticData.recommendedReteaching.pedagogicalStrategy}
-                      </p>
-                      <div className="text-[11px] text-[#22C55E] pt-1">
-                        Langkah cepat 10 menit: {diagnosticData.recommendedReteaching.quickActionableStep}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Remedial Drill Questions */}
-                  {diagnosticData.adaptiveRemedialQuestions?.length > 0 && (
-                    <div className="space-y-2 pt-1">
-                      <h4 className="text-xs font-semibold text-[#CA8A04] flex items-center gap-1.5">
-                        <RiSparklingLine className="w-3.5 h-3.5" /> 3 butir soal remedial yang disarankan:
-                      </h4>
-
-                      <div className="space-y-2">
-                        {diagnosticData.adaptiveRemedialQuestions.map((rq, idx) => (
-                          <div
-                            key={idx}
-                            className="p-3 rounded bg-[#140D08] border border-[#331F14] space-y-1.5 text-xs"
-                          >
-                            <div className="flex items-center justify-between">
-                              <span className="font-semibold text-[#CA8A04]">
-                                Soal remedial #{idx + 1}
-                              </span>
-                              {rq.conceptTag && (
-                                <span className="text-[11px] text-[#BFA98A]">{rq.conceptTag}</span>
-                              )}
-                            </div>
-                            <p className="text-[#F5E6D3] leading-relaxed">{rq.question}</p>
-                            <div className="text-[11px] text-[#BFA98A] pt-1 border-t border-[#24160E]">
-                              <span className="text-[#22C55E] font-medium">Kunci:</span>{" "}
-                              {rq.options.find((o) => o.isCorrect)?.text}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  <button
-                    onClick={() => {
-                      setShowDiagnosticModal(false);
-                      toast.success("Rekomendasi remedial tersimpan");
-                    }}
-                    className="w-full py-2 px-4 rounded bg-[#CA8A04] hover:bg-[#D97706] text-[#140D08] font-bold text-xs transition"
-                  >
-                    Tutup laporan diagnostik
-                  </button>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              ) : null}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+              )}
+            </div>
+          ) : null}
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            variant="secondary"
+            onClick={() => setShowDiagnosticModal(false)}
+          >
+            Tutup Laporan Diagnostik
+          </Button>
+          {diagnosticData?.adaptiveRemedialQuestions &&
+            diagnosticData.adaptiveRemedialQuestions.length > 0 && (
+              <Button
+                variant="primary"
+                leadingIcon={RiPlayCircleLine}
+                onClick={handleCreateRemedialRoom}
+                disabled={creatingRemedialRoom}
+              >
+                {creatingRemedialRoom
+                  ? "Membuat Ruang Remedial..."
+                  : "Buka Ruang Remedial dari Soal Ini"}
+              </Button>
+            )}
+        </ModalFooter>
+      </Modal>
     </main>
   );
 }

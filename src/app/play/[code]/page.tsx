@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 import PlayArenaClient from "./PlayArenaClient";
-import { Loader2 } from "lucide-react";
+import { Spinner } from "@/components/base/spinner/spinner";
 
 async function PlayInner({
   params,
@@ -19,9 +19,11 @@ export default function PlayArenaPage({
   return (
     <Suspense
       fallback={
-        <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center text-zinc-400 gap-4">
-          <Loader2 className="w-8 h-8 animate-spin text-indigo-500" />
-          <p className="text-sm">Menghubungkan ke Game Arena exile.org...</p>
+        <div className="min-h-screen bg-background-full flex flex-col items-center justify-center text-text-secondary gap-4">
+          <Spinner size="md" aria-label="Menghubungkan ke Game Arena Exile" />
+          <p className="text-body-regular text-text-secondary">
+            Menghubungkan ke Game Arena Exile...
+          </p>
         </div>
       }
     >

@@ -29,6 +29,7 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from "@/components/base/segmented-control/segmented-control";
+import { FlagIconID, FlagIconUS } from "@/components/theme/language-toggle";
 import { soundEffects } from "@/lib/audio/sounds";
 import {
   useExileSettings,
@@ -303,6 +304,37 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
             {activeTab === "display" && (
               <div className="space-y-4">
+                <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-body-medium text-text-primary">
+                      Bahasa Antarmuka
+                    </span>
+                    <span className="text-caption-1-regular text-text-secondary">
+                      Pilih bahasa aplikasi antara Bahasa Indonesia dan English (US)
+                    </span>
+                  </div>
+                  <SegmentedControl
+                    aria-label="Bahasa Antarmuka"
+                    selectedKeys={new Set([settings.language || "id"])}
+                    onSelectionChange={(keys) => {
+                      const selected = Array.from(keys)[0];
+                      if (selected != null) {
+                        updateSetting("language", selected as "id" | "en");
+                      }
+                    }}
+                    className="w-full grid grid-cols-2"
+                  >
+                    <SegmentedControlItem id="id" className="w-full gap-2 font-medium">
+                      <FlagIconID />
+                      <span>Indonesia (ID)</span>
+                    </SegmentedControlItem>
+                    <SegmentedControlItem id="en" className="w-full gap-2 font-medium">
+                      <FlagIconUS />
+                      <span>English (US)</span>
+                    </SegmentedControlItem>
+                  </SegmentedControl>
+                </div>
+
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-body-medium text-text-primary">

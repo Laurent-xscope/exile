@@ -36,7 +36,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: `Room PIN "${roomCode}" tidak ditemukan atau permainan telah selesai. Coba gunakan demo PIN 849201.`,
+          error: `Room PIN "${roomCode}" tidak ditemukan atau permainan telah selesai. Pastikan PIN yang dimasukkan sudah sesuai.`,
         },
         { status: 404 }
       );

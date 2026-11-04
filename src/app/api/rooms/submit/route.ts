@@ -58,6 +58,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       submission: result.submission,
+      correctAnswer: result.correctAnswer,
+      explanation: result.explanation,
       player: {
         id: result.updatedPlayer.id,
         nickname: result.updatedPlayer.nickname,

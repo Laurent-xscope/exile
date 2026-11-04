@@ -5,6 +5,7 @@ import { createGameRoom } from "@/lib/rooms/store";
 const CreateRoomSchema = z.object({
   quizId: z.string().optional(),
   hostName: z.string().optional().default("Guru"),
+  questions: z.array(z.any()).optional(),
   settings: z
     .object({
       timePerQuestionSec: z.number().int().min(5).max(120).optional(),
@@ -22,11 +23,13 @@ export async function POST(req: Request) {
     const quizId = parsed.success ? parsed.data.quizId : undefined;
     const hostName = parsed.success ? parsed.data.hostName : "Guru";
     const settings = parsed.success ? parsed.data.settings : undefined;
+    const questions = parsed.success ? parsed.data.questions : undefined;
 
     const room = await createGameRoom({
       quizId,
       hostName,
       settings,
+      questions,
     });
 
     return NextResponse.json({
