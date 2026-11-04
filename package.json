@@ -12,7 +12,12 @@
   },
   "dependencies": {
     "@remixicon/react": "^4.9.0",
+    "@remotion/cli": "4.0.540",
+    "@remotion/google-fonts": "4.0.540",
     "@remotion/player": "^4.0.540",
+    "@remotion/shapes": "4.0.540",
+    "@remotion/transitions": "4.0.540",
+    "@remotion/zod-types": "4.0.540",
     "@supabase/supabase-js": "^2.118.0",
     "@tanstack/react-table": "^8.21.3",
     "canvas-confetti": "^1.9.4",

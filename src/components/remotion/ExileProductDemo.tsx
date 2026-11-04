@@ -1,3 +1,3 @@
-/* Thin compatibility re-export — the implementation lives in ./exile-demo */
-export { default } from "./exile-demo";
-export { ExileVideoComposition } from "./exile-demo/composition";
+/* Thin re-export — the implementation lives in ./exile-video */
+export { default } from "./exile-video";
+export { ExileVideo } from "./exile-video/ExileVideo";
