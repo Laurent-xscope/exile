@@ -44,6 +44,7 @@ import { UserNav } from "@/components/auth/user-nav";
 import { useAuth } from "@/lib/auth/use-auth";
 import { useExileSettings } from "@/lib/settings/user-settings";
 import { soundEffects } from "@/lib/audio/sounds";
+import { ExileLogo } from "@/components/brand/exile-logo";
 import { cx } from "@/utils/cx";
 import type {
   DocumentAnalysis,
@@ -401,7 +402,8 @@ export default function StudioPage() {
               <span>Beranda</span>
             </ButtonLink>
             <div className="h-4 w-px bg-separator-border hidden sm:block" />
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2.5">
+              <ExileLogo size={28} showText={false} />
               <span className="font-semibold text-body-1-semibold tracking-tight text-text-primary">
                 Exile Studio
               </span>

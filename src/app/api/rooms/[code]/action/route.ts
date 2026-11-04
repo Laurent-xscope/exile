@@ -6,6 +6,10 @@ import {
   getTeacherRoomDetails,
   recordAnswerSubmission,
   getGameRoomState,
+  approvePlayer,
+  rejectPlayer,
+  approveAllPlayers,
+  toggleAutoApprove,
 } from "@/lib/rooms/store";
 
 const ActionSchema = z.object({
@@ -17,9 +21,14 @@ const ActionSchema = z.object({
     "resume_quiz",
     "finish_game",
     "simulate_answer",
+    "approve_player",
+    "reject_player",
+    "approve_all_players",
+    "toggle_auto_approve",
   ]),
   playerId: z.string().optional(),
   selectedOption: z.string().optional(),
+  autoApprove: z.boolean().optional(),
 });
 
 export async function POST(
@@ -86,6 +95,43 @@ export async function POST(
         const state = await getGameRoomState(roomCode);
         const details = await getTeacherRoomDetails(roomCode);
         return NextResponse.json({ success: true, state, details });
+      }
+
+      case "approve_player": {
+        if (!playerId) {
+          return NextResponse.json({ error: "playerId wajib diisi" }, { status: 400 });
+        }
+        await approvePlayer(roomCode, playerId);
+        const details = await getTeacherRoomDetails(roomCode);
+        const state = await getGameRoomState(roomCode);
+        return NextResponse.json({ success: true, details, state });
+      }
+
+      case "reject_player": {
+        if (!playerId) {
+          return NextResponse.json({ error: "playerId wajib diisi" }, { status: 400 });
+        }
+        await rejectPlayer(roomCode, playerId);
+        const details = await getTeacherRoomDetails(roomCode);
+        const state = await getGameRoomState(roomCode);
+        return NextResponse.json({ success: true, details, state });
+      }
+
+      case "approve_all_players": {
+        const approvedCount = await approveAllPlayers(roomCode);
+        const details = await getTeacherRoomDetails(roomCode);
+        const state = await getGameRoomState(roomCode);
+        return NextResponse.json({ success: true, approvedCount, details, state });
+      }
+
+      case "toggle_auto_approve": {
+        const autoApprove = await toggleAutoApprove(
+          roomCode,
+          parseResult.data.autoApprove
+        );
+        const details = await getTeacherRoomDetails(roomCode);
+        const state = await getGameRoomState(roomCode);
+        return NextResponse.json({ success: true, autoApprove, details, state });
       }
 
       case "simulate_answer": {

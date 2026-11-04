@@ -1,0 +1,38 @@
+import React from "react";
+import Image from "next/image";
+import { cx } from "@/utils/cx";
+
+interface ExileLogoProps {
+  className?: string;
+  size?: number;
+  showText?: boolean;
+}
+
+export function ExileLogo({
+  className = "",
+  size = 32,
+  showText = false,
+}: ExileLogoProps) {
+  return (
+    <div className={cx("inline-flex items-center gap-2.5 select-none", className)}>
+      <div
+        className="relative overflow-hidden rounded-xl bg-black border border-border-button-default shadow-card shrink-0 flex items-center justify-center"
+        style={{ width: size, height: size }}
+      >
+        <Image
+          src="/logo.png"
+          alt="Exile Logo"
+          width={size}
+          height={size}
+          className="object-contain w-full h-full scale-105"
+          priority
+        />
+      </div>
+      {showText && (
+        <span className="font-semibold text-headline-semibold text-text-primary tracking-tight">
+          Exile
+        </span>
+      )}
+    </div>
+  );
+}

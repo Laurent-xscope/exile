@@ -25,6 +25,7 @@ import { DiagnosticMetricsDashboard } from "@/components/application/diagnostic-
 import { useAuth } from "@/lib/auth/use-auth";
 import { useExileSettings } from "@/lib/settings/user-settings";
 import { soundEffects } from "@/lib/audio/sounds";
+import { ExileLogo } from "@/components/brand/exile-logo";
 import { cx } from "@/utils/cx";
 
 const ExileProductDemo = dynamic(
@@ -316,15 +317,13 @@ export default function LandingPage() {
       <header className="border-b border-separator-border bg-background-primary-default/90 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="size-9 rounded-xl bg-background-secondary-default border border-border-button-default flex items-center justify-center text-foreground-icon-primary shadow-card">
-              <RiBookOpenLine className="size-4" />
-            </div>
+            <ExileLogo size={36} showText={false} />
             <div>
-              <span className="text-headline-semibold text-text-primary block">
+              <span className="text-headline-semibold text-text-primary block tracking-tight">
                 Exile
               </span>
               <span className="text-caption-2-semibold text-text-secondary block">
-                Asesmen Formatif & Budaya Bali
+                Asesmen Formatif & Analisis Kelas
               </span>
             </div>
           </div>

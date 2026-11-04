@@ -11,6 +11,7 @@ import {
   RiArrowLeftLine,
   RiQuillPenLine,
   RiCheckLine,
+  RiLinkM,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
@@ -21,6 +22,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
 import { soundEffects } from "@/lib/audio/sounds";
 import { loadSettings, type ExileSettings } from "@/lib/settings/user-settings";
+import { ExileLogo } from "@/components/brand/exile-logo";
 import { cx } from "@/utils/cx";
 
 const AVATARS = [
@@ -36,6 +38,7 @@ export default function PlayJoinPage() {
   const [nickname, setNickname] = useState("");
   const [selectedAvatar, setSelectedAvatar] = useState("garuda");
   const [loading, setLoading] = useState(false);
+  const [hasAutofillLink, setHasAutofillLink] = useState(false);
 
   useEffect(() => {
     const settings = loadSettings();
@@ -45,6 +48,7 @@ export default function PlayJoinPage() {
       const codeParam = params.get("code");
       if (codeParam) {
         setRoomCode(codeParam.trim().toUpperCase());
+        setHasAutofillLink(true);
       }
 
       const savedNick =
@@ -162,25 +166,32 @@ export default function PlayJoinPage() {
         className="w-full max-w-md rounded-3xl border border-border-button-default bg-background-primary-default p-6 sm:p-8 shadow-card"
       >
         <div className="flex flex-col gap-3 pb-6 border-b border-separator-border">
-          <div className="size-11 rounded-2xl bg-background-secondary-default border border-border-button-default flex items-center justify-center text-foreground-icon-primary shadow-2xs">
-            <RiBookOpenLine className="size-5" aria-hidden />
-          </div>
-          <div className="space-y-1">
-            <h1 className="text-title-2-semibold text-text-primary">
-              Gabung Arena Kuis Exile
-            </h1>
-            <p className="text-body-regular text-text-secondary">
-              Masukkan 6 digit PIN kelas dari layar pengajar dan pilih identitasmu.
-            </p>
+          <div className="flex items-center gap-3">
+            <ExileLogo size={36} showText={false} />
+            <div>
+              <h1 className="text-title-2-semibold text-text-primary tracking-tight">
+                Gabung Ruang Kuis Exile
+              </h1>
+              <p className="text-caption-1-regular text-text-secondary">
+                Asesmen interaktif & telaah pemahaman kelas
+              </p>
+            </div>
           </div>
         </div>
+
+        {hasAutofillLink && (
+          <div className="mt-4 p-3 rounded-2xl bg-[#0F766E]/10 border border-[#0F766E]/30 flex items-center gap-2.5 text-caption-1-medium text-[#0F766E]">
+            <RiLinkM className="size-4 shrink-0" />
+            <span>Tautan undangan terdeteksi. PIN ruangan telah terisi otomatis!</span>
+          </div>
+        )}
 
         <form onSubmit={handleJoin} className="mt-6 space-y-5">
           <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2">
             <Input
               label="PIN Ruang Kuis (6 Digit)"
               placeholder="123456"
-              hint="Kode angka atau karakter yang tampil pada proyektor kelas."
+              hint="Kode ruangan dari layar pengajar."
               leadingIcon={RiHashtag}
               value={roomCode}
               onChange={(val) => setRoomCode(val.toUpperCase())}
@@ -192,15 +203,18 @@ export default function PlayJoinPage() {
             />
           </div>
 
-          <Input
-            label="Nama Panggilan"
-            placeholder="Ketik nama lengkap atau panggilan..."
-            leadingIcon={RiUserLine}
-            value={nickname}
-            onChange={setNickname}
-            maxLength={24}
-            isRequired
-          />
+          <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2">
+            <Input
+              label="Nama Panggilan (Tamu Sesi Ini)"
+              placeholder="Masukkan nama panggilanmu di kelas..."
+              hint="Nama ini digunakan khusus untuk sesi ruangan ini sebagai tamu."
+              leadingIcon={RiUserLine}
+              value={nickname}
+              onChange={setNickname}
+              maxLength={24}
+              isRequired
+            />
+          </div>
 
           <div className="space-y-2">
             <div className="flex items-center justify-between">

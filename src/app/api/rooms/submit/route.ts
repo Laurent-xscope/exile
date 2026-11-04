@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       microFeedback,
     });
 
-    if (!result) {
+    if (!result || !result.updatedPlayer) {
       return NextResponse.json(
         {
           success: false,

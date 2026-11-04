@@ -10,6 +10,7 @@ export interface PlayerRecord {
   streak: number;
   isConnected: boolean;
   lastSeenAt: string;
+  status: "approved" | "pending" | "rejected";
 }
 
 export interface SubmissionRecord {
@@ -37,6 +38,7 @@ export interface GameRoomRecord {
     timePerQuestionSec: number;
     streakBonus: boolean;
     shuffleQuestions?: boolean;
+    autoApproveStudents: boolean;
   };
   questions: Question[];
   players: Map<string, PlayerRecord>;
@@ -53,212 +55,215 @@ function withTimeout<T>(promise: PromiseLike<T>, ms = 1500): Promise<T | null> {
   ]);
 }
 
-export const SEED_BALI_QUESTIONS: Question[] = [
+export const DEFAULT_ROOM_QUESTIONS: Question[] = [
   {
     id: "a1111111-1111-1111-1111-111111111111",
     questionOrder: 1,
     question:
-      "Rikala mabaos majeng ring Bapak utawi Ibu Guru ring sekolah, kruna sane patut kaanggen nyihnayang raga (diri sendiri) mangda manut ring anggah-ungguhing basa inggih punika...",
+      "Manakah langkah awal yang paling tepat sebelum merumuskan hipotesis dalam sebuah penyelidikan ilmiah?",
     options: [
       {
         label: "A",
-        text: "Titiang",
+        text: "Mengamati fenomena dan merumuskan pertanyaan masalah",
         isCorrect: true,
         distractorRationale:
-          "Kunci benar: Kruna Alus Sor (ASO) kaanggen ngasorang raga majeng ring wangsa utawi status sane kasinggihang sakadi guru.",
+          "Kunci benar: Pengamatan terarah dan rumusan masalah yang jelas menjadi landasan utama penyusunan hipotesis teruji.",
       },
       {
         label: "B",
-        text: "Icang",
+        text: "Menarik kesimpulan akhir secara langsung tanpa pengujian",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Icang punika Basa Andap/Kasar sane wantah dados kaanggen majeng ring timpal sane sampun lulut raket.",
+          "Pengecoh: Kesimpulan hanya dapat ditarik setelah pengumpulan data dan analisis bukti selesai dilakukan.",
       },
       {
         label: "C",
-        text: "Kai",
+        text: "Mempublikasikan hipotesis tanpa verifikasi eksperimen",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Kai punika kruna Kasar pisan, nenten dados kaanggen ring lingkungan sekolah.",
+          "Pengecoh: Publikasi ilmiah menuntut prosedur verifikasi, telaah sejawat, dan replikasi metodologis.",
       },
       {
         label: "D",
-        text: "Iraga",
+        text: "Mengubah data mentah agar sesuai dengan ekspektasi awal",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Iraga punika kata ganti jamak (kita/kami), nenten tepat kaanggen nyihnayang raga pribadi tunggal majeng ring guru.",
+          "Pengecoh: Manipulasi data melanggar integritas ilmiah dan menghasilkan kesimpulan yang tidak valid.",
       },
     ],
     correctAnswer: "A",
     explanation:
-      "Rikala mabebaosan sareng anak sane kasungkemang (guru, sang maraga suci), raga patut nganggen kruna Alus Sor (ASO) sakadi 'titiang'.",
-    conceptTag: "Anggah-ungguhing Basa: Alus Sor (Kata Ganti Diri)",
-    culturalContext: "Etika Kesantunan Bahasa di Sekolah Bali",
+      "Metode ilmiah selalu diawali dengan observasi sistematis untuk mengidentifikasi variabel dan merumuskan masalah sebelum menyusun dugaan sementara (hipotesis).",
+    conceptTag: "Metode Ilmiah: Observasi & Rumusan Masalah",
+    culturalContext: "Prinsip Berpikir Kritis & Riset Terstruktur",
   },
   {
     id: "a2222222-2222-2222-2222-222222222222",
     questionOrder: 2,
-    question: "Kruna 'ngandika' ring anggah-ungguhing basa Bali kabaos ngranjing ring soroh kruna...",
+    question:
+      "Jika grafik kecepatan terhadap waktu (v-t) menunjukkan garis lurus horizontal di atas sumbu waktu, apa karakteristik gerak benda tersebut?",
     options: [
       {
         label: "A",
-        text: "Alus Singgih (ASI)",
+        text: "Benda bergerak dengan kecepatan konstan (percepatan nol)",
         isCorrect: true,
         distractorRationale:
-          "Kunci benar: Ngandika kaanggen ngapingitang/ngajunjung sang kasinggihang sakadi guru, sulinggih, utawi pejabat.",
+          "Kunci benar: Garis horizontal pada kurva v-t menandakan nilai kecepatan tetap seiring bertambahnya waktu.",
       },
       {
         label: "B",
-        text: "Alus Sor (ASO)",
+        text: "Benda berada dalam kondisi diam total tanpa perpindahan",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Miskonsepsi umum siswa sering menganggap ngandika adalah Alus Sor, padahal untuk Alus Sor kata yang tepat adalah matur atau nguningayang.",
+          "Pengecoh: Benda diam diwakili oleh garis pada v = 0 atau garis horizontal pada grafik posisi (s-t).",
       },
       {
         label: "C",
-        text: "Alus Madia (AMA)",
+        text: "Kecepatan benda bertambah secara eksponensial seiring waktu",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Alus Madia adalah bentuk sopan menengah santai, bukan kruna kasinggihan formal.",
+          "Pengecoh: Kecepatan bertambah menghasilkan garis miring ke atas (gradien positif).",
       },
       {
         label: "D",
-        text: "Basa Andap",
+        text: "Benda mengalami perlambatan konstan menuju berhenti",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Bentuk Andap dari kata ini adalah ngomong atau munyi.",
+          "Pengecoh: Perlambatan ditandai dengan gradien miring ke bawah menuju nilai nol.",
       },
     ],
     correctAnswer: "A",
     explanation:
-      "'Ngandika' punika kruna Alus Singgih (ASI) sane kanggen majeng ring sang maraga utama/singgih. Yening dewek ngraga patut ngangge 'matur'.",
-    conceptTag: "Anggah-ungguhing Basa: Alus Singgih (Kruna Kriya)",
-    culturalContext: "Tata Krama Mabebaosan Adat Bali",
+      "Pada grafik kecepatan terhadap waktu, kemiringan (gradien) menyatakan percepatan. Garis datar horizontal memiliki gradien nol, sehingga percepatan a = 0 (Gerak Lurus Beraturan).",
+    conceptTag: "Kinematika: Interpretasi Grafik Gerak",
+    culturalContext: "Literasi Numerasi & Analisis Data",
   },
   {
     id: "a3333333-3333-3333-3333-333333333333",
     questionOrder: 3,
     question:
-      "Tengenan 'r' ring pungkur kruna 'pasar' yening kasurat ring Pasang Aksara Bali patut nganggen...",
+      "Dalam jejaring ekosistem, jika populasi herbivora mengalami penurunan drastis secara tiba-tiba, dampak jangka pendek yang paling logis adalah...",
     options: [
       {
         label: "A",
-        text: "Surang",
+        text: "Biomassa produsen cenderung meningkat dan karnivora primer mengalami defisit pangan",
         isCorrect: true,
         distractorRationale:
-          "Kunci benar: Tengenan r ring tengah utawi ungkur kruna kasurat nganggen Pangangge Tengenan Surang ring duur aksara.",
+          "Kunci benar: Berkurangnya pemangsa produsen memberi ruang vegetasi pulih, sementara predator di atasnya kehilangan mangsa utama.",
       },
       {
         label: "B",
-        text: "Adeg-adeg ring aksara Ra",
+        text: "Seluruh tingkatan trofik langsung musnah tanpa adaptasi",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Siswa sering keliru menggunakan adeg-adeg untuk mematikan aksara Ra, padahal uger-uger melarang adeg-adeg pada konsonan r.",
+          "Pengecoh: Ekosistem memiliki mekanisme penyangga dinamis, kepunahan masal seketika tidak terjadi.",
       },
       {
         label: "C",
-        text: "Cecek",
+        text: "Energi matahari berhenti masuk ke sistem fotosintesis",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Cecek adalah pangangge tengenan untuk bunyi sengau ng, bukan r.",
+          "Pengecoh: Energi matahari merupakan faktor abiotik independen dari populasi trofik.",
       },
       {
         label: "D",
-        text: "Bisah",
+        text: "Pengurai (dekomposer) berhenti mendaur ulang zat hara tanah",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Bisah adalah pangangge tengenan untuk bunyi hembusan h.",
+          "Pengecoh: Dekomposer tetap mengurai sisa organik dari tumbuhan maupun bangkai hewan yang mati.",
       },
     ],
     correctAnswer: "A",
     explanation:
-      "Manut uger-uger pasang aksara Bali, tengenan 'r' kasurat nganggen Surang. Adeg-adeg nenten dados kasurat ring aksara Ra.",
-    conceptTag: "Pasang Aksara: Pangangge Tengenan Surang",
-    culturalContext: "Uger-uger Pasang Aksara Pasamuan Alit",
+      "Herbivora berfungsi sebagai jembatan transfer energi dari produsen ke karnivora. Penurunan populasi ini menekan predator sekunder sekaligus mengurangi laju konsumsi tumbuhan.",
+    conceptTag: "Ekologi: Dinamika Rantai Makanan & Trofik",
+    culturalContext: "Keseimbangan Ekosistem & Biosfer",
   },
   {
     id: "a4444444-4444-4444-4444-444444444444",
     questionOrder: 4,
     question:
-      "Pangangge suara sane kaanggen ngembasang suara vokal 'u' ring aksara Bali inggih punika...",
+      "Ketika mengevaluasi keabsahan data digital atau artikel informasi, langkah verifikasi primer yang paling dianjurkan adalah...",
     options: [
       {
         label: "A",
-        text: "Suku",
+        text: "Melakukan uji silang rujukan primer dan memverifikasi metodologi sumber",
         isCorrect: true,
         distractorRationale:
-          "Kunci benar: Suku magenah ring sor aksara mangda ngasilang swara vokal u.",
+          "Kunci benar: Penelusuran dokumen orisinal dan reputasi penerbit primer mencegah distorsi informasi sekunder.",
       },
       {
         label: "B",
-        text: "Ulu",
+        text: "Menyimpulkan validitas hanya dari banyaknya jumlah suka (likes) di media sosial",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Siswa sering tertukar antara Ulu (vokal i) dan Suku (vokal u).",
+          "Pengecoh: Metrik popularitas algoritma media sosial tidak berkorelasi dengan akurasi fakta faktual.",
       },
       {
         label: "C",
-        text: "Pepet",
+        text: "Membaca tajuk utama sensasional tanpa meninjau isi tubuh teks",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Pepet digunakan untuk suara e lemah (pepet), bukan u.",
+          "Pengecoh: Judul sensasional (clickbait) sering kali melebih-lebihkan atau tidak mencerminkan data isi.",
       },
       {
         label: "D",
-        text: "Tedung",
+        text: "Menerima informasi tanpa ragu jika ditulis dengan tata bahasa formal",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Tedung digunakan untuk memperpanjang vokal atau kombinasi taling tedong.",
+          "Pengecoh: Format formal dapat disimulasikan dan tidak menjamin ketiadaan misinformasi.",
       },
     ],
     correctAnswer: "A",
     explanation:
-      "Pangangge suara sane mawasta Suku magenah ring sor aksara anggen ngembasang suara 'u'. Ulu mangge suara 'i'.",
-    conceptTag: "Pasang Aksara: Pangangge Suara Suku",
-    culturalContext: "Pangangge Suara Baku Bali",
+      "Literasi informasi kritis menuntut pengecekan bukti primer, identifikasi bias penulis, dan verifikasi silang independen.",
+    conceptTag: "Literasi Digital: Verifikasi Fakta & Bukti",
+    culturalContext: "Evaluasi Kritis Informasi Digital",
   },
   {
     id: "a5555555-5555-5555-5555-555555555555",
     questionOrder: 5,
     question:
-      "Parilaksana gotong royong nyiagayang genah upacara piodalan sareng krama banjar punika pamargi Tri Hita Karana pahan...",
+      "Dalam diskusi kolaboratif pemecahan masalah kelas, tindakan yang paling mencerminkan komunikasi ilmiah efektif adalah...",
     options: [
       {
         label: "A",
-        text: "Pawongan",
+        text: "Mendengarkan aktif perspektif kelompok dan menguji setiap argumen berdasarkan data objektif",
         isCorrect: true,
         distractorRationale:
-          "Kunci benar: Pawongan fokus ring pasawitran miwah rasa sagilik-saguluk salunglung sabayantaka sesama karma banjar.",
+          "Kunci benar: Kolaborasi ilmiah bertumpu pada pertukaran ide terbuka yang divalidasi oleh bukti terukur.",
       },
       {
         label: "B",
-        text: "Parahyangan kemanten",
+        text: "Mempertahankan opini pribadi dengan menolak seluruh koreksi data dari teman",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Walaupun tujuannya untuk piodalan pura (Parahyangan), kegiatan gotong royong antarmanusia secara sosiologis adalah pilar Pawongan.",
+          "Pengecoh: Sikap defensif menutup peluang identifikasi kekeliruan konsep dan perbaikan solusi.",
       },
       {
         label: "C",
-        text: "Palemahan",
+        text: "Menyerahkan seluruh keputusan tanpa memberikan kontribusi penalaran",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Palemahan menyangkut hubungan manusia dengan alam lingkungan fisik.",
+          "Pengecoh: Sikap pasif menghambat sinergi pemecahan masalah multidimensi dalam kelompok.",
       },
       {
         label: "D",
-        text: "Sad Ripu",
+        text: "Mengabaikan fakta jika bertentangan dengan asumsi awal mayoritas",
         isCorrect: false,
         distractorRationale:
-          "Pengecoh: Sad Ripu adalah enam musuh dalam diri manusia, bukan bagian dari Tri Hita Karana.",
+          "Pengecoh: Konsensus tanpa dukungan bukti empiris merupakan bias kelompok (groupthink).",
       },
     ],
     correctAnswer: "A",
     explanation:
-      "Pawongan inggih punika pasubayan miwah rasa asah, asih, asuh ring krama banjar sane kadasarin gotong royong.",
-    conceptTag: "Tri Hita Karana: Pawongan & Banjar Adat",
-    culturalContext: "Sistem Kemasyarakatan Banjar Adat Bali",
+      "Komunikasi ilmiah yang sehat mengintegrasikan empati dialogis dengan ketatnya uji silang penalaran berbasis data.",
+    conceptTag: "Kolaborasi & Berpikir Kritis: Konsensus Ilmiah",
+    culturalContext: "Etika Diskusi & Pembelajaran Kolaboratif",
   },
 ];
+
+export const SEED_BALI_QUESTIONS = DEFAULT_ROOM_QUESTIONS;
 
 const inMemoryRooms = new Map<string, GameRoomRecord>();
 
@@ -270,8 +275,12 @@ export function isValidUuid(val?: string | null): boolean {
 export function generateRoomCode(): string {
   let pin = "";
   let attempts = 0;
+  const buffer = new Uint32Array(1);
   do {
-    pin = Math.floor(100000 + Math.random() * 900000).toString();
+    crypto.getRandomValues(buffer);
+    // Cryptographically uniform 6-digit number in 100000 - 999999
+    const val = 100000 + (buffer[0] % 900000);
+    pin = val.toString();
     attempts++;
   } while (inMemoryRooms.has(pin) && attempts < 100);
   return pin;
@@ -284,6 +293,7 @@ export async function createGameRoom(params: {
     timePerQuestionSec?: number;
     streakBonus?: boolean;
     shuffleQuestions?: boolean;
+    autoApproveStudents?: boolean;
   };
   questions?: Question[];
 }): Promise<GameRoomRecord> {
@@ -298,7 +308,7 @@ export async function createGameRoom(params: {
         id: isValidUuid(q.id) ? q.id : crypto.randomUUID(),
         questionOrder: q.questionOrder ?? idx + 1,
       }))
-    : SEED_BALI_QUESTIONS.map((q) => ({ ...q }));
+    : DEFAULT_ROOM_QUESTIONS.map((q) => ({ ...q }));
 
   if (params.settings?.shuffleQuestions) {
     questions = [...questions];
@@ -338,6 +348,7 @@ export async function createGameRoom(params: {
       timePerQuestionSec: params.settings?.timePerQuestionSec || 20,
       streakBonus: params.settings?.streakBonus ?? true,
       shuffleQuestions: params.settings?.shuffleQuestions ?? false,
+      autoApproveStudents: params.settings?.autoApproveStudents ?? true,
     },
     questions,
     players: new Map<string, PlayerRecord>(),
@@ -420,6 +431,7 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
           streak: p.streak,
           isConnected: p.is_connected,
           lastSeenAt: p.last_seen_at || new Date().toISOString(),
+          status: (p.status as "approved" | "pending" | "rejected") || "approved",
         });
       }
     }
@@ -482,7 +494,13 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
       status: roomData.status || cached?.status || "waiting",
       currentQuestionIndex: roomData.current_question_index ?? cached?.currentQuestionIndex ?? 0,
       questionStartTime: roomData.question_start_time || cached?.questionStartTime || undefined,
-      settings: roomData.settings || cached?.settings || { timePerQuestionSec: 20, streakBonus: true },
+      settings: {
+        timePerQuestionSec: 20,
+        streakBonus: true,
+        shuffleQuestions: false,
+        autoApproveStudents: true,
+        ...(roomData.settings || cached?.settings || {}),
+      },
       questions,
       players: playerMap,
       submissions,
@@ -518,9 +536,15 @@ export async function joinGameRoom(params: {
     }
   }
 
+  const initialStatus: "approved" | "pending" =
+    room.settings.autoApproveStudents !== false ? "approved" : "pending";
+
   if (existingPlayer) {
     existingPlayer.isConnected = true;
     existingPlayer.lastSeenAt = new Date().toISOString();
+    if (existingPlayer.status === "rejected") {
+      existingPlayer.status = initialStatus;
+    }
     room.lastSyncedAt = Date.now();
     try {
       const isPlaceholder =
@@ -555,6 +579,7 @@ export async function joinGameRoom(params: {
     streak: 0,
     isConnected: true,
     lastSeenAt: new Date().toISOString(),
+    status: initialStatus,
   };
 
   room.players.set(playerId, newPlayer);
@@ -631,15 +656,18 @@ export async function getGameRoomState(roomCode: string) {
       score: p.score,
       streak: p.streak,
       isConnected: p.isConnected,
+      status: p.status || "approved",
     })),
-    leaderboard: leaderboard.map((p, index) => ({
-      rank: index + 1,
-      id: p.id,
-      nickname: p.nickname,
-      avatar: p.avatar,
-      score: p.score,
-      streak: p.streak,
-    })),
+    leaderboard: leaderboard
+      .filter((p) => (p.status || "approved") === "approved")
+      .map((p, index) => ({
+        rank: index + 1,
+        id: p.id,
+        nickname: p.nickname,
+        avatar: p.avatar,
+        score: p.score,
+        streak: p.streak,
+      })),
     settings: room.settings,
     totalSubmissionsCount: room.submissions.length,
     updatedAt: room.updatedAt,
@@ -666,7 +694,7 @@ export async function recordAnswerSubmission(params: {
     const resolvedPlayerId = isValidUuid(params.playerId)
       ? params.playerId
       : crypto.randomUUID();
-    player = {
+    const fallbackPlayer: PlayerRecord = {
       id: resolvedPlayerId,
       roomCode: params.roomCode,
       nickname: `Siswa ${resolvedPlayerId.slice(-3)}`,
@@ -675,8 +703,10 @@ export async function recordAnswerSubmission(params: {
       streak: 0,
       isConnected: true,
       lastSeenAt: new Date().toISOString(),
+      status: "approved",
     };
-    room.players.set(resolvedPlayerId, player);
+    room.players.set(resolvedPlayerId, fallbackPlayer);
+    player = fallbackPlayer;
 
     if (!isPlaceholder) {
       try {
@@ -698,6 +728,8 @@ export async function recordAnswerSubmission(params: {
       }
     }
   }
+
+  if (!player) return null;
 
   const question = room.questions.find(
     (q) => q.id === params.questionId || !params.questionId
@@ -999,8 +1031,13 @@ export async function getTeacherRoomDetails(roomCode: string) {
     }
   }
 
-  const playersList = Array.from(room.players.values());
-  const leaderboard = [...playersList].sort((a, b) => b.score - a.score);
+  const playersList = Array.from(room.players.values()).map((p) => ({
+    ...p,
+    status: p.status || "approved",
+  }));
+  const approvedList = playersList.filter((p) => p.status === "approved");
+  const pendingList = playersList.filter((p) => p.status === "pending");
+  const leaderboard = [...approvedList].sort((a, b) => b.score - a.score);
 
   return {
     roomId: room.id,
@@ -1011,9 +1048,11 @@ export async function getTeacherRoomDetails(roomCode: string) {
     currentQuestionIndex: room.currentQuestionIndex,
     totalQuestions: room.questions.length,
     currentQuestion: currentQ,
+    autoApproveStudents: room.settings.autoApproveStudents ?? true,
     stats: {
       submissionsCount: submissionsForCurrentQ.length,
-      totalPlayers: playersList.length,
+      totalPlayers: approvedList.length,
+      pendingCount: pendingList.length,
       correctCount,
       accuracyPercentage:
         submissionsForCurrentQ.length > 0
@@ -1030,5 +1069,61 @@ export async function getTeacherRoomDetails(roomCode: string) {
       streak: p.streak,
     })),
     players: playersList,
+    pendingPlayers: pendingList,
+    approvedPlayers: approvedList,
   };
+}
+
+export async function approvePlayer(roomCode: string, playerId: string): Promise<boolean> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room) return false;
+  const player = room.players.get(playerId);
+  if (!player) return false;
+  player.status = "approved";
+  room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
+  return true;
+}
+
+export async function rejectPlayer(roomCode: string, playerId: string): Promise<boolean> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room) return false;
+  const player = room.players.get(playerId);
+  if (!player) return false;
+  player.status = "rejected";
+  room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
+  return true;
+}
+
+export async function approveAllPlayers(roomCode: string): Promise<number> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room) return 0;
+  let count = 0;
+  for (const player of room.players.values()) {
+    if (player.status === "pending") {
+      player.status = "approved";
+      count++;
+    }
+  }
+  room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
+  return count;
+}
+
+export async function toggleAutoApprove(roomCode: string, enabled?: boolean): Promise<boolean> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room) return false;
+  const target = enabled !== undefined ? enabled : !(room.settings.autoApproveStudents ?? true);
+  room.settings.autoApproveStudents = target;
+  if (target) {
+    for (const player of room.players.values()) {
+      if (player.status === "pending") {
+        player.status = "approved";
+      }
+    }
+  }
+  room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
+  return target;
 }
