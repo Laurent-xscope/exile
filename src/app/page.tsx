@@ -21,6 +21,7 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
 import { SettingsButton } from "@/components/settings/settings-modal";
 import { UserNav } from "@/components/auth/user-nav";
+import { DiagnosticMetricsDashboard } from "@/components/application/diagnostic-metrics-dashboard";
 import { useAuth } from "@/lib/auth/use-auth";
 import { useExileSettings } from "@/lib/settings/user-settings";
 import { soundEffects } from "@/lib/audio/sounds";
@@ -434,6 +435,12 @@ export default function LandingPage() {
               </ButtonLink>
             </div>
           </div>
+        </div>
+      </section>
+
+      <section id="telemetry-metrics" className="py-12 sm:py-16 border-b border-separator-border bg-background-secondary-default">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
+          <DiagnosticMetricsDashboard />
         </div>
       </section>
 
