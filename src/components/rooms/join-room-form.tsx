@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from "react";
 import {
   RiArrowRightLine,
-  RiCheckLine,
   RiHashtag,
   RiUserLine,
 } from "@remixicon/react";
@@ -18,34 +17,6 @@ import {
   savePlayerIdentity,
 } from "@/lib/rooms/player-token";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
-import { cx } from "@/utils/cx";
-
-const AVATARS = [
-  {
-    id: "garuda",
-    label: "Garuda",
-    hintId: "Elang dewata",
-    hintEn: "Guardian eagle",
-  },
-  {
-    id: "barong",
-    label: "Barong",
-    hintId: "Pelindung dharma",
-    hintEn: "Protector of dharma",
-  },
-  {
-    id: "dragon",
-    label: "Naga",
-    hintId: "Naga basuki",
-    hintEn: "Naga basuki",
-  },
-  {
-    id: "lotus",
-    label: "Padma",
-    hintId: "Teratai suci",
-    hintEn: "Sacred lotus",
-  },
-] as const;
 
 export interface JoinedRoomResult {
   roomCode: string;
@@ -220,59 +191,6 @@ export function JoinRoomForm({
         maxLength={24}
         isRequired
       />
-
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-2">
-          <span className="text-body-medium text-text-primary">
-            {isEn ? "Character emblem" : "Lambang karakter"}
-          </span>
-          <span className="text-caption-1-regular text-text-secondary">
-            {isEn ? "Pick one" : "Pilih satu"}
-          </span>
-        </div>
-        <div className="grid grid-cols-2 gap-2.5">
-          {AVATARS.map((avatar) => {
-            const isSelected = selectedAvatar === avatar.id;
-            return (
-              <button
-                type="button"
-                key={avatar.id}
-                onClick={() => {
-                  soundEffects.playClick();
-                  setSelectedAvatar(avatar.id);
-                }}
-                aria-pressed={isSelected}
-                className={cx(
-                  "flex cursor-pointer select-none flex-col items-start justify-between rounded-2xl border p-3.5 text-start transition-colors",
-                  "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
-                  isSelected
-                    ? "border-accent-500 bg-background-secondary-default text-text-primary shadow-xs"
-                    : "border-border-button-default bg-background-primary-default text-text-secondary hover:border-border-button-hover hover:bg-background-primary-hover hover:text-text-primary"
-                )}
-              >
-                <div className="flex w-full items-center justify-between gap-2">
-                  <span className="text-body-medium text-text-primary">
-                    {avatar.label}
-                  </span>
-                  {isSelected ? (
-                    <span className="inline-flex size-5 items-center justify-center rounded-md bg-accent-600 text-text-white">
-                      <RiCheckLine className="size-3.5" aria-hidden />
-                    </span>
-                  ) : (
-                    <span
-                      aria-hidden
-                      className="size-5 rounded-md border border-border-checkbox-default bg-background-primary-default"
-                    />
-                  )}
-                </div>
-                <span className="mt-1 text-caption-1-regular text-text-secondary">
-                  {isEn ? avatar.hintEn : avatar.hintId}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
 
       {error && (
         <div

@@ -13,7 +13,6 @@ import {
   RiSunLine,
   RiMoonLine,
   RiComputerLine,
-  RiCheckLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import { Button } from "@/components/base/buttons/button";
@@ -77,13 +76,6 @@ function SettingToggleRow({
     </div>
   );
 }
-
-const AVATAR_OPTIONS = [
-  { id: "garuda", label: "Garuda", subtitle: "Elang dewata" },
-  { id: "barong", label: "Barong", subtitle: "Pelindung dharma" },
-  { id: "dragon", label: "Naga", subtitle: "Naga basuki" },
-  { id: "lotus", label: "Padma", subtitle: "Teratai suci" },
-];
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { settings, updateSetting, mounted } = useExileSettings();
@@ -389,51 +381,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     onChange={(val) => updateSetting("defaultNickname", val)}
                     maxLength={32}
                   />
-                </div>
-
-                <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-body-medium text-text-primary">
-                      Lambang karakter standar
-                    </span>
-                    <span className="text-caption-1-regular text-text-secondary">
-                      Pilih identitas visual standar untuk papan peringkat kelas
-                    </span>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                    {AVATAR_OPTIONS.map((av) => {
-                      const isSelected = settings.defaultAvatar === av.id;
-                      return (
-                        <button
-                          key={av.id}
-                          type="button"
-                          onClick={() => updateSetting("defaultAvatar", av.id)}
-                          className={cx(
-                            "flex flex-col items-start justify-between rounded-xl border p-3 text-start transition-colors cursor-pointer select-none",
-                            "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
-                            isSelected
-                              ? "border-accent-500 bg-background-primary-default text-text-primary shadow-xs"
-                              : "border-border-button-default bg-background-primary-default/60 text-text-secondary hover:bg-background-primary-hover hover:text-text-primary",
-                          )}
-                        >
-                          <div className="flex w-full items-center justify-between">
-                            <span className="text-body-medium text-text-primary">
-                              {av.label}
-                            </span>
-                            {isSelected ? (
-                              <RiCheckLine
-                                className="size-4 text-accent-600 shrink-0"
-                                aria-hidden
-                              />
-                            ) : null}
-                          </div>
-                          <span className="text-caption-1-regular text-text-secondary mt-0.5">
-                            {av.subtitle}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
                 </div>
               </div>
             )}
