@@ -1045,6 +1045,7 @@ export async function setRoomQuestions(
     questions: Question[];
     difficulty?: QuizDifficultyLevel;
     timePerQuestionSec?: number;
+    streakBonus?: boolean;
   }
 ): Promise<Question[] | null> {
   const room = await ensureRoomLoaded(roomCode);
@@ -1065,6 +1066,9 @@ export async function setRoomQuestions(
   }
   if (input.timePerQuestionSec) {
     room.settings.timePerQuestionSec = input.timePerQuestionSec;
+  }
+  if (typeof input.streakBonus === "boolean") {
+    room.settings.streakBonus = input.streakBonus;
   }
   room.settings.questionsSnapshot = stored.questions;
   room.updatedAt = new Date().toISOString();

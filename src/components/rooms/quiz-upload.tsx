@@ -17,6 +17,12 @@ interface QuizUploadProps {
   isEn?: boolean;
   initialDifficulty?: QuizDifficultyLevel;
   initialTimeSec?: number;
+  initialStreakBonus?: boolean;
+  onSettingsChange?: (partial: {
+    difficulty?: QuizDifficultyLevel;
+    timePerQuestionSec?: number;
+    streakBonus?: boolean;
+  }) => void;
   onCreated: () => void;
 }
 
@@ -72,6 +78,8 @@ export function QuizUpload({
   isEn = false,
   initialDifficulty = "sedang",
   initialTimeSec = 20,
+  initialStreakBonus = true,
+  onSettingsChange,
   onCreated,
 }: QuizUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
@@ -79,6 +87,7 @@ export function QuizUpload({
   const [count, setCount] = useState(8);
   const [difficulty, setDifficulty] = useState<QuizDifficultyLevel>(initialDifficulty);
   const [timePerQuestionSec, setTimePerQuestionSec] = useState<number>(initialTimeSec);
+  const [streakBonus, setStreakBonus] = useState<boolean>(initialStreakBonus);
   const [instructions, setInstructions] = useState("");
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -115,6 +124,7 @@ export function QuizUpload({
           questionCount: count,
           difficulty,
           timePerQuestionSec,
+          streakBonus,
           instructions: instructions.trim() || undefined,
         }),
       });
@@ -256,7 +266,10 @@ export function QuizUpload({
                 key={opt.id}
                 type="button"
                 disabled={busy}
-                onClick={() => setDifficulty(opt.id)}
+                onClick={() => {
+                  setDifficulty(opt.id);
+                  onSettingsChange?.({ difficulty: opt.id });
+                }}
                 className={cx(
                   "p-3 rounded-2xl border text-start transition cursor-pointer",
                   active
@@ -276,8 +289,8 @@ export function QuizUpload({
         </div>
       </div>
 
-      {/* Question Count & Duration */}
-      <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
+      {/* Question Count, Duration & Streak Bonus */}
+      <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-caption-1-semibold text-text-primary">
@@ -315,7 +328,10 @@ export function QuizUpload({
                 key={sec}
                 type="button"
                 disabled={busy}
-                onClick={() => setTimePerQuestionSec(sec)}
+                onClick={() => {
+                  setTimePerQuestionSec(sec);
+                  onSettingsChange?.({ timePerQuestionSec: sec });
+                }}
                 className={cx(
                   "py-2 px-2 rounded-xl border text-caption-1-medium font-mono transition cursor-pointer",
                   timePerQuestionSec === sec
@@ -326,6 +342,46 @@ export function QuizUpload({
                 {sec}d
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <span className="text-caption-1-semibold text-text-primary block">
+            {isEn ? "Streak bonus" : "Bonus beruntun"}
+          </span>
+          <div className="grid grid-cols-2 gap-1.5">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setStreakBonus(true);
+                onSettingsChange?.({ streakBonus: true });
+              }}
+              className={cx(
+                "py-2 px-2.5 rounded-xl border text-caption-1-medium transition cursor-pointer",
+                streakBonus
+                  ? "border-accent-600 bg-accent-700 text-white"
+                  : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
+              )}
+            >
+              {isEn ? "Active" : "Aktif"}
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setStreakBonus(false);
+                onSettingsChange?.({ streakBonus: false });
+              }}
+              className={cx(
+                "py-2 px-2.5 rounded-xl border text-caption-1-medium transition cursor-pointer",
+                !streakBonus
+                  ? "border-accent-600 bg-accent-700 text-white"
+                  : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
+              )}
+            >
+              {isEn ? "Off" : "Nonaktif"}
+            </button>
           </div>
         </div>
       </div>

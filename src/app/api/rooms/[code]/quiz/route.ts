@@ -18,6 +18,7 @@ const BodySchema = z.object({
   instructions: z.string().max(4000).optional(),
   difficulty: z.enum(["mudah", "sedang", "sulit", "campuran"]).optional().default("sedang"),
   timePerQuestionSec: z.coerce.number().int().min(5).max(120).optional(),
+  streakBonus: z.boolean().optional(),
 });
 
 export async function POST(
@@ -49,6 +50,7 @@ export async function POST(
     instructions,
     difficulty,
     timePerQuestionSec,
+    streakBonus,
   } = parsed.data;
 
   try {
@@ -83,6 +85,7 @@ export async function POST(
       questions: quiz.questions,
       difficulty,
       timePerQuestionSec,
+      streakBonus,
     });
     if (!saved) {
       return NextResponse.json(

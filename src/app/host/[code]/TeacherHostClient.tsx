@@ -553,6 +553,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 isEn={isEn}
                 initialDifficulty={currentDifficulty}
                 initialTimeSec={currentTimeSec}
+                initialStreakBonus={currentStreakBonus}
+                onSettingsChange={(partial) => handleUpdateSettings(partial)}
                 onCreated={async () => {
                   setReplacingMaterial(false);
                   await fetchRoomState();
@@ -566,12 +568,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             </div>
           )}
 
-          {/* Lobby Settings & Start Card for Teacher */}
-          {state?.status === "waiting" && !quizStarted && !replacingMaterial && (
+          {/* Lobby Start Card for Teacher (shown only after quiz questions are ready) */}
+          {state?.status === "waiting" && !quizStarted && hasQuestions && !replacingMaterial && (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-4"
+              className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1">
@@ -588,119 +590,25 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     </span>
                   </div>
                   <p className="text-caption-1-regular text-text-secondary">
-                    {hasQuestions
-                      ? isEn
-                        ? `Share pin ${roomCode} with students. Click start quiz to begin question 1.`
-                        : `Bagikan pin ${roomCode} kepada siswa. Klik mulai kuis untuk membuka pertanyaan 1.`
-                      : isEn
-                        ? `Upload source material or write instructions above to generate questions before starting.`
-                        : `Unggah sumber pembelajaran atau tuliskan instruksi materi di atas terlebih dahulu sebelum memulai kuis.`}
+                    {isEn
+                      ? `Share pin ${roomCode} with students. Click start quiz to begin question 1.`
+                      : `Bagikan pin ${roomCode} kepada siswa. Klik mulai kuis untuk membuka pertanyaan 1.`}
                   </p>
                 </div>
 
-                {hasQuestions && (
-                  <div className="flex shrink-0 items-center gap-2">
-                    <Button variant="secondary" size="small" onClick={() => setReplacingMaterial(true)} disabled={actionLoading}>
-                      {isEn ? "Change material" : "Ganti materi"}
-                    </Button>
-                    <Button
-                      variant="primary"
-                      leadingIcon={RiPlayCircleLine}
-                      onClick={() => handleAction("resume_quiz")}
-                      disabled={actionLoading || quizStarted || !hasQuestions}
-                      className="shrink-0"
-                    >
-                      {isEn ? "Start quiz now (q1)" : "Mulai kuis sekarang (soal 1)"}
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              {/* Teacher Lobby Quiz Settings Controls */}
-              <div className="pt-3 border-t border-separator-border grid grid-cols-1 md:grid-cols-3 gap-3">
-                <div className="p-3 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2">
-                  <span className="text-caption-2-semibold text-text-secondary block">
-                    {isEn ? "Quiz difficulty" : "Tingkat kesulitan kuis"}
-                  </span>
-                  <div className="grid grid-cols-4 gap-1">
-                    {(
-                      [
-                        { id: "mudah", label: isEn ? "Easy" : "Mudah" },
-                        { id: "sedang", label: isEn ? "Medium" : "Sedang" },
-                        { id: "sulit", label: isEn ? "Hard" : "Sulit" },
-                        { id: "campuran", label: isEn ? "Mixed" : "Campuran" },
-                      ] as const
-                    ).map((d) => (
-                      <button
-                        key={d.id}
-                        type="button"
-                        onClick={() => handleUpdateSettings({ difficulty: d.id })}
-                        className={cx(
-                          "py-1.5 px-1.5 rounded-lg text-[11px] font-medium transition cursor-pointer text-center",
-                          currentDifficulty === d.id
-                            ? "bg-accent-700 text-white"
-                            : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
-                        )}
-                      >
-                        {d.label}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2">
-                  <span className="text-caption-2-semibold text-text-secondary block">
-                    {isEn ? "Duration per question" : "Durasi per soal"}
-                  </span>
-                  <div className="grid grid-cols-4 gap-1">
-                    {[15, 20, 30, 45].map((sec) => (
-                      <button
-                        key={sec}
-                        type="button"
-                        onClick={() => handleUpdateSettings({ timePerQuestionSec: sec })}
-                        className={cx(
-                          "py-1.5 px-1.5 rounded-lg text-[11px] font-mono font-medium transition cursor-pointer text-center",
-                          currentTimeSec === sec
-                            ? "bg-accent-700 text-white"
-                            : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
-                        )}
-                      >
-                        {sec}d
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="p-3 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2">
-                  <span className="text-caption-2-semibold text-text-secondary block">
-                    {isEn ? "Streak bonus" : "Bonus beruntun"}
-                  </span>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateSettings({ streakBonus: true })}
-                      className={cx(
-                        "py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer text-center",
-                        currentStreakBonus
-                          ? "bg-emerald-600 text-white"
-                          : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
-                      )}
-                    >
-                      {isEn ? "Active" : "Aktif"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleUpdateSettings({ streakBonus: false })}
-                      className={cx(
-                        "py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer text-center",
-                        !currentStreakBonus
-                          ? "bg-accent-700 text-white"
-                          : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
-                      )}
-                    >
-                      {isEn ? "Off" : "Nonaktif"}
-                    </button>
-                  </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button variant="secondary" size="small" onClick={() => setReplacingMaterial(true)} disabled={actionLoading}>
+                    {isEn ? "Change material" : "Ganti materi"}
+                  </Button>
+                  <Button
+                    variant="primary"
+                    leadingIcon={RiPlayCircleLine}
+                    onClick={() => handleAction("resume_quiz")}
+                    disabled={actionLoading || quizStarted || !hasQuestions}
+                    className="shrink-0"
+                  >
+                    {isEn ? "Start quiz now (q1)" : "Mulai kuis sekarang (soal 1)"}
+                  </Button>
                 </div>
               </div>
             </motion.div>
