@@ -28,7 +28,13 @@ import {
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { useAuth } from "@/lib/auth/use-auth";
-import { getHostToken } from "@/lib/rooms/host-token";
+import {
+  clearHostToken,
+  getHostToken,
+  isStudentTabForRoom,
+} from "@/lib/rooms/host-token";
+import { getPlayerToken } from "@/lib/rooms/player-token";
+import type { QuizDifficultyLevel } from "@/lib/rooms/store";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -107,6 +113,13 @@ interface TeacherRoomState {
   totalQuestions: number;
   currentQuestion: Question | null;
   autoApproveStudents?: boolean;
+  settings?: {
+    timePerQuestionSec: number;
+    streakBonus: boolean;
+    shuffleQuestions?: boolean;
+    autoApproveStudents: boolean;
+    difficulty?: QuizDifficultyLevel;
+  };
   stats: {
     submissionsCount: number;
     totalPlayers: number;
@@ -131,12 +144,13 @@ function getInitials(name: string): string {
 
 export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const router = useRouter();
-  const { user, loading: authLoading } = useAuth();
+  const { loading: authLoading } = useAuth();
   const { lang } = useTranslation();
   const isEn = lang === "en";
 
   const [state, setState] = useState<TeacherRoomState | null>(null);
   const [loading, setLoading] = useState(true);
+  const [hostVerified, setHostVerified] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [gameFinished, setGameFinished] = useState(false);
@@ -170,10 +184,19 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const playersFade = useScrollFade();
 
   useEffect(() => {
-    if (!authLoading && !user && !hostToken) {
-      router.replace(`/login?next=${encodeURIComponent(`/host/${roomCode}`)}`);
+    if (authLoading) return;
+    // Prevent student tabs or unauthenticated visitors from taking over /host/[code]
+    const studentTab = isStudentTabForRoom(roomCode);
+    const hasPlayerTokenOnly = Boolean(getPlayerToken(roomCode)) && !hostToken;
+    if (studentTab || hasPlayerTokenOnly || !hostToken) {
+      toast.error(
+        isEn
+          ? "Access denied: students cannot open the teacher host control room."
+          : "Akses ditolak: sesi siswa tidak diizinkan membuka ruang kontrol pengajar."
+      );
+      router.replace(`/play/${roomCode}`);
     }
-  }, [authLoading, user, hostToken, roomCode, router]);
+  }, [authLoading, hostToken, roomCode, router, isEn]);
 
   const hostHeaders = () => {
     const token = getHostToken(roomCode);
@@ -190,8 +213,20 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
         headers: hostHeaders(),
         body: JSON.stringify({ action: "get_teacher_state" }),
       });
+      if (res.status === 401 || res.status === 403) {
+        clearHostToken(roomCode);
+        setHostVerified(false);
+        toast.error(
+          isEn
+            ? "Invalid host session. Redirecting to student arena."
+            : "Sesi pengajar tidak valid. Mengalihkan ke halaman siswa."
+        );
+        router.replace(`/play/${roomCode}`);
+        return;
+      }
       const data = await res.json();
       if (res.ok && data.success) {
+        setHostVerified(true);
         setState(data);
         if (data.status === "finished") {
           setGameFinished(true);
@@ -203,6 +238,33 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
       console.error("Error fetching room state:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleUpdateSettings = async (partial: {
+    difficulty?: QuizDifficultyLevel;
+    timePerQuestionSec?: number;
+    streakBonus?: boolean;
+  }) => {
+    soundEffects.playClick();
+    try {
+      const res = await fetch(`/api/rooms/${roomCode}/action`, {
+        method: "POST",
+        headers: hostHeaders(),
+        body: JSON.stringify({
+          action: "update_room_settings",
+          settings: partial,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        toast.success(isEn ? "Quiz settings updated" : "Pengaturan kuis diperbarui");
+        await fetchRoomState();
+      } else {
+        throw new Error(data.error || "Gagal memperbarui pengaturan");
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Gagal memperbarui pengaturan");
     }
   };
 
@@ -384,26 +446,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     }
   };
 
-  if (!hostToken) {
-    return (
-      <div className="min-h-screen bg-background-secondary-default flex items-center justify-center p-6">
-        <div className="max-w-md rounded-3xl border border-border-button-default bg-background-primary-default p-8 text-center">
-          <h1 className="text-title-3-semibold text-text-primary">Akses pengajar diperlukan</h1>
-          <p className="mt-2 text-body-regular text-text-secondary">
-            Token pengajar untuk ruangan ini tidak ditemukan di perangkat Anda. Buat ruangan baru dari Studio atau buka tautan host asli.
-          </p>
-          <Link
-            href="/studio"
-            className="mt-6 inline-flex rounded-xl bg-accent-700 px-4 py-2 text-body-medium text-white"
-          >
-            Buka Studio
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  if (loading) {
+  if (loading || !hostToken || !hostVerified) {
     return (
       <div className="min-h-screen bg-background-secondary-default flex items-center justify-center">
         <Spinner size="lg" aria-label="Memuat ruang kontrol guru" />
@@ -423,8 +466,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     totalApproved > 0
       ? Math.min(100, Math.round((submissionsCount / totalApproved) * 100))
       : 0;
-  const denom = Math.max(stats?.submissionsCount || 0, 1);
   const isAutoApprove = state?.autoApproveStudents ?? true;
+  const currentDifficulty: QuizDifficultyLevel = state?.settings?.difficulty || "sedang";
+  const currentTimeSec = state?.settings?.timePerQuestionSec || 20;
+  const currentStreakBonus = state?.settings?.streakBonus ?? true;
 
   return (
     <main className="min-h-screen bg-background-secondary-default text-text-primary flex flex-col transition-colors">
@@ -506,6 +551,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 roomCode={roomCode}
                 hostToken={hostToken}
                 isEn={isEn}
+                initialDifficulty={currentDifficulty}
+                initialTimeSec={currentTimeSec}
                 onCreated={async () => {
                   setReplacingMaterial(false);
                   await fetchRoomState();
@@ -519,47 +566,142 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             </div>
           )}
 
-          {/* Lobi card before start */}
-          {state?.status === "waiting" && !quizStarted && hasQuestions && !replacingMaterial && (
+          {/* Lobby Settings & Start Card for Teacher */}
+          {state?.status === "waiting" && !quizStarted && !replacingMaterial && (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-4"
+              className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-4"
             >
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <span className="relative flex size-2.5">
-                    <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-[#D97706] opacity-50" />
-                    <span className="relative inline-flex rounded-full size-2.5 bg-[#D97706]" />
-                  </span>
-                  <span className="text-body-semibold text-text-primary">
-                    {isEn ? "Classroom lobby waiting for students" : "Lobi ruangan menunggu siswa"}
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
-                    {totalApproved} {isEn ? "students ready" : "siswa siap"}
-                  </span>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="relative flex size-2.5">
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-[#D97706] opacity-50" />
+                      <span className="relative inline-flex rounded-full size-2.5 bg-[#D97706]" />
+                    </span>
+                    <span className="text-body-semibold text-text-primary">
+                      {isEn ? "Classroom lobby waiting for students" : "Lobi ruangan menunggu siswa"}
+                    </span>
+                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                      {totalApproved} {isEn ? "students ready" : "siswa siap"}
+                    </span>
+                  </div>
+                  <p className="text-caption-1-regular text-text-secondary">
+                    {hasQuestions
+                      ? isEn
+                        ? `Share pin ${roomCode} with students. Click start quiz to begin question 1.`
+                        : `Bagikan pin ${roomCode} kepada siswa. Klik mulai kuis untuk membuka pertanyaan 1.`
+                      : isEn
+                        ? `Upload source material or write instructions above to generate questions before starting.`
+                        : `Unggah sumber pembelajaran atau tuliskan instruksi materi di atas terlebih dahulu sebelum memulai kuis.`}
+                  </p>
                 </div>
-                <p className="text-caption-1-regular text-text-secondary">
-                  {isEn
-                    ? `Share pin ${roomCode} with students. Click start quiz to begin question 1.`
-                    : `Bagikan pin ${roomCode} kepada siswa. Klik mulai kuis untuk membuka pertanyaan 1.`}
-                </p>
+
+                {hasQuestions && (
+                  <div className="flex shrink-0 items-center gap-2">
+                    <Button variant="secondary" size="small" onClick={() => setReplacingMaterial(true)} disabled={actionLoading}>
+                      {isEn ? "Change material" : "Ganti materi"}
+                    </Button>
+                    <Button
+                      variant="primary"
+                      leadingIcon={RiPlayCircleLine}
+                      onClick={() => handleAction("resume_quiz")}
+                      disabled={actionLoading || quizStarted || !hasQuestions}
+                      className="shrink-0"
+                    >
+                      {isEn ? "Start quiz now (q1)" : "Mulai kuis sekarang (soal 1)"}
+                    </Button>
+                  </div>
+                )}
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
-              <Button variant="secondary" size="small" onClick={() => setReplacingMaterial(true)} disabled={actionLoading}>
-                {isEn ? "Change material" : "Ganti materi"}
-              </Button>
-              {/* Start Quiz button: locks and disappears permanently when clicked */}
-              <Button
-                variant="primary"
-                leadingIcon={RiPlayCircleLine}
-                onClick={() => handleAction("resume_quiz")}
-                disabled={actionLoading || quizStarted || !hasQuestions}
-                className="shrink-0"
-              >
-                {isEn ? "Start quiz now (q1)" : "Mulai kuis sekarang (soal 1)"}
-              </Button>
+              {/* Teacher Lobby Quiz Settings Controls */}
+              <div className="pt-3 border-t border-separator-border grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="p-3 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2">
+                  <span className="text-caption-2-semibold text-text-secondary block">
+                    {isEn ? "Quiz difficulty" : "Tingkat kesulitan kuis"}
+                  </span>
+                  <div className="grid grid-cols-4 gap-1">
+                    {(
+                      [
+                        { id: "mudah", label: isEn ? "Easy" : "Mudah" },
+                        { id: "sedang", label: isEn ? "Medium" : "Sedang" },
+                        { id: "sulit", label: isEn ? "Hard" : "Sulit" },
+                        { id: "campuran", label: isEn ? "Mixed" : "Campuran" },
+                      ] as const
+                    ).map((d) => (
+                      <button
+                        key={d.id}
+                        type="button"
+                        onClick={() => handleUpdateSettings({ difficulty: d.id })}
+                        className={cx(
+                          "py-1.5 px-1.5 rounded-lg text-[11px] font-medium transition cursor-pointer text-center",
+                          currentDifficulty === d.id
+                            ? "bg-accent-700 text-white"
+                            : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
+                        )}
+                      >
+                        {d.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2">
+                  <span className="text-caption-2-semibold text-text-secondary block">
+                    {isEn ? "Duration per question" : "Durasi per soal"}
+                  </span>
+                  <div className="grid grid-cols-4 gap-1">
+                    {[15, 20, 30, 45].map((sec) => (
+                      <button
+                        key={sec}
+                        type="button"
+                        onClick={() => handleUpdateSettings({ timePerQuestionSec: sec })}
+                        className={cx(
+                          "py-1.5 px-1.5 rounded-lg text-[11px] font-mono font-medium transition cursor-pointer text-center",
+                          currentTimeSec === sec
+                            ? "bg-accent-700 text-white"
+                            : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
+                        )}
+                      >
+                        {sec}d
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="p-3 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2">
+                  <span className="text-caption-2-semibold text-text-secondary block">
+                    {isEn ? "Streak bonus" : "Bonus beruntun"}
+                  </span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateSettings({ streakBonus: true })}
+                      className={cx(
+                        "py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer text-center",
+                        currentStreakBonus
+                          ? "bg-emerald-600 text-white"
+                          : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
+                      )}
+                    >
+                      {isEn ? "Active" : "Aktif"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateSettings({ streakBonus: false })}
+                      className={cx(
+                        "py-1.5 px-2 rounded-lg text-[11px] font-medium transition cursor-pointer text-center",
+                        !currentStreakBonus
+                          ? "bg-accent-700 text-white"
+                          : "bg-background-primary-default text-text-secondary hover:text-text-primary border border-border-button-default"
+                      )}
+                    >
+                      {isEn ? "Off" : "Nonaktif"}
+                    </button>
+                  </div>
+                </div>
               </div>
             </motion.div>
           )}
@@ -655,14 +797,26 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
                     {currentQ.options.map((option) => {
                       const optKey = option.label.toUpperCase();
-                      const voteCount = stats?.optionCounts?.[optKey] || 0;
-                      const votePercent =
-                        (stats?.submissionsCount || 0) > 0
-                          ? Math.round((voteCount / denom) * 100)
-                          : 0;
                       const qOrder = currentQ.questionOrder || 1;
                       const selectedOnHost = selectedHostAnswers[qOrder] === option.label;
                       const hasChosenOnHost = Boolean(selectedHostAnswers[qOrder]);
+                      const rawVoteCount = stats?.optionCounts?.[optKey] || 0;
+                      const voteCount =
+                        submissionsCount > 0
+                          ? rawVoteCount
+                          : hasChosenOnHost && selectedOnHost
+                            ? 1
+                            : 0;
+                      const effectiveTotal =
+                        submissionsCount > 0
+                          ? submissionsCount
+                          : hasChosenOnHost
+                            ? 1
+                            : 0;
+                      const votePercent =
+                        effectiveTotal > 0
+                          ? Math.round((voteCount / effectiveTotal) * 100)
+                          : 0;
 
                       return (
                         <button
@@ -679,11 +833,27 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             "p-4 rounded-2xl border transition relative overflow-hidden space-y-2 text-left cursor-pointer",
                             selectedOnHost
                               ? option.isCorrect
-                                ? "bg-accent-700/10 border-accent-700/50"
-                                : "bg-background-secondary-default border-border-error-default"
+                                ? "bg-emerald-500/15 border-emerald-500"
+                                : "bg-rose-500/10 border-border-error-default"
                               : "bg-background-secondary-default border-border-button-default hover:border-border-button-hover"
                           )}
                         >
+                          {/* Percentage visual bar */}
+                          {votePercent > 0 && (
+                            <div
+                              aria-hidden
+                              style={{ width: `${votePercent}%` }}
+                              className={cx(
+                                "pointer-events-none absolute inset-y-0 start-0 transition-all duration-300",
+                                selectedOnHost
+                                  ? option.isCorrect
+                                    ? "bg-emerald-500/15"
+                                    : "bg-rose-500/15"
+                                  : "bg-text-primary/5"
+                              )}
+                            />
+                          )}
+
                           <div className="flex items-start justify-between gap-2 relative z-10">
                             <div className="flex items-center gap-2.5 min-w-0">
                               <span
@@ -691,8 +861,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                   "size-6 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0",
                                   selectedOnHost
                                     ? option.isCorrect
-                                      ? "bg-accent-700 text-white"
-                                      : "bg-background-tertiary-default text-text-error-primary"
+                                      ? "bg-emerald-600 text-white"
+                                      : "bg-rose-600 text-white"
                                     : "bg-background-tertiary-default text-text-primary"
                                 )}
                               >
@@ -706,8 +876,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             <span
                               className={cx(
                                 "inline-flex items-center px-2 py-0.5 rounded-md text-caption-2-medium tabular-nums shrink-0",
-                                hasChosenOnHost && selectedOnHost && option.isCorrect
-                                  ? "bg-accent-700/10 text-accent-700 border border-accent-700/20"
+                                selectedOnHost
+                                  ? option.isCorrect
+                                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
+                                    : "bg-rose-500/15 text-text-error-primary border border-border-error-default"
                                   : "bg-background-tertiary-default text-text-secondary"
                               )}
                             >

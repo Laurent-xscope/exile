@@ -91,7 +91,7 @@ export default function LandingPage() {
 
   const [isFlipped, setIsFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [secondsRemaining, setSecondsRemaining] = useState(30);
+  const [_secondsRemaining, setSecondsRemaining] = useState(30);
   const [isHovered, setIsHovered] = useState(false);
 
   const stateRef = useRef({
@@ -400,64 +400,6 @@ export default function LandingPage() {
                 </button>
               );
             })}
-          </div>
-
-          {/* Centered Live Rotation Controls */}
-          <div className="flex flex-wrap items-center justify-center gap-3 text-caption-1-medium text-text-secondary max-w-xl mx-auto">
-            <div className="inline-flex items-center gap-2.5 px-3.5 py-1.5 rounded-xl bg-background-primary-default border border-border-button-default shadow-xs">
-              <div
-                className="relative size-5 flex items-center justify-center shrink-0"
-                title={
-                  isTimerPaused
-                    ? (isEn ? "Rotation paused on hover" : "Rotasi dijeda saat kursor di atas kartu")
-                    : (isEn ? `${secondsRemaining}s to next card` : `${secondsRemaining} detik ke kartu berikutnya`)
-                }
-              >
-                <svg className="size-5 -rotate-90 transform" viewBox="0 0 36 36" aria-hidden="true">
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="14"
-                    className="stroke-border-button-default"
-                    strokeWidth="3.5"
-                    fill="transparent"
-                  />
-                  <circle
-                    cx="18"
-                    cy="18"
-                    r="14"
-                    className={cx(
-                      "stroke-accent-600 dark:stroke-accent-400 transition-[stroke-dashoffset] duration-1000 ease-linear",
-                      isTimerPaused && "opacity-60 stroke-text-tertiary"
-                    )}
-                    strokeWidth="3.5"
-                    strokeDasharray={87.96}
-                    strokeDashoffset={87.96 * (1 - secondsRemaining / 30)}
-                    strokeLinecap="round"
-                    fill="transparent"
-                  />
-                </svg>
-              </div>
-              <span className="text-caption-2-medium text-text-secondary">
-                {isTimerPaused
-                  ? (isEn ? "Rotation paused" : "Rotasi dijeda")
-                  : isEn
-                  ? `Next card in ${secondsRemaining}s`
-                  : `Rotasi dalam ${secondsRemaining} dtk`}
-              </span>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => {
-                soundEffects.playClick();
-                handleNextCard();
-              }}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-background-primary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-1-medium text-text-primary transition-colors cursor-pointer shadow-xs"
-            >
-              <RiRefreshLine className="size-3.5" />
-              <span>{isEn ? "Next card" : "Kartu berikutnya"}</span>
-            </button>
           </div>
 
           {/* Centered & Perfectly Proportioned Interactive 3D Flashcard Container */}

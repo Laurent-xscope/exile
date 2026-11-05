@@ -5,6 +5,7 @@ import { RiFileTextLine, RiUploadCloud2Line, RiCloseLine } from "@remixicon/reac
 import { toast } from "sonner";
 import { Button } from "@/components/base/buttons/button";
 import { Spinner } from "@/components/base/spinner/spinner";
+import type { QuizDifficultyLevel } from "@/lib/rooms/store";
 import { cx } from "@/utils/cx";
 
 const ACCEPT = ".pdf,.docx,.txt,.md";
@@ -14,8 +15,47 @@ interface QuizUploadProps {
   roomCode: string;
   hostToken: string | null;
   isEn?: boolean;
+  initialDifficulty?: QuizDifficultyLevel;
+  initialTimeSec?: number;
   onCreated: () => void;
 }
+
+const DIFFICULTY_OPTIONS: Array<{
+  id: QuizDifficultyLevel;
+  labelId: string;
+  labelEn: string;
+  descId: string;
+  descEn: string;
+}> = [
+  {
+    id: "mudah",
+    labelId: "Mudah",
+    labelEn: "Easy",
+    descId: "Konsep dasar & ingatan",
+    descEn: "Core concepts & recall",
+  },
+  {
+    id: "sedang",
+    labelId: "Sedang",
+    labelEn: "Medium",
+    descId: "Penerapan & analisis",
+    descEn: "Application & analysis",
+  },
+  {
+    id: "sulit",
+    labelId: "Sulit",
+    labelEn: "Hard",
+    descId: "Penalaran kritis (hots)",
+    descEn: "Critical reasoning (hots)",
+  },
+  {
+    id: "campuran",
+    labelId: "Campuran",
+    labelEn: "Mixed",
+    descId: "Bertahap mudah ke sulit",
+    descEn: "Gradual easy to hard",
+  },
+];
 
 function readAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -26,10 +66,19 @@ function readAsBase64(file: File): Promise<string> {
   });
 }
 
-export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: QuizUploadProps) {
+export function QuizUpload({
+  roomCode,
+  hostToken,
+  isEn = false,
+  initialDifficulty = "sedang",
+  initialTimeSec = 20,
+  onCreated,
+}: QuizUploadProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [count, setCount] = useState(8);
+  const [difficulty, setDifficulty] = useState<QuizDifficultyLevel>(initialDifficulty);
+  const [timePerQuestionSec, setTimePerQuestionSec] = useState<number>(initialTimeSec);
   const [instructions, setInstructions] = useState("");
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -38,19 +87,21 @@ export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: Qui
   const pick = (next: File | undefined | null) => {
     if (!next) return;
     if (next.size > MAX_BYTES) {
-      setError(isEn ? "File is larger than 8 MB." : "Berkas lebih dari 8 MB.");
+      setError(isEn ? "File is larger than 8 mb." : "Berkas lebih dari 8 mb.");
       return;
     }
     setError(null);
     setFile(next);
   };
 
+  const canSubmit = Boolean(file || instructions.trim().length >= 3) && !busy;
+
   const submit = async () => {
-    if (!file || busy) return;
+    if (!canSubmit) return;
     setBusy(true);
     setError(null);
     try {
-      const fileBase64 = await readAsBase64(file);
+      const fileBase64 = file ? await readAsBase64(file) : undefined;
       const res = await fetch(`/api/rooms/${roomCode}/quiz`, {
         method: "POST",
         headers: {
@@ -58,10 +109,12 @@ export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: Qui
           ...(hostToken ? { "x-host-token": hostToken } : {}),
         },
         body: JSON.stringify({
-          fileName: file.name,
-          mimeType: file.type,
+          fileName: file?.name,
+          mimeType: file?.type,
           fileBase64,
           questionCount: count,
+          difficulty,
+          timePerQuestionSec,
           instructions: instructions.trim() || undefined,
         }),
       });
@@ -79,15 +132,17 @@ export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: Qui
   };
 
   return (
-    <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 space-y-5">
+    <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 space-y-5 shadow-card">
       <div className="space-y-1">
         <h2 className="text-headline-semibold text-text-primary">
-          {isEn ? "Drop your material" : "Letakkan materi di sini"}
+          {isEn
+            ? "Upload learning source or enter topic instructions"
+            : "Unggah sumber pembelajaran atau tulis instruksi materi"}
         </h2>
         <p className="text-body-2-regular text-text-secondary">
           {isEn
-            ? "The system reads your file and writes the questions. You can review them before starting."
-            : "Sistem membaca berkasnya lalu menyusun soal. Anda bisa memeriksanya sebelum memulai."}
+            ? "Upload a document (pdf, docx, txt) or describe what your class will learn, then configure quiz difficulty and question count."
+            : "Unggah dokumen bahan ajar (pdf, docx, txt) atau tuliskan instruksi tentang apa yang akan dipelajari sebelum memulai kuis."}
         </p>
       </div>
 
@@ -112,7 +167,7 @@ export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: Qui
           if (!busy) pick(e.dataTransfer.files?.[0]);
         }}
         className={cx(
-          "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-10 text-center transition-colors outline-none cursor-pointer",
+          "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-7 text-center transition-colors outline-none cursor-pointer",
           "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
           dragging
             ? "border-text-primary bg-background-secondary-default"
@@ -155,20 +210,78 @@ export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: Qui
           </div>
         ) : (
           <>
-            <RiUploadCloud2Line className="size-8 text-text-secondary" aria-hidden />
+            <RiUploadCloud2Line className="size-7 text-text-secondary" aria-hidden />
             <p className="text-body-medium text-text-primary">
-              {isEn ? "Drag a file here, or click to choose" : "Seret berkas ke sini, atau klik untuk memilih"}
+              {isEn
+                ? "Drag a learning file here, or click to choose (optional if writing instructions below)"
+                : "Seret berkas sumber belajar ke sini, atau klik untuk memilih"}
             </p>
             <p className="text-caption-1-regular text-text-secondary">Pdf, docx, txt, md • maks 8 mb</p>
           </>
         )}
       </div>
 
+      {/* Instructions / Topic Textarea */}
+      <label className="space-y-1.5 block">
+        <span className="text-caption-1-semibold text-text-primary block">
+          {isEn
+            ? "Learning topic or teacher instructions"
+            : "Instruksi atau topik materi yang akan dipelajari"}
+        </span>
+        <textarea
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          disabled={busy}
+          rows={3}
+          maxLength={4000}
+          placeholder={
+            isEn
+              ? "Write the topic, material summary, or specific focus (e.g. Descriptive text describing a person for grade 10, focus on adjectives and simple present tense)..."
+              : "Tuliskan topik, materi pembelajaran, atau instruksi fokus soal (misal: Teks deskriptif bahasa inggris kelas 10, atau hukum newton dan penerapannya)..."
+          }
+          className="w-full rounded-2xl border border-border-button-default bg-background-secondary-default p-3.5 text-body-2-regular text-text-primary placeholder:text-text-placeholder outline-none focus:border-text-primary resize-y"
+        />
+      </label>
+
+      {/* Difficulty Selector */}
+      <div className="space-y-2">
+        <span className="text-caption-1-semibold text-text-primary block">
+          {isEn ? "Quiz difficulty level" : "Tingkat kesulitan kuis"}
+        </span>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+          {DIFFICULTY_OPTIONS.map((opt) => {
+            const active = difficulty === opt.id;
+            return (
+              <button
+                key={opt.id}
+                type="button"
+                disabled={busy}
+                onClick={() => setDifficulty(opt.id)}
+                className={cx(
+                  "p-3 rounded-2xl border text-start transition cursor-pointer",
+                  active
+                    ? "border-accent-600 bg-accent-700/10 text-text-primary shadow-2xs"
+                    : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary hover:border-border-button-hover"
+                )}
+              >
+                <span className="text-body-2-semibold text-text-primary block">
+                  {isEn ? opt.labelEn : opt.labelId}
+                </span>
+                <span className="text-[11px] text-text-secondary block mt-0.5">
+                  {isEn ? opt.descEn : opt.descId}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Question Count & Duration */}
       <div className="grid gap-4 sm:grid-cols-2 sm:items-end">
         <div className="space-y-2">
           <div className="flex items-center justify-between gap-2">
             <span className="text-caption-1-semibold text-text-primary">
-              {isEn ? "Questions" : "Jumlah soal"}
+              {isEn ? "Question count" : "Jumlah soal"}
             </span>
             <span className="rounded-lg border border-border-button-default bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
               {count} {isEn ? "questions" : "soal"}
@@ -191,19 +304,30 @@ export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: Qui
             <span>15</span>
           </div>
         </div>
-        <label className="space-y-1.5 block">
+
+        <div className="space-y-2">
           <span className="text-caption-1-semibold text-text-primary block">
-            {isEn ? "Additional notes (optional)" : "Catatan tambahan (opsional)"}
+            {isEn ? "Time per question" : "Durasi per soal"}
           </span>
-          <input
-            value={instructions}
-            onChange={(e) => setInstructions(e.target.value)}
-            disabled={busy}
-            maxLength={600}
-            placeholder={isEn ? "E.g. focus on chapter 2" : "Mis. fokus ke bab 2"}
-            className="h-10 w-full rounded-xl border-2 border-border-button-default bg-background-primary-default px-3.5 text-body-2-regular text-text-primary placeholder:text-text-placeholder outline-none focus:border-text-primary"
-          />
-        </label>
+          <div className="grid grid-cols-4 gap-1.5">
+            {[15, 20, 30, 45].map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                disabled={busy}
+                onClick={() => setTimePerQuestionSec(sec)}
+                className={cx(
+                  "py-2 px-2 rounded-xl border text-caption-1-medium font-mono transition cursor-pointer",
+                  timePerQuestionSec === sec
+                    ? "border-accent-600 bg-accent-700 text-white"
+                    : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
+                )}
+              >
+                {sec}d
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {error && (
@@ -212,7 +336,7 @@ export function QuizUpload({ roomCode, hostToken, isEn = false, onCreated }: Qui
         </p>
       )}
 
-      <Button variant="primary" onClick={submit} disabled={!file || busy} className="w-full">
+      <Button variant="primary" onClick={submit} disabled={!canSubmit} className="w-full">
         {busy ? (
           <span className="inline-flex items-center gap-2">
             <Spinner size="xs" aria-hidden />

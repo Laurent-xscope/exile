@@ -10,6 +10,7 @@ import {
   rejectPlayer,
   approveAllPlayers,
   toggleAutoApprove,
+  updateRoomSettings,
   validateHostToken,
 } from "@/lib/rooms/store";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
@@ -28,10 +29,20 @@ const ActionSchema = z.object({
     "reject_player",
     "approve_all_players",
     "toggle_auto_approve",
+    "update_room_settings",
   ]),
   playerId: z.string().optional(),
   selectedOption: z.string().optional(),
   autoApprove: z.boolean().optional(),
+  settings: z
+    .object({
+      timePerQuestionSec: z.coerce.number().int().min(5).max(120).optional(),
+      streakBonus: z.boolean().optional(),
+      shuffleQuestions: z.boolean().optional(),
+      autoApproveStudents: z.boolean().optional(),
+      difficulty: z.enum(["mudah", "sedang", "sulit", "campuran"]).optional(),
+    })
+    .optional(),
 });
 
 export async function POST(
@@ -162,6 +173,21 @@ export async function POST(
         const details = await getTeacherRoomDetails(roomCode);
         const state = await getGameRoomState(roomCode);
         return NextResponse.json({ success: true, autoApprove, details, state });
+      }
+
+      case "update_room_settings": {
+        const updatedSettings = await updateRoomSettings(
+          roomCode,
+          parseResult.data.settings || {}
+        );
+        const details = await getTeacherRoomDetails(roomCode);
+        const state = await getGameRoomState(roomCode);
+        return NextResponse.json({
+          success: true,
+          settings: updatedSettings,
+          details,
+          state,
+        });
       }
 
       case "simulate_answer": {

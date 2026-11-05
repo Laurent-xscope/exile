@@ -10,6 +10,10 @@ import {
   evaluateQuizResponse,
   type ScoreBreakdown,
 } from "@/lib/quiz/scoring";
+import {
+  calculateScoreWithPowerups,
+  type PowerupId,
+} from "@/lib/wayground/score-powerups";
 
 // Guarded at every call site: when no service-role key is configured the app
 // runs in stateless in-memory mode and this client is never used.
@@ -18,6 +22,8 @@ function db() {
   if (!supabase) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required when Supabase is configured.");
   return supabase;
 }
+
+export type QuizDifficultyLevel = "mudah" | "sedang" | "sulit" | "campuran";
 
 export interface PlayerRecord {
   id: string;
@@ -30,6 +36,7 @@ export interface PlayerRecord {
   lastSeenAt: string;
   status: "approved" | "pending" | "rejected";
   token: string;
+  usedPowerups?: PowerupId[];
 }
 
 export interface LeaderboardScoreBreakdown extends ScoreBreakdown {
@@ -65,6 +72,8 @@ export interface GameRoomRecord {
     streakBonus: boolean;
     shuffleQuestions?: boolean;
     autoApproveStudents: boolean;
+    difficulty?: QuizDifficultyLevel;
+    questionsSnapshot?: Question[];
   };
   questions: Question[];
   players: Map<string, PlayerRecord>;
@@ -74,7 +83,7 @@ export interface GameRoomRecord {
   lastSyncedAt?: number;
 }
 
-function withTimeout<T>(promise: PromiseLike<T>, ms = 1500): Promise<T | null> {
+function withTimeout<T>(promise: PromiseLike<T>, ms = 3500): Promise<T | null> {
   return Promise.race([
     Promise.resolve(promise),
     new Promise<null>((resolve) => setTimeout(() => resolve(null), ms)),
@@ -99,6 +108,13 @@ function safeEqual(a?: string | null, b?: string | null): boolean {
   return diff === 0;
 }
 
+function randomInt(maxExclusive: number): number {
+  if (maxExclusive <= 1) return 0;
+  const buf = new Uint32Array(1);
+  crypto.getRandomValues(buf);
+  return buf[0] % maxExclusive;
+}
+
 function normalizeQuestions(input: Question[]): Question[] {
   return input.map((q, idx) => {
     const withShuffled = shuffleQuestionOptions(q);
@@ -111,7 +127,7 @@ function normalizeQuestions(input: Question[]): Question[] {
 }
 
 async function loadQuestionsForQuiz(quizId: string): Promise<Question[]> {
-  if (!isDatabaseEnabled()) return [];
+  if (!isDatabaseEnabled() || !quizId || quizId === SEED_QUIZ_ID) return [];
   const { data, error } = await db().from("questions")
     .select("*")
     .eq("quiz_id", quizId)
@@ -154,15 +170,34 @@ export function generateRoomCode(): string {
 }
 
 export function shuffleQuestionOptions(q: Question): Question {
-  const options = [...q.options];
+  const rawOptions = Array.isArray(q.options) ? q.options.slice(0, 4) : [];
+  if (rawOptions.length === 0) return q;
+
+  const declaredCorrect = (q.correctAnswer || "").trim().toUpperCase();
+  let foundCorrectIdx = rawOptions.findIndex((opt) => opt.isCorrect === true);
+  if (foundCorrectIdx === -1 && declaredCorrect) {
+    foundCorrectIdx = rawOptions.findIndex(
+      (opt) => (opt.label || "").trim().toUpperCase() === declaredCorrect
+    );
+  }
+  if (foundCorrectIdx === -1) {
+    foundCorrectIdx = 0;
+  }
+
+  const options = rawOptions.map((opt, idx) => ({
+    ...opt,
+    isCorrect: idx === foundCorrectIdx,
+  }));
+
   for (let i = options.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = randomInt(i + 1);
     [options[i], options[j]] = [options[j], options[i]];
   }
+
   const labels: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
   let newCorrectAnswer: "A" | "B" | "C" | "D" = "A";
   const updatedOptions = options.map((opt, idx) => {
-    const label = labels[idx];
+    const label = labels[idx] || "A";
     if (opt.isCorrect) {
       newCorrectAnswer = label;
     }
@@ -187,6 +222,7 @@ export async function createGameRoom(params: {
     streakBonus?: boolean;
     shuffleQuestions?: boolean;
     autoApproveStudents?: boolean;
+    difficulty?: QuizDifficultyLevel;
   };
   questions?: Question[];
 }): Promise<GameRoomRecord> {
@@ -195,20 +231,22 @@ export async function createGameRoom(params: {
   const now = new Date().toISOString();
 
   const providedQuestions = params.questions ?? [];
-  const validQuizId = isValidUuid(params.quizId) ? params.quizId! : null;
+  const validQuizId =
+    isValidUuid(params.quizId) && params.quizId !== SEED_QUIZ_ID
+      ? params.quizId!
+      : null;
   let questions = normalizeQuestions(providedQuestions);
-  let resolvedQuizId = validQuizId ?? SEED_QUIZ_ID;
+  let resolvedQuizId = validQuizId ?? "";
 
-  // A quiz id without inline questions must be hydrated from the database.
-  if (questions.length === 0) {
+  // Only hydrate from the database if an explicit non-seed quizId was requested.
+  if (questions.length === 0 && resolvedQuizId) {
     questions = await loadQuestionsForQuiz(resolvedQuizId);
   }
-
 
   if (params.settings?.shuffleQuestions && questions.length > 0) {
     questions = [...questions];
     for (let i = questions.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
+      const j = randomInt(i + 1);
       [questions[i], questions[j]] = [questions[j], questions[i]];
     }
     questions = questions.map((q, idx) => ({
@@ -241,6 +279,8 @@ export async function createGameRoom(params: {
       streakBonus: params.settings?.streakBonus ?? true,
       shuffleQuestions: params.settings?.shuffleQuestions ?? false,
       autoApproveStudents: params.settings?.autoApproveStudents ?? true,
+      difficulty: params.settings?.difficulty || "sedang",
+      ...(questions.length > 0 ? { questionsSnapshot: questions } : {}),
     },
     questions,
     players: new Map<string, PlayerRecord>(),
@@ -260,14 +300,14 @@ export async function createGameRoom(params: {
         db().from("game_rooms").insert({
           id: roomId,
           room_code: roomCode,
-          quiz_id: newRoom.quizId,
+          quiz_id: newRoom.quizId || null,
           host_token: newRoom.hostToken,
           host_name: newRoom.hostName,
           status: newRoom.status,
           current_question_index: 0,
           settings: newRoom.settings,
         }),
-        1500
+        2500
       );
     }
   } catch (err) {
@@ -279,8 +319,6 @@ export async function createGameRoom(params: {
 
 export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord | null> {
   const cached = inMemoryRooms.get(roomCode) || null;
-  // When the database is authoritative, keep only a very short cache so a
-  // different server instance cannot serve minutes-old room state.
   if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 250) {
     return cached;
   }
@@ -296,7 +334,7 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
         db().from("players").select("*").eq("room_code", roomCode),
         db().from("submissions").select("*").eq("room_code", roomCode),
       ]),
-      2000
+      2500
     );
 
     if (!synced) return cached;
@@ -313,17 +351,19 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
     }
     if (playersData) {
       for (const p of playersData) {
+        const prev = playerMap.get(p.id);
         playerMap.set(p.id, {
           id: p.id,
           roomCode: p.room_code,
           nickname: p.nickname,
           avatar: p.avatar,
-          score: p.score,
-          streak: p.streak,
+          score: typeof p.score === "number" ? Math.max(p.score, prev?.score ?? 0) : (prev?.score ?? 0),
+          streak: typeof p.streak === "number" ? p.streak : (prev?.streak ?? 0),
           isConnected: p.is_connected,
           lastSeenAt: p.last_seen_at || new Date().toISOString(),
           status: (p.status as "approved" | "pending" | "rejected") || "approved",
-          token: p.player_token || "",
+          token: p.player_token || prev?.token || "",
+          usedPowerups: prev?.usedPowerups || [],
         });
       }
     }
@@ -352,14 +392,23 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
     }
     const submissions = Array.from(submissionsMap.values());
 
-    let questions: Question[] = cached?.questions || [];
-    if ((!cached || cached.questions.length === 0) && roomData.quiz_id) {
+    const activeQuizId =
+      roomData.quiz_id && roomData.quiz_id !== SEED_QUIZ_ID
+        ? String(roomData.quiz_id)
+        : "";
+
+    let questions: Question[] =
+      cached && cached.quizId === activeQuizId && cached.questions.length > 0
+        ? cached.questions
+        : [];
+
+    if (questions.length === 0 && activeQuizId) {
       const qRes = await withTimeout(
         db().from("questions")
           .select("*")
-          .eq("quiz_id", roomData.quiz_id)
+          .eq("quiz_id", activeQuizId)
           .order("question_order", { ascending: true }),
-        2000
+        2500
       );
 
       const qData = qRes?.data;
@@ -377,10 +426,15 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
       }
     }
 
+    const rawSettings = (roomData.settings || cached?.settings || {}) as Record<string, unknown>;
+    if (questions.length === 0 && Array.isArray(rawSettings.questionsSnapshot)) {
+      questions = rawSettings.questionsSnapshot as Question[];
+    }
+
     const restoredRoom: GameRoomRecord = {
       id: roomData.id,
       roomCode: roomData.room_code,
-      quizId: roomData.quiz_id || cached?.quizId || SEED_QUIZ_ID,
+      quizId: activeQuizId,
       hostToken: roomData.host_token || cached?.hostToken || "",
       hostName: roomData.host_name || cached?.hostName || "Guru",
       status: roomData.status || cached?.status || "waiting",
@@ -391,7 +445,8 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
         streakBonus: true,
         shuffleQuestions: false,
         autoApproveStudents: true,
-        ...(roomData.settings || cached?.settings || {}),
+        difficulty: "sedang",
+        ...rawSettings,
       },
       questions,
       players: playerMap,
@@ -603,7 +658,13 @@ export async function getGameRoomState(roomCode: string) {
       })),
     questionStartedAt: isQuestionVisible ? room.questionStartTime : undefined,
     serverTime: new Date().toISOString(),
-    settings: room.settings,
+    settings: {
+      timePerQuestionSec: room.settings.timePerQuestionSec,
+      streakBonus: room.settings.streakBonus,
+      shuffleQuestions: room.settings.shuffleQuestions,
+      autoApproveStudents: room.settings.autoApproveStudents,
+      difficulty: room.settings.difficulty || "sedang",
+    },
     totalSubmissionsCount: room.submissions.length,
     updatedAt: room.updatedAt,
   };
@@ -625,6 +686,7 @@ export type SubmissionResult =
       correctAnswer: string;
       explanation: string;
       duplicate?: boolean;
+      powerupApplied?: PowerupId | null;
     }
   | { ok: false; reason: SubmissionFailureReason };
 
@@ -637,6 +699,7 @@ export async function recordAnswerSubmission(params: {
   selectedOption: string;
   responseTimeMs: number;
   microFeedback?: string;
+  powerup?: PowerupId;
 }): Promise<SubmissionResult> {
   const room = await ensureRoomLoaded(params.roomCode);
   if (!room) return { ok: false, reason: "not_found" };
@@ -688,12 +751,20 @@ export async function recordAnswerSubmission(params: {
     ? Math.max(0, Date.now() - serverStart)
     : null;
 
-  // The client clock is only a fallback for old rooms. Normal play is scored
-  // from the server's question start so a tampered responseTime cannot win.
+  const usedPowerups = player.usedPowerups || [];
+  const validPowerup =
+    params.powerup &&
+    ["double_jeopardy", "time_freeze", "streak_booster", "immunity"].includes(params.powerup) &&
+    !usedPowerups.includes(params.powerup)
+      ? params.powerup
+      : null;
+
+  // Allow extra grace when time_freeze powerup is active
+  const graceMs = validPowerup === "time_freeze" ? 10_000 : 1500;
   if (
     !params.hostBypass &&
     serverElapsed !== null &&
-    serverElapsed > timeLimitMs + 1500
+    serverElapsed > timeLimitMs + graceMs
   ) {
     return { ok: false, reason: "inactive" };
   }
@@ -706,15 +777,31 @@ export async function recordAnswerSubmission(params: {
     )
   );
 
-  // Shared with the instant player: 600 base, up to 400 speed, and the
-  // reference streak tiers starting at the second consecutive correct answer.
-  const scoreAwarded = calculateResponseScore({
-    isCorrect,
-    timeTakenMs: responseTimeMs,
-    totalTimeMs: timeLimitMs,
-    currentStreak: player.streak,
-    streakBonusEnabled: room.settings.streakBonus,
-  }).total;
+  let scoreAwarded = 0;
+  let nextStreak = isCorrect ? player.streak + 1 : 0;
+
+  if (validPowerup) {
+    const powerupRes = calculateScoreWithPowerups({
+      isCorrect,
+      timeTakenMs: responseTimeMs,
+      totalTimeMs: timeLimitMs,
+      currentStreak: player.streak,
+      powerups: [{ id: validPowerup }],
+    });
+    scoreAwarded = powerupRes.total;
+    nextStreak = powerupRes.newStreak;
+    player.usedPowerups = [...usedPowerups, validPowerup];
+  } else {
+    const plainRes = calculateResponseScore({
+      isCorrect,
+      timeTakenMs: responseTimeMs,
+      totalTimeMs: timeLimitMs,
+      currentStreak: player.streak,
+      streakBonusEnabled: room.settings.streakBonus,
+    });
+    scoreAwarded = plainRes.total;
+    nextStreak = plainRes.newStreak;
+  }
 
   const submission: SubmissionRecord = {
     id: crypto.randomUUID(),
@@ -731,7 +818,7 @@ export async function recordAnswerSubmission(params: {
 
   const db = getSupabaseAdmin();
   if (db) {
-    const { error: insertError } = await db.from("submissions").insert({
+    let { error: insertError } = await db.from("submissions").insert({
       id: submission.id,
       room_code: params.roomCode,
       player_id: player.id,
@@ -742,6 +829,22 @@ export async function recordAnswerSubmission(params: {
       score_awarded: scoreAwarded,
       micro_feedback: params.microFeedback || null,
     });
+
+    // If the question row was not yet flushed to public.questions, retry with question_id: null
+    if (insertError && insertError.code === "23503") {
+      const retry = await db.from("submissions").insert({
+        id: submission.id,
+        room_code: params.roomCode,
+        player_id: player.id,
+        question_id: null,
+        selected_option: selectedOption,
+        is_correct: isCorrect,
+        response_time_ms: responseTimeMs,
+        score_awarded: scoreAwarded,
+        micro_feedback: params.microFeedback || null,
+      });
+      insertError = retry.error;
+    }
 
     if (insertError) {
       if (insertError.code === "23505") {
@@ -758,7 +861,7 @@ export async function recordAnswerSubmission(params: {
             id: existingRow.id,
             roomCode: existingRow.room_code,
             playerId: existingRow.player_id,
-            questionId: existingRow.question_id,
+            questionId: existingRow.question_id || question.id,
             selectedOption: existingRow.selected_option,
             isCorrect: existingRow.is_correct,
             responseTimeMs: existingRow.response_time_ms,
@@ -766,9 +869,7 @@ export async function recordAnswerSubmission(params: {
             microFeedback: existingRow.micro_feedback || undefined,
             createdAt: existingRow.created_at,
           };
-          if (
-            !room.submissions.some((s) => s.id === existing.id)
-          ) {
+          if (!room.submissions.some((s) => s.id === existing.id)) {
             room.submissions.push(existing);
           }
           return {
@@ -785,13 +886,18 @@ export async function recordAnswerSubmission(params: {
       return { ok: false, reason: "write_failed" };
     }
 
+    const nextScore = Math.max(0, player.score + scoreAwarded);
+    player.score = nextScore;
+    player.streak = nextStreak;
+
+    const streakDelta = nextStreak - player.streak;
     const { data: scoreRows, error: scoreError } = await db.rpc(
       "apply_player_score",
       {
         p_room_code: params.roomCode,
         p_player_id: player.id,
         p_score_delta: scoreAwarded,
-        p_streak_delta: isCorrect ? 1 : -999999,
+        p_streak_delta: isCorrect ? 1 : validPowerup === "immunity" ? 0 : -999999,
       }
     );
 
@@ -800,17 +906,33 @@ export async function recordAnswerSubmission(params: {
       player.score = updated.score;
       player.streak = updated.streak;
     } else {
-      console.error("[RoomStore] Failed to update score atomically:", scoreError?.message);
-      player.score += scoreAwarded;
-      player.streak = isCorrect ? player.streak + 1 : 0;
+      void streakDelta;
+      await db
+        .from("players")
+        .update({
+          score: player.score,
+          streak: player.streak,
+          last_seen_at: new Date().toISOString(),
+        })
+        .match({ room_code: params.roomCode, id: player.id });
     }
+
+    const nowIso = new Date().toISOString();
+    room.updatedAt = nowIso;
+    await withTimeout(
+      db
+        .from("game_rooms")
+        .update({ updated_at: nowIso })
+        .match({ room_code: params.roomCode }),
+      1500
+    );
   } else {
-    player.score += scoreAwarded;
-    player.streak = isCorrect ? player.streak + 1 : 0;
+    player.score = Math.max(0, player.score + scoreAwarded);
+    player.streak = nextStreak;
+    room.updatedAt = new Date().toISOString();
   }
 
   room.submissions.push(submission);
-  room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
 
   return {
@@ -819,6 +941,7 @@ export async function recordAnswerSubmission(params: {
     updatedPlayer: player,
     correctAnswer: question.correctAnswer,
     explanation: question.explanation,
+    powerupApplied: validPowerup,
   };
 }
 
@@ -856,6 +979,8 @@ export async function storeQuiz(
       ...shuffled,
       id: isValidUuid(shuffled.id) ? shuffled.id : crypto.randomUUID(),
       questionOrder: shuffled.questionOrder || index + 1,
+      conceptTag: shuffled.conceptTag || "Konsep inti",
+      explanation: shuffled.explanation || "Penjelasan konsep inti.",
     };
   });
 
@@ -878,7 +1003,7 @@ export async function storeQuiz(
             title: record.title,
             description: record.description || null,
             grade_level: record.targetGrade || "Fase D (SMP)",
-            category: record.category || "Muatan Lokal Bali",
+            category: record.category || "Kurikulum Merdeka",
             cultural_theme: record.culturalTheme || null,
           });
 
@@ -890,14 +1015,14 @@ export async function storeQuiz(
               question_text: q.question,
               options: q.options,
               correct_answer: q.correctAnswer,
-              explanation: q.explanation,
-              concept_tag: q.conceptTag,
+              explanation: q.explanation || "Penjelasan konsep inti.",
+              concept_tag: q.conceptTag || "Konsep inti",
               cultural_context: q.culturalContext || null,
             }));
             await db().from("questions").upsert(questionRows);
           }
         })(),
-        1500
+        4500
       );
     }
   } catch (err) {
@@ -914,7 +1039,13 @@ export function getStoredQuiz(quizId: string): StoredQuizRecord | null {
 /** Attach a freshly generated question set to a room that has not started yet. */
 export async function setRoomQuestions(
   roomCode: string,
-  input: { title: string; description?: string; questions: Question[] }
+  input: {
+    title: string;
+    description?: string;
+    questions: Question[];
+    difficulty?: QuizDifficultyLevel;
+    timePerQuestionSec?: number;
+  }
 ): Promise<Question[] | null> {
   const room = await ensureRoomLoaded(roomCode);
   if (!room || room.status !== "waiting") return null;
@@ -929,14 +1060,28 @@ export async function setRoomQuestions(
   room.questions = stored.questions;
   room.quizId = stored.id;
   room.currentQuestionIndex = 0;
+  if (input.difficulty) {
+    room.settings.difficulty = input.difficulty;
+  }
+  if (input.timePerQuestionSec) {
+    room.settings.timePerQuestionSec = input.timePerQuestionSec;
+  }
+  room.settings.questionsSnapshot = stored.questions;
   room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
 
   try {
     if (isDatabaseEnabled()) {
       await withTimeout(
-        db().from("game_rooms").update({ quiz_id: stored.id, updated_at: room.updatedAt }).match({ room_code: roomCode }),
-        1500
+        db()
+          .from("game_rooms")
+          .update({
+            quiz_id: stored.id,
+            settings: room.settings,
+            updated_at: room.updatedAt,
+          })
+          .match({ room_code: roomCode }),
+        3500
       );
     }
   } catch (err) {
@@ -944,6 +1089,137 @@ export async function setRoomQuestions(
   }
 
   return room.questions;
+}
+
+export async function updateRoomSettings(
+  roomCode: string,
+  partial: {
+    timePerQuestionSec?: number;
+    streakBonus?: boolean;
+    shuffleQuestions?: boolean;
+    autoApproveStudents?: boolean;
+    difficulty?: QuizDifficultyLevel;
+  }
+): Promise<GameRoomRecord["settings"] | null> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room) return null;
+
+  if (typeof partial.timePerQuestionSec === "number") {
+    room.settings.timePerQuestionSec = Math.min(120, Math.max(5, partial.timePerQuestionSec));
+  }
+  if (typeof partial.streakBonus === "boolean") {
+    room.settings.streakBonus = partial.streakBonus;
+  }
+  if (typeof partial.shuffleQuestions === "boolean") {
+    room.settings.shuffleQuestions = partial.shuffleQuestions;
+  }
+  if (typeof partial.autoApproveStudents === "boolean") {
+    room.settings.autoApproveStudents = partial.autoApproveStudents;
+    if (partial.autoApproveStudents) {
+      for (const player of room.players.values()) {
+        if (player.status === "pending") {
+          player.status = "approved";
+        }
+      }
+    }
+  }
+  if (partial.difficulty) {
+    room.settings.difficulty = partial.difficulty;
+  }
+
+  room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
+
+  try {
+    if (isDatabaseEnabled()) {
+      await withTimeout(
+        db()
+          .from("game_rooms")
+          .update({
+            settings: room.settings,
+            updated_at: room.updatedAt,
+          })
+          .match({ room_code: roomCode }),
+        2500
+      );
+    }
+  } catch (err) {
+    console.warn("[RoomStore] updateRoomSettings sync omitted:", err);
+  }
+
+  return room.settings;
+}
+
+export interface ActiveRoomSummary {
+  roomCode: string;
+  hostName: string;
+  status: GameRoomRecord["status"];
+  totalQuestions: number;
+  playerCount: number;
+  difficulty: QuizDifficultyLevel;
+  updatedAt: string;
+}
+
+export async function listActiveRooms(): Promise<ActiveRoomSummary[]> {
+  const map = new Map<string, ActiveRoomSummary>();
+
+  for (const room of inMemoryRooms.values()) {
+    if (room.status !== "finished") {
+      const approvedCount = Array.from(room.players.values()).filter(
+        (p) => (p.status || "approved") === "approved"
+      ).length;
+      map.set(room.roomCode, {
+        roomCode: room.roomCode,
+        hostName: room.hostName,
+        status: room.status,
+        totalQuestions: room.questions.length,
+        playerCount: approvedCount,
+        difficulty: room.settings.difficulty || "sedang",
+        updatedAt: room.updatedAt,
+      });
+    }
+  }
+
+  try {
+    if (isDatabaseEnabled()) {
+      const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+      const res = await withTimeout(
+        db()
+          .from("game_rooms")
+          .select("room_code, host_name, status, quiz_id, settings, updated_at")
+          .neq("status", "finished")
+          .gte("updated_at", cutoff)
+          .order("updated_at", { ascending: false })
+          .limit(12),
+        2000
+      );
+      if (res?.data) {
+        for (const r of res.data) {
+          if (!map.has(r.room_code)) {
+            const rawSettings = (r.settings || {}) as Record<string, unknown>;
+            const snapshot = Array.isArray(rawSettings.questionsSnapshot)
+              ? rawSettings.questionsSnapshot.length
+              : 0;
+            map.set(r.room_code, {
+              roomCode: r.room_code,
+              hostName: r.host_name || "Guru",
+              status: r.status || "waiting",
+              totalQuestions: snapshot,
+              playerCount: 0,
+              difficulty: (rawSettings.difficulty as QuizDifficultyLevel) || "sedang",
+              updatedAt: r.updated_at || new Date().toISOString(),
+            });
+          }
+        }
+      }
+    }
+  } catch (err) {
+    console.warn("[RoomStore] listActiveRooms query omitted:", err);
+  }
+
+  return Array.from(map.values()).sort(
+    (a, b) => Date.parse(b.updatedAt) - Date.parse(a.updatedAt)
+  );
 }
 
 export async function advanceRoomQuestion(roomCode: string): Promise<{
@@ -1051,9 +1327,16 @@ export async function getTeacherRoomDetails(roomCode: string) {
   const room = await ensureRoomLoaded(roomCode);
   if (!room) return null;
 
-  const currentQ = room.questions[room.currentQuestionIndex] || null;
+  const currentQ =
+    room.questions.length > 0
+      ? room.questions[room.currentQuestionIndex] || null
+      : null;
   const submissionsForCurrentQ = currentQ
-    ? room.submissions.filter((s) => s.questionId === currentQ.id)
+    ? room.submissions.filter(
+        (s) =>
+          s.questionId === currentQ.id ||
+          (!s.questionId && room.currentQuestionIndex === 0)
+      )
     : [];
 
   const optionCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
@@ -1119,6 +1402,13 @@ export async function getTeacherRoomDetails(roomCode: string) {
     totalQuestions: room.questions.length,
     currentQuestion: currentQ,
     autoApproveStudents: room.settings.autoApproveStudents ?? true,
+    settings: {
+      timePerQuestionSec: room.settings.timePerQuestionSec || 20,
+      streakBonus: room.settings.streakBonus ?? true,
+      shuffleQuestions: room.settings.shuffleQuestions ?? false,
+      autoApproveStudents: room.settings.autoApproveStudents ?? true,
+      difficulty: room.settings.difficulty || "sedang",
+    },
     stats: {
       submissionsCount: submissionsForCurrentQ.length,
       totalPlayers: approvedList.length,

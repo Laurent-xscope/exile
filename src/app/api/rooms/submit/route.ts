@@ -12,6 +12,7 @@ const SubmitAnswerSchema = z.object({
   selectedOption: z.string().min(1),
   responseTimeMs: z.coerce.number().optional().default(3000),
   microFeedback: z.string().max(2000).optional(),
+  powerup: z.enum(["double_jeopardy", "time_freeze", "streak_booster", "immunity"]).optional(),
 });
 
 const STATUS_BY_REASON: Record<string, number> = {
@@ -60,6 +61,7 @@ export async function POST(req: Request) {
       selectedOption: parsed.data.selectedOption,
       responseTimeMs: parsed.data.responseTimeMs,
       microFeedback: parsed.data.microFeedback,
+      powerup: parsed.data.powerup,
     });
 
     if (!result.ok) {
@@ -83,11 +85,13 @@ export async function POST(req: Request) {
       submission: result.submission,
       correctAnswer: result.correctAnswer,
       explanation: result.explanation,
+      powerupApplied: result.powerupApplied ?? null,
       player: {
         id: result.updatedPlayer.id,
         nickname: result.updatedPlayer.nickname,
         score: result.updatedPlayer.score,
         streak: result.updatedPlayer.streak,
+        usedPowerups: result.updatedPlayer.usedPowerups || [],
       },
     });
   } catch (err: unknown) {

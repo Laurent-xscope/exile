@@ -15,14 +15,16 @@ const BodySchema = z.object({
   fileBase64: z.string().optional(),
   text: z.string().optional(),
   questionCount: z.coerce.number().int().min(1).max(20).optional().default(8),
-  instructions: z.string().max(600).optional(),
+  instructions: z.string().max(4000).optional(),
+  difficulty: z.enum(["mudah", "sedang", "sulit", "campuran"]).optional().default("sedang"),
+  timePerQuestionSec: z.coerce.number().int().min(5).max(120).optional(),
 });
 
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
-  const rateLimit = await checkRateLimit(req, 6, 60_000);
+  const rateLimit = await checkRateLimit(req, 12, 60_000);
   if (!rateLimit.allowed && rateLimit.errorResponse) return rateLimit.errorResponse;
 
   const { code } = await params;
@@ -38,16 +40,31 @@ export async function POST(
   if (!parsed.success) {
     return NextResponse.json({ error: "Permintaan tidak valid." }, { status: 400 });
   }
-  const { fileName, mimeType, fileBase64, text, questionCount, instructions } = parsed.data;
+  const {
+    fileName,
+    mimeType,
+    fileBase64,
+    text,
+    questionCount,
+    instructions,
+    difficulty,
+    timePerQuestionSec,
+  } = parsed.data;
 
   try {
     let source = text?.trim() ?? "";
     if (fileBase64) {
       source = await extractText({ name: fileName || "materi", mimeType, base64: fileBase64 });
     }
-    if (source.length < 40) {
+    if (!source && instructions?.trim()) {
+      source = instructions.trim();
+    }
+    if (source.length < 3) {
       return NextResponse.json(
-        { error: "Materi terlalu pendek. Unggah berkas atau tempel teks yang lebih panjang." },
+        {
+          error:
+            "Unggah berkas sumber pembelajaran atau tuliskan instruksi/topik materi yang akan dipelajari.",
+        },
         { status: 400 }
       );
     }
@@ -55,14 +72,17 @@ export async function POST(
     const quiz = await generateQuizFromText({
       text: source,
       questionCount,
-      instructions,
+      instructions: fileBase64 || text?.trim() ? instructions : undefined,
       sourceName: fileName,
+      difficulty,
     });
 
     const saved = await setRoomQuestions(roomCode, {
       title: quiz.title,
-      description: fileName ? `Dibuat dari ${fileName}` : "",
+      description: fileName ? `Dibuat dari ${fileName}` : instructions?.slice(0, 120) || "",
       questions: quiz.questions,
+      difficulty,
+      timePerQuestionSec,
     });
     if (!saved) {
       return NextResponse.json(
@@ -71,7 +91,12 @@ export async function POST(
       );
     }
 
-    return NextResponse.json({ success: true, title: quiz.title, totalQuestions: saved.length });
+    return NextResponse.json({
+      success: true,
+      title: quiz.title,
+      totalQuestions: saved.length,
+      difficulty,
+    });
   } catch (err) {
     if (err instanceof UnsupportedFileError) {
       return NextResponse.json({ error: err.message }, { status: 422 });

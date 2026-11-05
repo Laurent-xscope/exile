@@ -18,6 +18,9 @@ import {
   RiSendPlaneLine,
   RiBarChartBoxLine,
   RiRestartLine,
+  RiShieldFlashLine,
+  RiFlashlightLine,
+  RiSnowflakeLine,
 } from "@remixicon/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -26,9 +29,9 @@ const nowMs = () => Date.now();
 import { soundEffects } from "@/lib/audio/sounds";
 import { loadSettings } from "@/lib/settings/user-settings";
 import { useTranslation } from "@/lib/i18n/use-translation";
+import { markStudentTabForRoom } from "@/lib/rooms/host-token";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
-import { SettingsButton } from "@/components/settings/settings-modal";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
 import { IconButton } from "@/components/base/buttons/icon-button";
 import { Chip } from "@/components/base/badges/chip";
@@ -124,9 +127,16 @@ export default function PlayArenaClient({
   const [lastSubmissionResult, setLastSubmissionResult] = useState<{
     isCorrect: boolean;
     scoreAwarded: number;
+    correctOption?: string;
     explanation?: string;
     microFeedback?: string;
   } | null>(null);
+
+  const [activePowerup, setActivePowerup] = useState<
+    "time_freeze" | "double_jeopardy" | "immunity" | null
+  >(null);
+  const [usedPowerups, setUsedPowerups] = useState<string[]>([]);
+  const [isTimerFrozen, setIsTimerFrozen] = useState(false);
 
   const [timeLeft, setTimeLeft] = useState<number>(20);
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
@@ -164,12 +174,13 @@ export default function PlayArenaClient({
   };
 
   useEffect(() => {
+    markStudentTabForRoom(roomCode);
     const settings = loadSettings();
     /* eslint-disable react-hooks/set-state-in-effect -- sound preference is client-only */
     setIsMuted(!settings.soundEnabled);
     soundEffects.setMuted(!settings.soundEnabled);
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, []);
+  }, [roomCode]);
 
   const fetchState = async () => {
     try {
@@ -193,6 +204,8 @@ export default function PlayArenaClient({
           setHasAnsweredCurrentQ(false);
           setSelectedOption(null);
           setLastSubmissionResult(null);
+          setActivePowerup(null);
+          setIsTimerFrozen(false);
         }
 
         const questionStartChanged =
@@ -251,7 +264,12 @@ export default function PlayArenaClient({
   const isTimeUp = isQuestionActive && !hasAnsweredCurrentQ && timeLeft <= 0;
 
   useEffect(() => {
-    if (!roomState?.currentQuestion || hasAnsweredCurrentQ || !isQuestionActive) {
+    if (
+      !roomState?.currentQuestion ||
+      hasAnsweredCurrentQ ||
+      !isQuestionActive ||
+      isTimerFrozen
+    ) {
       return;
     }
 
@@ -271,13 +289,37 @@ export default function PlayArenaClient({
     return () => clearInterval(timer);
     // Question object identity changes every poll; the id is the real dependency.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomState?.currentQuestion?.id, hasAnsweredCurrentQ, isQuestionActive]);
+  }, [
+    roomState?.currentQuestion?.id,
+    hasAnsweredCurrentQ,
+    isQuestionActive,
+    isTimerFrozen,
+  ]);
+
+  const handleTogglePowerup = (
+    type: "time_freeze" | "double_jeopardy" | "immunity"
+  ) => {
+    if (hasAnsweredCurrentQ || submitting || usedPowerups.includes(type)) return;
+    soundEffects.playClick();
+    if (activePowerup === type) {
+      setActivePowerup(null);
+      if (type === "time_freeze") setIsTimerFrozen(false);
+      return;
+    }
+    setActivePowerup(type);
+    if (type === "time_freeze") {
+      setIsTimerFrozen(true);
+      toast.info(isEn ? "Timer frozen for this question!" : "Waktu dibekukan untuk soal ini!");
+    } else {
+      setIsTimerFrozen(false);
+    }
+  };
 
   const handleSelectOption = async (optionLabel: string) => {
     if (
       hasAnsweredCurrentQ ||
       submitting ||
-      timeLeft <= 0 ||
+      (timeLeft <= 0 && !isTimerFrozen) ||
       !roomState?.currentQuestion ||
       myStatus === "pending"
     ) {
@@ -288,8 +330,12 @@ export default function PlayArenaClient({
     setSelectedOption(optionLabel);
     setSubmitting(true);
 
-    const responseTimeMs = Math.max(0, nowMs() - questionStartTime);
+    const responseTimeMs =
+      activePowerup === "time_freeze"
+        ? 0
+        : Math.max(0, nowMs() - questionStartTime);
     const currentQ = roomState.currentQuestion;
+    const chosenPowerup = activePowerup;
 
     try {
       const res = await fetch("/api/rooms/submit", {
@@ -302,6 +348,7 @@ export default function PlayArenaClient({
           questionId: currentQ.id,
           selectedOption: optionLabel,
           responseTimeMs,
+          powerup: chosenPowerup || undefined,
         }),
       });
 
@@ -313,13 +360,52 @@ export default function PlayArenaClient({
       const correctOpt =
         submitData.correctAnswer || submitData.submission?.correctAnswer || "A";
 
+      if (chosenPowerup) {
+        setUsedPowerups((prev) =>
+          prev.includes(chosenPowerup) ? prev : [...prev, chosenPowerup]
+        );
+        setActivePowerup(null);
+      }
+      if (Array.isArray(submitData.player?.usedPowerups)) {
+        setUsedPowerups(submitData.player.usedPowerups);
+      }
+
+      if (submitData.player) {
+        setRoomState((prev) => {
+          if (!prev) return prev;
+          const nextPlayers = (prev.players || []).map((p) =>
+            p.id === playerId
+              ? {
+                  ...p,
+                  score: submitData.player.score,
+                  streak: submitData.player.streak,
+                }
+              : p
+          );
+          const nextLb = prev.leaderboard
+            .map((entry) =>
+              entry.id === playerId
+                ? {
+                    ...entry,
+                    score: submitData.player.score,
+                    streak: submitData.player.streak,
+                  }
+                : entry
+            )
+            .sort((a, b) => b.score - a.score)
+            .map((entry, idx) => ({ ...entry, rank: idx + 1 }));
+          return { ...prev, players: nextPlayers, leaderboard: nextLb };
+        });
+      }
+
       setHasAnsweredCurrentQ(true);
+      void fetchState();
 
       setAnsweredHistory((prev) => [
         ...prev,
         {
           questionOrder: currentQ.questionOrder,
-          concept: currentQ.conceptTag || "Materi Umum",
+          concept: currentQ.conceptTag || "Materi umum",
           isCorrect,
           score: scoreAwarded,
         },
@@ -335,6 +421,7 @@ export default function PlayArenaClient({
         setLastSubmissionResult({
           isCorrect: true,
           scoreAwarded,
+          correctOption: correctOpt,
           explanation:
             submitData.explanation ||
             "Pilihanmu tepat! Analisis dan pemahamanmu terhadap materi ini sangat baik.",
@@ -342,7 +429,15 @@ export default function PlayArenaClient({
         toast.success(`Benar! +${scoreAwarded} poin diperoleh`);
       } else {
         soundEffects.playIncorrect();
-        toast.error("Perlu diulang");
+        toast.error("Jawaban salah");
+        setLastSubmissionResult({
+          isCorrect: false,
+          scoreAwarded,
+          correctOption: correctOpt,
+          microFeedback:
+            submitData.explanation ||
+            "Perhatikan kembali analisis opsi jawaban pada materi ini.",
+        });
         try {
           const explainRes = await fetch("/api/ai/explain-error", {
             method: "POST",
@@ -364,17 +459,12 @@ export default function PlayArenaClient({
 
           setLastSubmissionResult({
             isCorrect: false,
-            scoreAwarded: 0,
+            scoreAwarded,
+            correctOption: correctOpt,
             microFeedback: explanationText,
           });
         } catch {
-          setLastSubmissionResult({
-            isCorrect: false,
-            scoreAwarded: 0,
-            microFeedback:
-              submitData.explanation ||
-              "Perhatikan konsep inti materi untuk menemukan hubungan yang tepat.",
-          });
+          // keep initial microFeedback
         }
       }
     } catch (err: unknown) {
@@ -525,7 +615,6 @@ export default function PlayArenaClient({
 
             <LanguageToggle />
             <ThemeToggle />
-            <SettingsButton />
             <IconButton
               icon={isMuted ? RiVolumeMuteLine : RiVolumeUpLine}
               size="medium"
@@ -712,31 +801,101 @@ export default function PlayArenaClient({
               </div>
             )}
 
-            {!hasAnsweredCurrentQ ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {roomState.currentQuestion.options.map((option) => {
-                  const isSelected = selectedOption === option.label;
-                  return (
-                    <button
-                      key={option.label}
-                      type="button"
-                      onClick={() => handleSelectOption(option.label)}
-                      disabled={submitting || isTimeUp}
-                      className={cx(
-                        "group p-4 rounded-2xl border text-start transition flex items-start gap-3 cursor-pointer shadow-card",
-                        "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
-                        "disabled:opacity-60 disabled:cursor-not-allowed",
-                        isSelected
-                          ? "bg-background-primary-active border-border-button-active"
-                          : "bg-background-primary-default hover:bg-background-primary-hover border-border-button-default hover:border-border-button-hover"
-                      )}
-                    >
+            {/* STUDENT POWERUPS BAR (One-time use per session) */}
+            {!hasAnsweredCurrentQ && !isTimeUp && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-border-button-default bg-background-primary-default p-3 shadow-card">
+                <span className="text-caption-2-semibold text-text-secondary">
+                  {isEn ? "Powerups (1x per session):" : "Powerup siswa (1x pakai):"}
+                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button
+                    type="button"
+                    disabled={usedPowerups.includes("time_freeze")}
+                    onClick={() => handleTogglePowerup("time_freeze")}
+                    className={cx(
+                      "inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                      activePowerup === "time_freeze"
+                        ? "border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                        : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
+                    )}
+                  >
+                    <RiSnowflakeLine className="size-3.5" />
+                    <span>{isEn ? "Freeze time" : "Bekukan waktu"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={usedPowerups.includes("double_jeopardy")}
+                    onClick={() => handleTogglePowerup("double_jeopardy")}
+                    className={cx(
+                      "inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                      activePowerup === "double_jeopardy"
+                        ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
+                    )}
+                  >
+                    <RiFlashlightLine className="size-3.5" />
+                    <span>{isEn ? "2x score" : "Skor 2x"}</span>
+                  </button>
+                  <button
+                    type="button"
+                    disabled={usedPowerups.includes("immunity")}
+                    onClick={() => handleTogglePowerup("immunity")}
+                    className={cx(
+                      "inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                      activePowerup === "immunity"
+                        ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
+                    )}
+                  >
+                    <RiShieldFlashLine className="size-3.5" />
+                    <span>{isEn ? "Streak shield" : "Perisai beruntun"}</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* 4 OPTION CARDS (Remain visible after answering with Green for correct and Red for wrong) */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {roomState.currentQuestion.options.map((option) => {
+                const isSelected = selectedOption === option.label;
+                const isRevealed = hasAnsweredCurrentQ && Boolean(lastSubmissionResult);
+                const isCorrectCard =
+                  isRevealed && lastSubmissionResult?.correctOption === option.label;
+                const isWrongSelectedCard =
+                  isRevealed && isSelected && !lastSubmissionResult?.isCorrect;
+
+                return (
+                  <button
+                    key={option.label}
+                    type="button"
+                    onClick={() => handleSelectOption(option.label)}
+                    disabled={submitting || isTimeUp || hasAnsweredCurrentQ}
+                    className={cx(
+                      "group p-4 rounded-2xl border text-start transition flex items-start justify-between gap-3 cursor-pointer shadow-card",
+                      "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+                      "disabled:cursor-default",
+                      isCorrectCard
+                        ? "bg-emerald-500/15 border-emerald-500 text-text-primary"
+                        : isWrongSelectedCard
+                          ? "bg-rose-500/10 border-border-error-default text-text-primary"
+                          : isRevealed
+                            ? "bg-background-primary-default border-border-button-default opacity-65"
+                            : isSelected
+                              ? "bg-background-primary-active border-border-button-active"
+                              : "bg-background-primary-default hover:bg-background-primary-hover border-border-button-default hover:border-border-button-hover"
+                    )}
+                  >
+                    <span className="flex items-start gap-3 min-w-0">
                       <span
                         className={cx(
                           "size-7 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0 border transition-colors",
-                          isSelected
-                            ? "bg-accent-700 text-white border-accent-700"
-                            : "bg-questionnaire-key-background text-text-primary border-border-button-default"
+                          isCorrectCard
+                            ? "bg-emerald-600 text-white border-emerald-600"
+                            : isWrongSelectedCard
+                              ? "bg-rose-600 text-white border-rose-600"
+                              : isSelected
+                                ? "bg-accent-700 text-white border-accent-700"
+                                : "bg-questionnaire-key-background text-text-primary border-border-button-default"
                         )}
                       >
                         {option.label}
@@ -744,19 +903,26 @@ export default function PlayArenaClient({
                       <span className="text-body-medium text-text-primary pt-0.5">
                         {option.text}
                       </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
+                    </span>
+                    {isCorrectCard ? (
+                      <RiCheckLine className="size-5 shrink-0 text-emerald-600 dark:text-emerald-400 mt-1" />
+                    ) : isWrongSelectedCard ? (
+                      <RiCloseLine className="size-5 shrink-0 text-text-error-primary mt-1" />
+                    ) : null}
+                  </button>
+                );
+              })}
+            </div>
+
+            {hasAnsweredCurrentQ && (
               <motion.div
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className={cx(
                   "p-6 rounded-3xl border shadow-card space-y-4",
                   lastSubmissionResult?.isCorrect
-                    ? "bg-accent-700/5 border-accent-700/30"
-                    : "bg-[#D97706]/5 border-[#D97706]/30"
+                    ? "bg-emerald-500/10 border-emerald-500/40"
+                    : "bg-rose-500/10 border-border-error-default"
                 )}
               >
                 <div className="flex items-center gap-3">
@@ -764,14 +930,14 @@ export default function PlayArenaClient({
                     className={cx(
                       "size-10 rounded-xl flex items-center justify-center shrink-0 border",
                       lastSubmissionResult?.isCorrect
-                        ? "bg-accent-700 text-white border-accent-700"
-                        : "bg-[#D97706] text-white border-[#D97706]"
+                        ? "bg-emerald-600 text-white border-emerald-600"
+                        : "bg-rose-600 text-white border-rose-600"
                     )}
                   >
                     {lastSubmissionResult?.isCorrect ? (
                       <RiCheckLine className="size-5" aria-hidden />
                     ) : (
-                      <RiRestartLine className="size-5" aria-hidden />
+                      <RiCloseLine className="size-5" aria-hidden />
                     )}
                   </div>
 
@@ -779,7 +945,7 @@ export default function PlayArenaClient({
                     <h3 className="text-headline-semibold text-text-primary flex items-center gap-2">
                       {lastSubmissionResult?.isCorrect
                         ? (isEn ? "Correct" : "Benar")
-                        : (isEn ? "Needs review" : "Perlu diulang")}
+                        : (isEn ? "Incorrect" : "Salah")}
                     </h3>
                     <p className="text-caption-1-medium text-text-secondary">
                       {lastSubmissionResult?.isCorrect

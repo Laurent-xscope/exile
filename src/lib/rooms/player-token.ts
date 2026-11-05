@@ -1,3 +1,5 @@
+import { markStudentTabForRoom } from "@/lib/rooms/host-token";
+
 const PLAYER_ID_PREFIX = "exile_player_id:";
 const PLAYER_TOKEN_PREFIX = "exile_player_token:";
 
@@ -35,6 +37,7 @@ export function savePlayerIdentity(
 ): void {
   write(idKey(roomCode), playerId);
   write(tokenKey(roomCode), playerToken);
+  markStudentTabForRoom(roomCode);
 }
 
 export function getPlayerId(roomCode: string): string {

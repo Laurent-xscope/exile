@@ -15,7 +15,6 @@ import { Chip } from "@/components/base/badges/chip";
 import { Spinner } from "@/components/base/spinner/spinner";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
-import { SettingsButton } from "@/components/settings/settings-modal";
 import {
   JoinRoomForm,
   type JoinedRoomResult,
@@ -27,6 +26,7 @@ import {
   getPlayerToken,
   savePlayerIdentity,
 } from "@/lib/rooms/player-token";
+import { markStudentTabForRoom } from "@/lib/rooms/host-token";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 import PlayArenaClient from "./PlayArenaClient";
 
@@ -80,6 +80,9 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
 
   useEffect(() => {
     let cancelled = false;
+    if (isValidRoomCode(code)) {
+      markStudentTabForRoom(code);
+    }
 
     const bootstrap = async () => {
       if (!isValidRoomCode(code)) {
@@ -250,7 +253,6 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
         <div className="flex items-center gap-2">
           <LanguageToggle />
           <ThemeToggle />
-          <SettingsButton />
         </div>
       </header>
 

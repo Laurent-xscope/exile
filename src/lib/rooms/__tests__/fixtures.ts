@@ -5,43 +5,32 @@ export const SAMPLE_QUESTIONS: Question[] = [
   {
     id: "a1111111-1111-1111-1111-111111111111",
     questionOrder: 1,
-    question:
-      "Manakah langkah awal yang paling tepat sebelum merumuskan hipotesis dalam sebuah penyelidikan ilmiah?",
+    question: "Contoh butir pengujian unit nomor satu?",
     options: [
       {
         label: "A",
-        text: "Mengamati fenomena dan merumuskan pertanyaan masalah",
-        isCorrect: true,
-        distractorRationale:
-          "Kunci benar: Pengamatan terarah dan rumusan masalah yang jelas menjadi landasan utama penyusunan hipotesis teruji.",
+        text: "Opsi pertama",
+        isCorrect: false,
       },
       {
         label: "B",
-        text: "Menarik kesimpulan akhir secara langsung tanpa pengujian",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Kesimpulan hanya dapat ditarik setelah pengumpulan data dan analisis bukti selesai dilakukan.",
+        text: "Opsi kedua",
+        isCorrect: true,
       },
       {
         label: "C",
-        text: "Mempublikasikan hipotesis tanpa verifikasi eksperimen",
+        text: "Opsi ketiga",
         isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Publikasi ilmiah menuntut prosedur verifikasi, telaah sejawat, dan replikasi metodologis.",
       },
       {
         label: "D",
-        text: "Mengubah data mentah agar sesuai dengan ekspektasi awal",
+        text: "Opsi keempat",
         isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Manipulasi data melanggar integritas ilmiah dan menghasilkan kesimpulan yang tidak valid.",
       },
     ],
-    correctAnswer: "A",
-    explanation:
-      "Metode ilmiah selalu diawali dengan observasi sistematis untuk mengidentifikasi variabel dan merumuskan masalah sebelum menyusun dugaan sementara (hipotesis).",
-    conceptTag: "Metode Ilmiah: Observasi & Rumusan Masalah",
-    culturalContext: "Prinsip Berpikir Kritis & Riset Terstruktur",
+    correctAnswer: "B",
+    explanation: "Penjelasan untuk pengujian unit nomor satu.",
+    conceptTag: "Konsep uji 1",
   },
   {
     id: "a2222222-2222-2222-2222-222222222222",

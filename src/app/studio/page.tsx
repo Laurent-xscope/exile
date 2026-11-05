@@ -162,14 +162,16 @@ function ExplanationPanel({
             className={cx(
               "rounded-xl border p-3",
               selectedOption.isCorrect
-                ? "border-accent-500/20 bg-accent-500/5"
-                : "border-border-error-default bg-background-secondary-default"
+                ? "border-emerald-500/40 bg-emerald-500/10"
+                : "border-border-error-default bg-rose-500/10"
             )}
           >
             <span
               className={cx(
                 "mb-1 flex items-center gap-1.5 text-caption-2-medium",
-                selectedOption.isCorrect ? "text-accent-700" : "text-text-error-primary"
+                selectedOption.isCorrect
+                  ? "text-emerald-700 dark:text-emerald-300"
+                  : "text-text-error-primary"
               )}
             >
               {selectedOption.isCorrect ? (
@@ -697,9 +699,9 @@ function InstantQuizDialog({
                       className={cx(
                         "group flex min-h-24 w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition-all cursor-pointer disabled:cursor-default motion-safe:active:scale-[0.99]",
                         isSelectedCorrect
-                          ? "border-accent-500/60 bg-accent-500/10"
+                          ? "border-emerald-500 bg-emerald-500/15"
                           : isWrongSelection
-                            ? "border-border-error-default bg-background-secondary-default"
+                            ? "border-border-error-default bg-rose-500/10"
                             : revealed
                               ? "border-border-button-default bg-background-primary-default opacity-60"
                               : "border-border-button-default bg-background-secondary-default/50 hover:-translate-y-0.5 hover:border-border-button-hover hover:bg-background-secondary-default"
@@ -709,9 +711,9 @@ function InstantQuizDialog({
                         className={cx(
                           "inline-flex size-10 shrink-0 items-center justify-center rounded-xl border font-mono text-body-2-semibold",
                           isSelectedCorrect
-                            ? "border-accent-600 bg-accent-600 text-text-white"
+                            ? "border-emerald-600 bg-emerald-600 text-white"
                             : isWrongSelection
-                              ? "border-border-error-default bg-background-tertiary-default text-text-error-primary"
+                              ? "border-rose-600 bg-rose-600 text-white"
                               : "border-border-button-default bg-background-primary-default text-text-secondary"
                         )}
                       >
@@ -724,7 +726,7 @@ function InstantQuizDialog({
                       </span>
                       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
                         {isSelectedCorrect ? (
-                          <RiCheckLine className="size-4 text-accent-700" />
+                          <RiCheckLine className="size-4 text-emerald-600 dark:text-emerald-400" />
                         ) : isWrongSelection ? (
                           <RiCloseLine className="size-4 text-text-error-primary" />
                         ) : (
@@ -743,7 +745,7 @@ function InstantQuizDialog({
                       className={cx(
                         "inline-flex items-center gap-1.5",
                         selectedIsCorrect
-                          ? "text-accent-700"
+                          ? "text-emerald-600 dark:text-emerald-400"
                           : "text-text-error-primary"
                       )}
                     >
@@ -3448,8 +3450,8 @@ export default function StudioPage() {
                                         "flex w-full cursor-pointer flex-col justify-between gap-2 rounded-xl border p-3 text-left text-caption-1-regular transition-all",
                                         isSelected
                                           ? opt.isCorrect
-                                            ? "border-accent-500/50 bg-accent-500/10 text-text-primary"
-                                            : "border-border-error-default bg-background-secondary-default text-text-primary"
+                                            ? "border-emerald-500 bg-emerald-500/15 text-text-primary"
+                                            : "border-border-error-default bg-rose-500/10 text-text-primary"
                                           : "border-border-button-default bg-background-primary-default text-text-secondary hover:border-border-button-hover hover:bg-background-secondary-default hover:text-text-primary"
                                       )}
                                     >
@@ -3459,9 +3461,9 @@ export default function StudioPage() {
                                             className={cx(
                                               "mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-lg border font-mono text-caption-2-semibold",
                                               isSelected && opt.isCorrect
-                                                ? "border-accent-500/40 bg-accent-500/10 text-accent-700"
+                                                ? "border-emerald-600 bg-emerald-600 text-white"
                                                 : isSelected
-                                                  ? "border-border-error-default bg-background-secondary-default text-text-error-primary"
+                                                  ? "border-rose-600 bg-rose-600 text-white"
                                                   : "border-border-button-default bg-background-secondary-default text-text-tertiary"
                                             )}
                                           >
@@ -3476,8 +3478,8 @@ export default function StudioPage() {
                                             className={cx(
                                               "inline-flex size-5 shrink-0 items-center justify-center rounded-full",
                                               opt.isCorrect
-                                                ? "bg-accent-500/10 text-accent-700"
-                                                : "bg-background-secondary-default text-text-error-primary"
+                                                ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                                                : "bg-rose-500/20 text-text-error-primary"
                                             )}
                                           >
                                             {opt.isCorrect ? (
@@ -4490,8 +4492,8 @@ export default function StudioPage() {
                                             "flex w-full items-start justify-between gap-2 rounded-xl border p-2.5 text-left text-caption-2-regular transition-colors cursor-pointer",
                                             isSelected
                                               ? opt.isCorrect
-                                                ? "border-accent-500/50 bg-accent-500/10 text-text-primary"
-                                                : "border-border-error-default bg-background-secondary-default text-text-primary"
+                                                ? "border-emerald-500 bg-emerald-500/15 text-text-primary"
+                                                : "border-border-error-default bg-rose-500/10 text-text-primary"
                                               : "border-border-button-default bg-background-primary-default text-text-secondary hover:bg-background-secondary-default"
                                           )}
                                         >
@@ -4500,9 +4502,9 @@ export default function StudioPage() {
                                               className={cx(
                                                 "inline-flex size-5 shrink-0 items-center justify-center rounded-md border font-mono text-[11px] font-semibold",
                                                 isSelected && opt.isCorrect
-                                                  ? "border-accent-500/40 bg-accent-500/10 text-accent-700"
+                                                  ? "border-emerald-600 bg-emerald-600 text-white"
                                                   : isSelected
-                                                    ? "border-border-error-default bg-background-secondary-default text-text-error-primary"
+                                                    ? "border-rose-600 bg-rose-600 text-white"
                                                     : "border-border-button-default bg-background-secondary-default text-text-tertiary"
                                               )}
                                             >
@@ -4512,7 +4514,7 @@ export default function StudioPage() {
                                           </span>
                                           {isSelected ? (
                                             opt.isCorrect ? (
-                                              <RiCheckLine className="size-4 shrink-0 text-accent-700" />
+                                              <RiCheckLine className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                                             ) : (
                                               <RiCloseLine className="size-4 shrink-0 text-text-error-primary" />
                                             )
