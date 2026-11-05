@@ -390,6 +390,8 @@ export function DataTableExample({
     [avatarSize, size, localize],
   );
 
+  // TanStack Table returns non-memoizable functions; React Compiler skips this component by design.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -497,7 +499,7 @@ export function DataTableExample({
               setQuery(e.target.value);
               resetPage();
             }}
-            fieldClassName="min-w-[153px] flex-1 rounded-full bg-background-secondary-default sm:w-[153px] sm:min-w-0 sm:flex-none"
+            fieldClassName="min-w-[153px] flex-1 rounded-xl bg-background-secondary-default sm:w-[153px] sm:min-w-0 sm:flex-none"
             className="text-body-medium"
           />
         </div>

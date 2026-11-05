@@ -1,4 +1,4 @@
-# exile.org — Closed-Loop Localized Gamified Learning & AI Diagnostic Platform
+# Exile — Closed-Loop Localized Gamified Learning & AI Diagnostic Platform
 
 > **Bali DigiFest 2026 | AI Web Innovation Challenge**  
 > *Theme: BUILD WITH AI, SOLVE FOR BALI*  
@@ -7,7 +7,7 @@
 ---
 
 ## Description
-**exile.org** adalah platform evaluasi formatif interaktif berbasis web yang memadukan gamifikasi real-time (seperti Wayground / Quizizz) dengan kecerdasan buatan untuk kurikulum lokal Indonesia (Kurikulum Merdeka) dan muatan budaya Bali. exile.org menutup siklus belajar (*closed-loop learning*) dengan mendeteksi miskonsepsi siswa secara otomatis dan menyajikan remedial adaptif instan.
+**Exile** adalah platform evaluasi formatif interaktif berbasis web yang memadukan gamifikasi real-time (seperti Wayground / Quizizz) dengan kecerdasan buatan untuk kurikulum lokal Indonesia (Kurikulum Merdeka) dan muatan budaya Bali. Exile menutup siklus belajar (*closed-loop learning*) dengan mendeteksi miskonsepsi siswa secara otomatis dan menyajikan remedial adaptif instan.
 
 ## Problem & Target User
 * **Masalah**: Sebagian besar platform asesmen modern hanya berhenti pada pemberian skor angka tanpa memberikan tindak lanjut diagnostik. Di Bali, guru menghadapi tantangan ekstra dalam membuat materi evaluasi muatan lokal (Bahasa Bali, Aksara Bali, dan Adat Budaya) yang relevan dan menarik bagi generasi digital tanpa kelelahan administratif.
@@ -22,21 +22,21 @@
 6. **Automated Diagnostic & Remedial Engine**: Analisis agregat kelas untuk guru serta rekomendasi 3 soal remedial otomatis per siswa untuk menutup siklus belajar (*closed-loop learning*).
 
 ## Tech Stack
-* **Frontend**: Next.js 16 (App Router with Partial Prerendering & Turbopack), React 19, TypeScript, Tailwind CSS v4, Framer Motion v14, Lucide Icons, Sonner Toaster, Canvas Confetti.
-* **Backend & API**: Next.js Server Actions & Route Handlers, Zod Validation, In-Memory Game Room State Machine.
-* **Database & Realtime**: Supabase (PostgreSQL 16, Supabase Realtime Channels, Row-Level Security).
-* **AI Engine**: Google Gemini 2.5 Flash via isolated backend gateway (`callAI`) dengan in-memory LRU cache dan pedagogical deterministic fallback.
+* **Frontend**: Next.js 16 (App Router, Turbopack), React 19, TypeScript, Tailwind CSS v4, Framer Motion v14, Remix Icon, Sonner Toaster, Canvas Confetti.
+* **Backend & API**: Next.js Route Handlers, Zod Validation, capability-token auth for hosts/players, In-Memory Game Room State Machine.
+* **Database**: Supabase PostgreSQL, accessed server-side with the service-role key. RLS denies anon/authenticated access; live updates use polling.
+* **AI Engine**: Custom OpenAI-compatible AI gateway (`AI_BASE_URL`, `AI_API_KEY`, `AI_MODEL`) with structured JSON parsing and retry mechanism.
 * **Deployment**: Vercel (Edge Network).
 
 ## AI Implementation
-* **Model**: Gemini 2.5 Flash Multimodal via official API.
+* **Model**: Custom OpenAI-compatible provider (e.g. DeepSeek via Kagiro API).
 * **Input**: Foto buku ajar/LKS/PDF, tema kurikulum, jenjang pendidikan, tingkatan Basa Bali (Alus Singgih vs Alus Sor), aturan Pasang Aksara Bali, dan parameter jumlah soal.
 * **Output**: Objek JSON terstruktur (Ringkasan, Glosarium Budaya, 3D Flashcards, soal pilihan ganda HOTS, opsi pengecoh, kunci jawaban, dan panduan miskonsepsi).
 * **Peran**: Generator konten pembelajaran multimodal, penganalisis miskonsepsi agregat siswa, dan perancang drill remedial personal.
 
 ## Architecture / Data Flow
 ```
-[Dokumen / Foto LKS] ──► [Gemini 2.5 Flash OCR] ──► [3-Way Output: Summary / 3D Flashcards / Quiz]
+[Dokumen / Teks Materi] ──► [AI Multimodal Pipeline] ──► [3-Way Output: Summary / 3D Flashcards / Quiz]
                                                                         │
 [Siswa (Mobile /play)] <───► [Game Room Store / Supabase] <───► [Guru Host (/host)]
           │                                                               │
@@ -55,6 +55,9 @@ bun install
 
 # Konfigurasi environment variables
 cp .env.example .env.local
+# Isi NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY (auth),
+# SUPABASE_SERVICE_ROLE_KEY (server-only room persistence), serta AI_BASE_URL dan AI_API_KEY.
+# Tanpa SUPABASE_SERVICE_ROLE_KEY, ruangan berjalan in-memory dan tidak persisten.
 
 # Jalankan server pengembangan
 bun run dev
@@ -63,25 +66,23 @@ bun run dev
 Buka `http://localhost:3000` pada peramban Anda.
 
 ## Deployment URL
-* **Production URL**: [https://exile-org.vercel.app](https://exile-org.vercel.app)
-* **Mirror Domain**: [https://exile-bali.vercel.app](https://exile-bali.vercel.app)
+* **Production URL**: [https://www.exile.web.id](https://www.exile.web.id)
 * **GitHub Repository**: [https://github.com/Laurent-xscope/exile](https://github.com/Laurent-xscope/exile)
 
-## Demo Account & Quick Links
-* Akses demo juri telah disiapkan untuk pengujian langsung tanpa perlu registrasi ulang:
-  * **Teacher Host Cockpit**: [https://exile-org.vercel.app/host/849201](https://exile-org.vercel.app/host/849201) (PIN: `849201`)
-  * **Student Game Arena**: [https://exile-org.vercel.app/play](https://exile-org.vercel.app/play) (masukkan PIN `849201`)
-  * **Role**: Penguji / Juri & Guru
-  * **Room PIN Demo**: `849201` (dilengkapi 4 siswa simulasi dan data riwayat jawaban)
+## Host & Player Access
+* Guru membuat ruangan dari `/studio` atau tombol Quick Host di beranda. Token host disimpan di browser per ruangan.
+* Siswa bergabung lewat `/play` dengan PIN 6 digit tanpa akun; token pemain disimpan per ruangan.
+* Tidak ada PIN demo hardcoded. Setiap ruangan baru mendapat PIN acak.
 
 ## Known Limitations & Roadmap
 * Integrasi audio pengucapan Basa Bali Alus berbasis Text-to-Speech Web Audio API dialokasikan untuk tahap final.
-* Sinkronisasi data ke Supabase berjalan mode asinkron hibrid (in-memory fast response + Postgres sync).
+* Persistensi Supabase memerlukan `SUPABASE_SERVICE_ROLE_KEY`; tanpa itu ruangan hanya hidup di memori server.
+* Pembaruan live menggunakan polling, bukan Supabase Realtime Channels.
 
 ## Third-party Resources / Credits
 * Next.js by Vercel
 * Framer Motion by Motion Division
-* Lucide React Icons
+* Remix Icon
 * Canvas Confetti by Kiril Vatev
 * Sonner by Emil Kowalski
 * Supabase Client SDK

@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import PlayArenaClient from "./PlayArenaClient";
+import PlayRoomClient from "./PlayRoomClient";
 import { Spinner } from "@/components/base/spinner/spinner";
 
 async function PlayInner({
@@ -8,7 +8,7 @@ async function PlayInner({
   params: Promise<{ code: string }>;
 }) {
   const { code } = await params;
-  return <PlayArenaClient roomCode={code} />;
+  return <PlayRoomClient roomCode={code} />;
 }
 
 export default function PlayArenaPage({

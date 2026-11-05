@@ -110,7 +110,7 @@ export function TabList<T extends object>({ className, ref, ...props }: TabListP
       {underline && (
         <span
           aria-hidden
-          className="pointer-events-none absolute bottom-0 left-0 h-0.5 bg-accent-600 transition-[transform,width] duration-200 ease"
+          className="pointer-events-none absolute bottom-0 left-0 h-0.5 rounded-full bg-accent-600 transition-[transform,width] duration-200 ease"
           style={{
             transform: `translateX(${underline.left}px)`,
             width: underline.width,
@@ -139,7 +139,7 @@ export function Tab({ className, children, icon: Icon, count, ref, ...props }: T
         cx(
           "relative inline-flex cursor-pointer items-center gap-2.5 px-2.5 py-2 whitespace-nowrap",
           "outline-none transition-colors duration-150 ease",
-          "focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+          "focus-visible:rounded-lg focus-visible:ring-2 focus-visible:ring-border-focus-ring",
           state.isDisabled && "cursor-not-allowed opacity-50",
           typeof className === "function" ? className(state) : className,
         )
@@ -161,7 +161,7 @@ export function Tab({ className, children, icon: Icon, count, ref, ...props }: T
           {count != null && (
             <span
               className={cx(
-                "inline-flex items-center justify-center rounded-sm px-1 py-px text-caption-1-medium whitespace-nowrap",
+                "inline-flex items-center justify-center rounded-full px-2 py-0.5 text-caption-1-medium whitespace-nowrap",
                 isSelected
                   ? "bg-tab-count-selected-background text-accent-600"
                   : "bg-black/10 text-text-primary opacity-50",
@@ -187,7 +187,7 @@ export function TabPanel({ className, ref, ...props }: TabPanelProps) {
       {...props}
       className={(state) =>
         cx(
-          "outline-none focus-visible:rounded-sm focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+          "outline-none focus-visible:rounded-2xl focus-visible:ring-2 focus-visible:ring-border-focus-ring",
           typeof className === "function" ? className(state) : className,
         )
       }

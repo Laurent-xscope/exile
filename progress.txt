@@ -1,0 +1,14 @@
+# Ralph Progress Log - Project Exile
+
+## Session Overview
+- Goal: Transform Exile into a production-grade, high-contrast Light/Dark enabled web application with Google/Supabase Auth, comprehensive Settings, zero hardcoding, battle-tested UI primitives, and full end-to-end verification.
+- Started: 2026-11-04
+- Active PRD: prd.json (8 testable stories)
+
+## Iteration Log
+- [Setup] Initialized prd.json and progress.txt.
+- [Setup] Installed `next-themes` for clean class-based dark/light theme switching.
+- [US-001..US-006] Migrated UI to BoardUI semantic tokens & components (`Button`, `Input`, `Modal`, `Tabs`, `SegmentedControl`, `Table`, `Dropdown`, `Chip`, `Badge`, `Avatar`, `ScrollFade`), eradicated hardcoded `849201` / `Daftar siswa (4)` / legacy hexes / promotional vendor text, and wired full Supabase persistence across `quizzes`, `questions`, `game_rooms`, `players`, `submissions`, and `class_diagnostics`.
+- [US-007] Ran Layer 1 deterministic verification (`scripts/verify-fast`) with 0 violations, enhanced Studio inline question editing & live option audio/visual feedback (`src/app/studio/page.tsx`), executed closed-loop E2E verification across all API endpoints and UI routes against `http://localhost:3000`, and recorded a 5.0/5.0 Frontier rubric verdict in `EVALS/traces/scorecard.json`.
+- [VoiceBox & Protocols] Integrated NotebookLM Batchexecute protocol engine (`src/lib/notebooklm/`) and Wayground teardown engine (`src/lib/wayground/`) including odata cipher, multi-type quiz evaluator, powerup scoring, and spaced flashcards study loop.
+- [VoiceBox Redesign & Dark Mode] Completed full VoiceBox editorial redesign (Archivo Black display typography, Work Sans body, Space Mono code, flat 0px radii, 2px borders, red #EF4444 accent) and implemented true inverted VoiceBox Black dark mode with universal ThemeToggle across all headers (Landing, Studio, Login, Play, Host). Next build and fast verification passed cleanly with 26/26 unit tests.

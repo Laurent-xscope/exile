@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getGameRoomState } from "@/lib/rooms/store";
+import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 
 export async function GET(
   req: Request,
@@ -7,15 +8,16 @@ export async function GET(
 ) {
   try {
     const { code } = await params;
+    const normalizedCode = normalizeRoomCode(code);
 
-    if (!code || code.trim() === "") {
+    if (!isValidRoomCode(normalizedCode)) {
       return NextResponse.json(
-        { success: false, error: "Room code parameter is required." },
+        { success: false, error: "PIN ruangan harus tepat 6 digit." },
         { status: 400 }
       );
     }
 
-    const state = await getGameRoomState(code.trim());
+    const state = await getGameRoomState(normalizedCode);
 
     if (!state) {
       return NextResponse.json(
@@ -28,7 +30,7 @@ export async function GET(
     }
 
     // Compute lightweight ETag based on room state version
-    const etag = `"${state.status}-${state.currentQuestionIndex}-${state.players.length}-${state.totalSubmissionsCount}-${state.updatedAt || ""}"`;
+    const etag = `"${state.status}-${state.currentQuestionIndex}-${state.questionStartedAt || ""}-${state.players.length}-${state.totalSubmissionsCount}-${state.updatedAt || ""}"`;
 
     const clientEtag = req.headers.get("if-none-match");
     if (clientEtag && clientEtag === etag) {

@@ -27,6 +27,7 @@ This project uses BoardUI (React + Tailwind CSS v4, source-owned components unde
 
 - Use BoardUI's composite type utilities: `text-title-1-medium`, `text-title-2-medium`, `text-title-3-semibold`, `text-headline-medium`, `text-body-medium`, `text-body-regular`, `text-body-2-*`, `text-caption-1-semibold`, and friends. Each sets size, weight, line-height, and letter-spacing together.
 - Never rebuild type by stacking `text-sm font-medium leading-5`; if a style seems missing, look in `styles/typography.css` before inventing one.
+- **STRICT UI TEXT CASE RULE (Huruf depan saja yang besar)**: All user-facing UI text (headings, subheadings, buttons, tabs, badges, chips, form labels, placeholders, tooltips, modal titles, and navigation items) MUST strictly use sentence case — only the first letter of the first word is capitalized, and all remaining words stay lowercase (e.g., `"Buka studio ajar"`, `"Buat ruang kuis instan"`, `"Kartu 3d"`, `"Kuis adaptif"`, `"Jumlah soal"`). Never use `uppercase` / `text-transform: uppercase` or Title Case on UI text.
 
 ## Spacing and shape
 

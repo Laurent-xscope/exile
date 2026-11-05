@@ -10,7 +10,6 @@ import {
   RiLoginBoxLine,
 } from "@remixicon/react";
 import { Avatar } from "@/components/base/avatar/avatar";
-import { Chip } from "@/components/base/badges/chip";
 import { ButtonLink } from "@/components/base/buttons/button";
 import {
   Dropdown,
@@ -21,17 +20,20 @@ import {
   DropdownTrigger,
 } from "@/components/base/dropdown/dropdown";
 import { useAuth } from "@/lib/auth/use-auth";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import { cx } from "@/utils/cx";
 
 export function UserNav() {
   const router = useRouter();
+  const { lang } = useTranslation();
+  const isEn = lang === "en";
   const { user, loading, signOut } = useAuth();
   const [dropdownOpen, setDropdownOpen] = useState(false);
 
   if (loading) {
     return (
       <div
-        className="size-9 rounded-2lg bg-background-secondary-default border border-border-button-default animate-pulse"
+        className="size-9 rounded-xl bg-background-secondary-default border border-border-button-default animate-pulse"
         aria-hidden="true"
       />
     );
@@ -45,7 +47,7 @@ export function UserNav() {
         size="small"
         leadingIcon={RiLoginBoxLine}
       >
-        Masuk
+        {isEn ? "Sign in" : "Masuk"}
       </ButtonLink>
     );
   }
@@ -55,7 +57,7 @@ export function UserNav() {
     user.user_metadata?.full_name ||
     user.user_metadata?.name ||
     email.split("@")[0] ||
-    "Pengajar";
+    (isEn ? "Educator" : "Pengajar");
   const avatarUrl = user.user_metadata?.avatar_url;
   const initials = name.charAt(0).toUpperCase();
 
@@ -69,7 +71,7 @@ export function UserNav() {
     <Dropdown isOpen={dropdownOpen} onOpenChange={setDropdownOpen}>
       <DropdownTrigger
         className={cx(
-          "inline-flex items-center gap-2 rounded-2lg px-2.5 py-1.5",
+          "inline-flex items-center gap-2 rounded-xl px-2.5 py-1.5",
           "bg-background-primary-default hover:bg-background-primary-hover active:bg-background-primary-active",
           "border border-border-button-default hover:border-border-button-hover shadow-xs",
           "text-text-primary transition-colors select-none",
@@ -94,7 +96,7 @@ export function UserNav() {
         />
       </DropdownTrigger>
 
-      <DropdownPopover aria-label="Menu Akun" placement="bottom end">
+      <DropdownPopover aria-label={isEn ? "Account Menu" : "Menu Akun"} placement="bottom end">
         <div className="flex flex-col gap-1.5 px-2 py-1.5">
           <div className="flex items-center gap-2.5">
             <Avatar
@@ -119,7 +121,7 @@ export function UserNav() {
 
         <DropdownDivider />
 
-        <DropdownGroup label="Navigasi">
+        <DropdownGroup label={isEn ? "Navigation" : "Navigasi"}>
           <DropdownItem
             onSelect={() => {
               setDropdownOpen(false);
@@ -131,7 +133,7 @@ export function UserNav() {
               aria-hidden
             />
             <span className="text-body-2-medium text-text-primary">
-              Studio Ajar Guru
+              {isEn ? "Teacher studio" : "Studio ajar guru"}
             </span>
           </DropdownItem>
 
@@ -146,7 +148,7 @@ export function UserNav() {
               aria-hidden
             />
             <span className="text-body-2-medium text-text-primary">
-              Arena Kuis Siswa
+              {isEn ? "Student arena" : "Arena kuis siswa"}
             </span>
           </DropdownItem>
         </DropdownGroup>
@@ -163,7 +165,7 @@ export function UserNav() {
               aria-hidden
             />
             <span className="text-body-2-medium text-text-error-primary">
-              Keluar Akun
+              {isEn ? "Sign out" : "Keluar akun"}
             </span>
           </DropdownItem>
         </DropdownGroup>

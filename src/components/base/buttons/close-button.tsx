@@ -62,7 +62,7 @@ const GLYPH_INSET: Record<CloseButtonSize, number> = {
 
 const styles = sortCx({
   base: [
-    "inline-flex shrink-0 items-center justify-center rounded-full",
+    "inline-flex shrink-0 items-center justify-center rounded-lg",
     "bg-background-tertiary-default text-foreground-icon-secondary",
     "select-none cursor-pointer",
     "transition-colors duration-150 ease",

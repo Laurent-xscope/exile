@@ -95,6 +95,29 @@ body {
 html {
   color-scheme: light;
   background-color: var(--color-background-full);
+  scroll-behavior: smooth;
+  overscroll-behavior-y: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
+/* Subtle atmospheric backdrop lighting (Tridatu volcanic ember + warm amber glow) */
+.dark body {
+  background-image:
+    radial-gradient(ellipse 80% 50% at 50% -10%, rgba(220, 86, 71, 0.08), transparent 70%),
+    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(212, 155, 53, 0.04), transparent 60%);
+  background-attachment: fixed;
+}
+
+body {
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, rgba(220, 86, 71, 0.04), transparent 70%),
+    radial-gradient(ellipse 60% 30% at 80% 10%, rgba(212, 155, 53, 0.03), transparent 60%);
+  background-attachment: fixed;
 }
 html.dark {
   color-scheme: dark;
@@ -1023,3 +1046,188 @@ input[type="search"]::-webkit-search-cancel-button {
     box-shadow: inset 0 0 0 2px var(--color-border-button-hover);
   }
 }
+
+/* ---------------------------------------------------------------------------
+ * Viewport Entry & Scroll-Driven Animation Utilities
+ * ------------------------------------------------------------------------- */
+
+/* Keyframe for entry composition (animate-in) */
+@keyframes enter {
+  from {
+    opacity: var(--tw-enter-opacity, 1);
+    transform: translate3d(var(--tw-enter-translate-x, 0), var(--tw-enter-translate-y, 0), 0)
+      scale3d(var(--tw-enter-scale, 1), var(--tw-enter-scale, 1), var(--tw-enter-scale, 1))
+      rotate(var(--tw-enter-rotate, 0));
+  }
+}
+
+/* Base animate-in trigger */
+.animate-in {
+  animation-name: enter;
+  animation-duration: var(--tw-enter-duration, 500ms);
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+  --tw-enter-opacity: 1;
+  --tw-enter-scale: 1;
+  --tw-enter-rotate: 0deg;
+  --tw-enter-translate-x: 0;
+  --tw-enter-translate-y: 0;
+}
+
+/* Fade helpers */
+.fade-in { --tw-enter-opacity: 0; }
+.fade-in-0 { --tw-enter-opacity: 0; }
+.fade-in-25 { --tw-enter-opacity: 0.25; }
+.fade-in-50 { --tw-enter-opacity: 0.5; }
+.fade-in-75 { --tw-enter-opacity: 0.75; }
+
+/* Slide helpers */
+.slide-in-from-bottom { --tw-enter-translate-y: 100%; }
+.slide-in-from-bottom-2 { --tw-enter-translate-y: 0.5rem; }
+.slide-in-from-bottom-4 { --tw-enter-translate-y: 1rem; }
+.slide-in-from-bottom-6 { --tw-enter-translate-y: 1.5rem; }
+.slide-in-from-bottom-8 { --tw-enter-translate-y: 2rem; }
+.slide-in-from-bottom-12 { --tw-enter-translate-y: 3rem; }
+.slide-in-from-top { --tw-enter-translate-y: -100%; }
+.slide-in-from-top-2 { --tw-enter-translate-y: -0.5rem; }
+.slide-in-from-top-4 { --tw-enter-translate-y: -1rem; }
+.slide-in-from-left-4 { --tw-enter-translate-x: -1rem; }
+.slide-in-from-right-4 { --tw-enter-translate-x: 1rem; }
+
+/* Zoom helpers */
+.zoom-in { --tw-enter-scale: 0; }
+.zoom-in-90 { --tw-enter-scale: 0.9; }
+.zoom-in-95 { --tw-enter-scale: 0.95; }
+
+/* Animation durations */
+.duration-150 { --tw-enter-duration: 150ms; animation-duration: 150ms; }
+.duration-300 { --tw-enter-duration: 300ms; animation-duration: 300ms; }
+.duration-500 { --tw-enter-duration: 500ms; animation-duration: 500ms; }
+.duration-700 { --tw-enter-duration: 700ms; animation-duration: 700ms; }
+.duration-1000 { --tw-enter-duration: 1000ms; animation-duration: 1000ms; }
+
+/* Stagger delay helpers */
+.delay-75 { animation-delay: 75ms; transition-delay: 75ms; }
+.delay-100 { animation-delay: 100ms; transition-delay: 100ms; }
+.delay-150 { animation-delay: 150ms; transition-delay: 150ms; }
+.delay-200 { animation-delay: 200ms; transition-delay: 200ms; }
+.delay-300 { animation-delay: 300ms; transition-delay: 300ms; }
+.delay-400 { animation-delay: 400ms; transition-delay: 400ms; }
+.delay-500 { animation-delay: 500ms; transition-delay: 500ms; }
+
+/* Native CSS Scroll-Driven Animations (View Timelines) */
+@keyframes scroll-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(28px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scroll-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes scroll-scale-up {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@supports (animation-timeline: view()) {
+  .scroll-driven-reveal {
+    animation: scroll-fade-up linear both;
+    animation-timeline: view();
+    animation-range: entry 5% cover 25%;
+  }
+
+  .scroll-driven-fade {
+    animation: scroll-fade-in linear both;
+    animation-timeline: view();
+    animation-range: entry 5% cover 20%;
+  }
+
+  .scroll-driven-scale {
+    animation: scroll-scale-up linear both;
+    animation-timeline: view();
+    animation-range: entry 5% cover 25%;
+  }
+}
+
+/* Smooth Viewport Entry (IntersectionObserver baseline & fallback) */
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(24px);
+  transition:
+    opacity var(--reveal-duration, 550ms) cubic-bezier(0.16, 1, 0.3, 1),
+    transform var(--reveal-duration, 550ms) cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.scroll-reveal-scale {
+  opacity: 0;
+  transform: scale(0.97) translateY(18px);
+  transition:
+    opacity var(--reveal-duration, 550ms) cubic-bezier(0.16, 1, 0.3, 1),
+    transform var(--reveal-duration, 550ms) cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal-scale.is-visible {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+.scroll-reveal-fade {
+  opacity: 0;
+  transition: opacity var(--reveal-duration, 500ms) cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
+.scroll-reveal-fade.is-visible {
+  opacity: 1;
+}
+
+/* Accessibility: respect user prefers-reduced-motion across all reveal utilities */
+@media (prefers-reduced-motion: reduce) {
+  .animate-in {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .scroll-driven-reveal,
+  .scroll-driven-fade,
+  .scroll-driven-scale {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .scroll-reveal,
+  .scroll-reveal-scale,
+  .scroll-reveal-fade {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+  }
+}
+

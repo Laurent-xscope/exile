@@ -1,15 +1,25 @@
 /* Landing-page player chrome. Default export, client-only (mounted via next/dynamic). */
+"use client";
+
 import React from "react";
 import { Player } from "@remotion/player";
 import { ExileVideo } from "./ExileVideo";
 import { DEFAULT_PROPS, FPS, HEIGHT, TOTAL_FRAMES, WIDTH } from "./constants";
+import { useTranslation } from "@/lib/i18n/use-translation";
 
 export default function ExileProductDemo() {
+  const { t } = useTranslation();
+
   return (
     <div className="w-full bg-background-primary-default border border-border-button-default rounded-3xl p-5 md:p-6 shadow-card space-y-4">
-      <h3 className="text-title-2-semibold text-text-primary">
-        Trailer: Dari Modul ke Laporan Miskonsepsi dalam 60 Detik
-      </h3>
+      <div className="space-y-1">
+        <h3 className="text-title-2-semibold text-text-primary tracking-tight">
+          {t?.trailer?.title || "A Debut: exile.web.id"}
+        </h3>
+        <p className="text-body-2-regular text-text-secondary">
+          {t?.trailer?.subtitle || "Alur Pembelajaran Tertutup dalam 60 Detik"}
+        </p>
+      </div>
       <div className="relative w-full rounded-2xl overflow-hidden border border-border-button-default bg-black aspect-[16/9]">
         <Player
           component={ExileVideo}

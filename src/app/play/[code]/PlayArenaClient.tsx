@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -14,17 +14,18 @@ import {
   RiVolumeMuteLine,
   RiArrowLeftLine,
   RiPlayCircleLine,
-  RiSparklingLine,
+  RiCopilotFill,
   RiSendPlaneLine,
   RiBarChartBoxLine,
   RiRestartLine,
-  RiQuestionLine,
 } from "@remixicon/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
-import { supabase } from "@/lib/supabase";
+
+const nowMs = () => Date.now();
 import { soundEffects } from "@/lib/audio/sounds";
 import { loadSettings } from "@/lib/settings/user-settings";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
 import { SettingsButton } from "@/components/settings/settings-modal";
@@ -36,7 +37,7 @@ import { Avatar } from "@/components/base/avatar/avatar";
 import { ProgressTrack } from "@/components/base/progress/progress";
 import { Spinner } from "@/components/base/spinner/spinner";
 import { ScrollFade, useScrollFade } from "@/components/foundations/scroll-fade/scroll-fade";
-import { ExileLogo } from "@/components/brand/exile-logo";
+import { FormattedMessage } from "@/components/chat/formatted-message";
 import { cx } from "@/utils/cx";
 
 interface Option {
@@ -79,6 +80,7 @@ interface RoomState {
     streak: number;
     status?: "approved" | "pending" | "rejected";
   }>;
+  questionStartedAt?: string;
   settings: {
     timePerQuestionSec: number;
     streakBonus: boolean;
@@ -93,11 +95,25 @@ function getInitials(name: string): string {
   return name.slice(0, 2).toUpperCase() || "S";
 }
 
-export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
-  const [playerId, setPlayerId] = useState<string>("");
-  const [nickname, setNickname] = useState<string>("Siswa");
-  const [avatar, setAvatar] = useState<string>("garuda");
-  const [myStatus, setMyStatus] = useState<"approved" | "pending" | "rejected">("approved");
+export default function PlayArenaClient({
+  roomCode,
+  playerId,
+  playerToken,
+  nickname,
+  initialStatus,
+}: {
+  roomCode: string;
+  playerId: string;
+  playerToken: string;
+  nickname: string;
+  initialStatus: "approved" | "pending" | "rejected";
+}) {
+  const { lang } = useTranslation();
+  const isEn = lang === "en";
+
+  const [myStatus, setMyStatus] = useState<"approved" | "pending" | "rejected">(
+    initialStatus
+  );
 
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [loading, setLoading] = useState(true);
@@ -113,9 +129,11 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   } | null>(null);
 
   const [timeLeft, setTimeLeft] = useState<number>(20);
-  const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
+  const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [lastQuestionId, setLastQuestionId] = useState<string | null>(null);
+  const [lastQuestionStartedAt, setLastQuestionStartedAt] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const finishedCelebrated = useRef(false);
 
   // Student Copilot Drawer
   const [showCopilot, setShowCopilot] = useState(false);
@@ -124,8 +142,9 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   >([
     {
       role: "assistant",
-      content:
-        "Halo! Saya Exile Student Copilot. Jika ada materi atau pertanyaan yang belum kamu pahami dari penjelasan guru, tanyakan saja di sini!",
+      content: isEn
+        ? "Hello! I am your Exile Student Copilot. If there are concepts or questions you need clarification on, feel free to ask here!"
+        : "Halo! Saya Exile Student Copilot. Jika ada materi atau pertanyaan yang belum kamu pahami dari penjelasan guru, tanyakan saja di sini!",
     },
   ]);
   const [copilotInput, setCopilotInput] = useState("");
@@ -145,73 +164,12 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   };
 
   useEffect(() => {
-    let isMounted = true;
-
-    const registerAndSyncPlayer = async () => {
-      const settings = loadSettings();
-      setIsMuted(!settings.soundEnabled);
-      soundEffects.setMuted(!settings.soundEnabled);
-
-      const storedId =
-        sessionStorage.getItem("exile_player_id") ||
-        localStorage.getItem("exile_player_id") ||
-        "";
-
-      const rawNickname =
-        sessionStorage.getItem("exile_nickname") ||
-        localStorage.getItem("exile_player_nickname") ||
-        settings.defaultNickname;
-
-      const resolvedNickname =
-        rawNickname && rawNickname.trim().length > 0
-          ? rawNickname.trim()
-          : `Siswa ${Math.floor(100 + Math.random() * 900)}`;
-
-      const resolvedAvatar =
-        sessionStorage.getItem("exile_avatar") ||
-        localStorage.getItem("exile_player_avatar") ||
-        settings.defaultAvatar ||
-        "garuda";
-
-      if (storedId) {
-        setPlayerId(storedId);
-      }
-      setNickname(resolvedNickname);
-      setAvatar(resolvedAvatar);
-
-      try {
-        const res = await fetch("/api/rooms/join", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            roomCode,
-            nickname: resolvedNickname,
-            avatar: resolvedAvatar,
-          }),
-        });
-        const joinData = await res.json();
-        const assignedId = joinData?.playerId || joinData?.player?.id;
-
-        if (isMounted && assignedId) {
-          setPlayerId(assignedId);
-          localStorage.setItem("exile_player_id", assignedId);
-          sessionStorage.setItem("exile_player_id", assignedId);
-        }
-
-        if (isMounted && joinData?.playerStatus) {
-          setMyStatus(joinData.playerStatus);
-        }
-      } catch (err) {
-        console.warn("[PlayArena] Failed to sync player registration:", err);
-      }
-    };
-
-    registerAndSyncPlayer();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [roomCode]);
+    const settings = loadSettings();
+    /* eslint-disable react-hooks/set-state-in-effect -- sound preference is client-only */
+    setIsMuted(!settings.soundEnabled);
+    soundEffects.setMuted(!settings.soundEnabled);
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, []);
 
   const fetchState = async () => {
     try {
@@ -224,7 +182,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
 
         // Check our player's status
         if (data.players && playerId) {
-          const me = data.players.find((p: any) => p.id === playerId);
+          const me = data.players.find((p: { id: string }) => p.id === playerId);
           if (me?.status) {
             setMyStatus(me.status);
           }
@@ -235,11 +193,34 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
           setHasAnsweredCurrentQ(false);
           setSelectedOption(null);
           setLastSubmissionResult(null);
-          setTimeLeft(data.settings?.timePerQuestionSec || 20);
-          setQuestionStartTime(Date.now());
         }
 
-        if (data.status === "finished") {
+        const questionStartChanged =
+          Boolean(data.currentQuestion) &&
+          Boolean(data.questionStartedAt) &&
+          data.questionStartedAt !== lastQuestionStartedAt;
+
+        if (
+          data.currentQuestion &&
+          (data.currentQuestion.id !== lastQuestionId || questionStartChanged)
+        ) {
+          const limitSec = data.settings?.timePerQuestionSec || 20;
+          const startedAt = data.questionStartedAt
+            ? Date.parse(data.questionStartedAt)
+            : nowMs();
+          const safeStartedAt = Number.isFinite(startedAt) ? startedAt : nowMs();
+          setQuestionStartTime(safeStartedAt);
+          setTimeLeft(
+            Math.max(
+              0,
+              Math.ceil((safeStartedAt + limitSec * 1000 - nowMs()) / 1000)
+            )
+          );
+          setLastQuestionStartedAt(data.questionStartedAt || null);
+        }
+
+        if (data.status === "finished" && !finishedCelebrated.current) {
+          finishedCelebrated.current = true;
           confetti({
             particleCount: 50,
             spread: 60,
@@ -256,44 +237,18 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   };
 
   useEffect(() => {
+    // First poll runs after mount; subsequent polls are the realtime mechanism.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchState();
     const interval = setInterval(fetchState, 1500);
-
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    try {
-      const isPlaceholder =
-        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
-
-      if (!isPlaceholder) {
-        channel = supabase
-          .channel(`play-room-${roomCode}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "game_rooms",
-              filter: `room_code=eq.${roomCode}`,
-            },
-            () => fetchState()
-          )
-          .subscribe();
-      }
-    } catch (realtimeErr) {
-      console.warn("[PlayArena] Realtime skipped:", realtimeErr);
-    }
-
-    return () => {
-      clearInterval(interval);
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [roomCode, lastQuestionId, playerId]);
+    return () => clearInterval(interval);
+    // Polling is the real-time mechanism; state is fetched by room code.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode, lastQuestionId, lastQuestionStartedAt, playerId]);
 
   const isQuestionActive =
     roomState?.status === "active" || roomState?.status === "question_active";
+  const isTimeUp = isQuestionActive && !hasAnsweredCurrentQ && timeLeft <= 0;
 
   useEffect(() => {
     if (!roomState?.currentQuestion || hasAnsweredCurrentQ || !isQuestionActive) {
@@ -314,10 +269,18 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
     }, 1000);
 
     return () => clearInterval(timer);
+    // Question object identity changes every poll; the id is the real dependency.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomState?.currentQuestion?.id, hasAnsweredCurrentQ, isQuestionActive]);
 
   const handleSelectOption = async (optionLabel: string) => {
-    if (hasAnsweredCurrentQ || submitting || !roomState?.currentQuestion || myStatus === "pending") {
+    if (
+      hasAnsweredCurrentQ ||
+      submitting ||
+      timeLeft <= 0 ||
+      !roomState?.currentQuestion ||
+      myStatus === "pending"
+    ) {
       return;
     }
 
@@ -325,13 +288,8 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
     setSelectedOption(optionLabel);
     setSubmitting(true);
 
-    const responseTimeMs = Date.now() - questionStartTime;
+    const responseTimeMs = Math.max(0, nowMs() - questionStartTime);
     const currentQ = roomState.currentQuestion;
-    const activePlayerId =
-      playerId ||
-      sessionStorage.getItem("exile_player_id") ||
-      localStorage.getItem("exile_player_id") ||
-      "";
 
     try {
       const res = await fetch("/api/rooms/submit", {
@@ -339,7 +297,8 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           roomCode,
-          playerId: activePlayerId,
+          playerId,
+          playerToken,
           questionId: currentQ.id,
           selectedOption: optionLabel,
           responseTimeMs,
@@ -443,6 +402,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
         body: JSON.stringify({
           roomCode,
           playerId,
+          playerToken,
           messages: nextMessages,
         }),
       });
@@ -485,9 +445,9 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
   if (loading && !roomState) {
     return (
       <div className="min-h-screen bg-background-full flex flex-col items-center justify-center text-text-secondary gap-3">
-        <Spinner size="md" aria-label="Menyambungkan ke ruang kuis" />
+        <Spinner size="md" aria-label={isEn ? "Connecting to quiz room" : "Menyambungkan ke ruang kuis"} />
         <p className="text-caption-1-medium text-text-secondary">
-          Menyambungkan ke ruang kuis...
+          {isEn ? "Connecting to quiz room..." : "Menyambungkan ke ruang kuis..."}
         </p>
       </div>
     );
@@ -498,8 +458,12 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
       <header className="border-b border-separator-border bg-background-primary-default/95 sticky top-0 z-30 backdrop-blur-md">
         <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <Link href="/" className="shrink-0 p-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring">
-              <ExileLogo size={32} showText={false} />
+            <Link
+              href="/"
+              className="shrink-0 p-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring text-text-secondary hover:text-text-primary transition-colors"
+              aria-label={isEn ? "Back to Home" : "Kembali ke Beranda"}
+            >
+              <RiArrowLeftLine className="size-5" />
             </Link>
 
             <Avatar
@@ -517,29 +481,29 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
 
                 {/* Admission Status Indicator */}
                 {myStatus === "pending" ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/20">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
                     <RiTimeLine className="size-3" />
-                    <span>Menunggu Persetujuan</span>
+                    <span>{isEn ? "Awaiting approval" : "Menunggu persetujuan"}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                     <RiCheckLine className="size-3" />
-                    <span>Terverifikasi</span>
+                    <span>{isEn ? "Verified" : "Terverifikasi"}</span>
                   </span>
                 )}
 
                 {myStreak > 1 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/20">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
                     <RiFireLine className="size-3 shrink-0" aria-hidden />
-                    <span>{myStreak}x beruntun</span>
+                    <span>{isEn ? `${myStreak}x streak` : `${myStreak}x beruntun`}</span>
                   </span>
                 )}
               </div>
 
               <div className="flex items-center gap-2 text-caption-1-medium text-text-secondary mt-0.5">
-                <span>PIN: <bdi className="font-mono">{roomCode}</bdi></span>
+                <span>Pin: <bdi className="font-mono">{roomCode}</bdi></span>
                 <span>•</span>
-                <span>Peringkat #{myRank}</span>
+                <span>{isEn ? `Rank #${myRank}` : `Peringkat #${myRank}`}</span>
               </div>
             </div>
           </div>
@@ -551,12 +515,12 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
               className={cx(
                 "cursor-pointer px-3 py-1.5 rounded-xl border text-caption-1-medium flex items-center gap-1.5 transition shadow-card",
                 showCopilot
-                  ? "bg-[#0F766E] text-white border-[#0F766E]"
+                  ? "bg-accent-700 text-white border-accent-700"
                   : "bg-background-primary-default hover:bg-background-primary-hover border-border-button-default text-text-primary"
               )}
             >
-              <RiSparklingLine className="size-4" />
-              <span className="hidden sm:inline">Copilot Siswa</span>
+              <RiCopilotFill className="size-4" />
+              <span className="hidden sm:inline">{isEn ? "Student copilot" : "Copilot siswa"}</span>
             </button>
 
             <LanguageToggle />
@@ -566,12 +530,12 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
               icon={isMuted ? RiVolumeMuteLine : RiVolumeUpLine}
               size="medium"
               onClick={toggleSound}
-              aria-label={isMuted ? "Aktifkan suara" : "Matikan suara"}
-              title={isMuted ? "Aktifkan suara" : "Matikan suara"}
+              aria-label={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
+              title={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
             />
             <div className="px-3 py-1.5 rounded-xl bg-background-secondary-default border border-border-button-default text-end shadow-card">
               <span className="text-[10px] text-text-secondary block leading-none">
-                Total Nilai
+                {isEn ? "Total score" : "Total nilai"}
               </span>
               <span className="text-body-semibold text-text-primary tabular-nums">
                 {myScore.toLocaleString()}
@@ -590,29 +554,40 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             className="text-center py-10 px-6 bg-background-primary-default border border-[#D97706]/30 rounded-3xl shadow-card space-y-5"
           >
             <div className="relative size-14 mx-auto flex items-center justify-center">
-              {/* Single expanding ripple ring (scale 1 -> 1.6, opacity 0.5 -> 0) */}
               <span className="animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] absolute inline-flex h-full w-full rounded-full bg-[#D97706] opacity-30" />
-              <div className="relative size-12 rounded-2xl bg-[#D97706]/15 text-[#D97706] flex items-center justify-center border border-[#D97706]/30">
+              <div className="relative size-12 rounded-2xl bg-[#D97706]/15 text-text-error-primary flex items-center justify-center border border-[#D97706]/30">
                 <RiTimeLine className="size-6" aria-hidden />
               </div>
             </div>
 
             <div className="space-y-1.5">
               <h2 className="text-title-2-semibold text-text-primary">
-                Menunggu Persetujuan Pengajar
+                {isEn ? "Awaiting teacher approval" : "Menunggu persetujuan pengajar"}
               </h2>
               <p className="text-body-regular text-text-secondary max-w-md mx-auto">
-                Pengajar{" "}
-                <strong className="text-body-semibold text-text-primary">
-                  {roomState?.hostName || "Guru"}
-                </strong>{" "}
-                sedang memverifikasi daftar siswa di ruangan kuis ini. Kamu akan otomatis masuk setelah disetujui.
+                {isEn ? (
+                  <>
+                    Educator{" "}
+                    <strong className="text-body-semibold text-text-primary">
+                      {roomState?.hostName || "Teacher"}
+                    </strong>{" "}
+                    is verifying the classroom roster. You will automatically enter once approved.
+                  </>
+                ) : (
+                  <>
+                    Pengajar{" "}
+                    <strong className="text-body-semibold text-text-primary">
+                      {roomState?.hostName || "Guru"}
+                    </strong>{" "}
+                    sedang memverifikasi daftar siswa di ruangan kuis ini. Kamu akan otomatis masuk setelah disetujui.
+                  </>
+                )}
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/20">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
               <RiTimeLine className="size-4 shrink-0" />
-              <span>Status: Antrean Verifikasi Tamu</span>
+              <span>{isEn ? "Status: guest verification queue" : "Status: antrean verifikasi tamu"}</span>
             </div>
           </motion.div>
         )}
@@ -624,30 +599,45 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-10 px-6 bg-background-primary-default border border-border-button-default rounded-3xl shadow-card space-y-5"
           >
-            <div className="size-12 mx-auto rounded-2xl bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20 flex items-center justify-center shadow-xs">
+            <div className="size-12 mx-auto rounded-2xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center shadow-xs">
               <RiBookOpenLine className="size-6" aria-hidden />
             </div>
 
             <div className="space-y-1.5">
               <h2 className="text-title-2-semibold text-text-primary">
-                Kamu sudah berada di dalam ruangan
+                {isEn ? "You are inside the room" : "Kamu sudah berada di dalam ruangan"}
               </h2>
               <p className="text-body-regular text-text-secondary max-w-md mx-auto">
-                Tunggu Bapak/Ibu Guru{" "}
-                <strong className="text-body-semibold text-text-primary">
-                  {roomState.hostName || "Pengajar Exile"}
-                </strong>{" "}
-                memulai kuis dari layar utama.
+                {isEn ? (
+                  <>
+                    Please wait for educator{" "}
+                    <strong className="text-body-semibold text-text-primary">
+                      {roomState.hostName || "Exile educator"}
+                    </strong>{" "}
+                    to start the quiz from the main display.
+                  </>
+                ) : (
+                  <>
+                    Tunggu pengajar{" "}
+                    <strong className="text-body-semibold text-text-primary">
+                      {roomState.hostName || "Pengajar exile"}
+                    </strong>{" "}
+                    memulai kuis dari layar utama.
+                  </>
+                )}
               </p>
             </div>
 
             <div className="flex items-center justify-center">
-              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
+              <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                 <span className="relative flex size-2">
-                  <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-[#0F766E] opacity-50" />
-                  <span className="relative inline-flex rounded-full size-2 bg-[#0F766E]" />
+                  <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-accent-700 opacity-50" />
+                  <span className="relative inline-flex rounded-full size-2 bg-accent-700" />
                 </span>
-                <span>Terhubung ke Ruangan <bdi className="font-mono font-semibold">{roomCode}</bdi></span>
+                <span>
+                  {isEn ? `Connected to room ` : `Terhubung ke ruangan `}
+                  <bdi className="font-mono font-semibold">{roomCode}</bdi>
+                </span>
               </span>
             </div>
           </motion.div>
@@ -659,34 +649,35 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             <div className="space-y-2.5">
               <div className="flex items-center justify-between gap-2">
                 <Chip variant="subtle" color="gray" className="px-2.5 py-1">
-                  Pertanyaan {(roomState.currentQuestionIndex || 0) + 1} dari{" "}
-                  {roomState.totalQuestions}
+                  {isEn
+                    ? `Question ${(roomState.currentQuestionIndex || 0) + 1} of ${roomState.totalQuestions}`
+                    : `Pertanyaan ${(roomState.currentQuestionIndex || 0) + 1} dari ${roomState.totalQuestions}`}
                 </Chip>
 
                 <span
                   className={cx(
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums border",
                     timeLeft <= 5
-                      ? "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/30"
+                      ? "bg-[#D97706]/10 text-text-error-primary border-[#D97706]/30"
                       : "bg-background-primary-default text-text-secondary border-border-button-default"
                   )}
                 >
                   <RiTimeLine className="size-4 shrink-0" aria-hidden />
-                  <span>{timeLeft} detik</span>
+                  <span>{timeLeft} {isEn ? "sec" : "detik"}</span>
                 </span>
               </div>
 
               <ProgressTrack
                 percentage={timerPercent}
                 size="md"
-                className={timeLeft <= 5 ? "text-[#D97706]" : "text-[#0F766E]"}
+                className={timeLeft <= 5 ? "text-text-error-primary" : "text-accent-700"}
               />
             </div>
 
             <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-3">
               <div className="flex items-center gap-2 flex-wrap">
                 {roomState.currentQuestion.conceptTag && (
-                  <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
+                  <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                     {roomState.currentQuestion.conceptTag}
                   </span>
                 )}
@@ -702,6 +693,25 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
               </h2>
             </div>
 
+            {isTimeUp && (
+              <div
+                role="status"
+                className="flex items-start gap-3 rounded-2xl border border-border-error-default bg-background-tertiary-error p-4 text-caption-1-medium text-text-error-primary"
+              >
+                <RiTimeLine className="mt-0.5 size-4 shrink-0" aria-hidden />
+                <div>
+                  <span className="block text-body-2-semibold">
+                    {isEn ? "Time is up" : "Waktu habis"}
+                  </span>
+                  <span>
+                    {isEn
+                      ? "This question is locked. Wait for your teacher to open the next one."
+                      : "Soal ini sudah dikunci. Tunggu pengajar membuka soal berikutnya."}
+                  </span>
+                </div>
+              </div>
+            )}
+
             {!hasAnsweredCurrentQ ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {roomState.currentQuestion.options.map((option) => {
@@ -711,7 +721,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                       key={option.label}
                       type="button"
                       onClick={() => handleSelectOption(option.label)}
-                      disabled={submitting}
+                      disabled={submitting || isTimeUp}
                       className={cx(
                         "group p-4 rounded-2xl border text-start transition flex items-start gap-3 cursor-pointer shadow-card",
                         "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
@@ -725,7 +735,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                         className={cx(
                           "size-7 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0 border transition-colors",
                           isSelected
-                            ? "bg-[#0F766E] text-white border-[#0F766E]"
+                            ? "bg-accent-700 text-white border-accent-700"
                             : "bg-questionnaire-key-background text-text-primary border-border-button-default"
                         )}
                       >
@@ -745,7 +755,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                 className={cx(
                   "p-6 rounded-3xl border shadow-card space-y-4",
                   lastSubmissionResult?.isCorrect
-                    ? "bg-[#0F766E]/5 border-[#0F766E]/30"
+                    ? "bg-accent-700/5 border-accent-700/30"
                     : "bg-[#D97706]/5 border-[#D97706]/30"
                 )}
               >
@@ -754,7 +764,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                     className={cx(
                       "size-10 rounded-xl flex items-center justify-center shrink-0 border",
                       lastSubmissionResult?.isCorrect
-                        ? "bg-[#0F766E] text-white border-[#0F766E]"
+                        ? "bg-accent-700 text-white border-accent-700"
                         : "bg-[#D97706] text-white border-[#D97706]"
                     )}
                   >
@@ -767,30 +777,42 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
 
                   <div>
                     <h3 className="text-headline-semibold text-text-primary flex items-center gap-2">
-                      {lastSubmissionResult?.isCorrect ? "Benar" : "Perlu diulang"}
+                      {lastSubmissionResult?.isCorrect
+                        ? (isEn ? "Correct" : "Benar")
+                        : (isEn ? "Needs review" : "Perlu diulang")}
                     </h3>
                     <p className="text-caption-1-medium text-text-secondary">
                       {lastSubmissionResult?.isCorrect
-                        ? `+${lastSubmissionResult.scoreAwarded} poin diperoleh.`
-                        : "Perhatikan ulasan konsep di bawah ini:"}
+                        ? (isEn
+                            ? `+${lastSubmissionResult.scoreAwarded} points awarded.`
+                            : `+${lastSubmissionResult.scoreAwarded} poin diperoleh.`)
+                        : (isEn
+                            ? "Review concept explanation below:"
+                            : "Perhatikan ulasan konsep di bawah ini:")}
                     </p>
                   </div>
                 </div>
 
                 <div className="p-4 rounded-2xl bg-background-primary-default border border-border-button-default text-body-regular text-text-secondary shadow-xs space-y-1">
                   <span className="text-caption-1-semibold text-text-primary block">
-                    {lastSubmissionResult?.isCorrect ? "Ulasan Kunci Jawaban:" : "Ulasan Pemahaman Konsep:"}
+                    {lastSubmissionResult?.isCorrect
+                      ? (isEn ? "Answer key review:" : "Ulasan kunci jawaban:")
+                      : (isEn ? "Conceptual understanding review:" : "Ulasan pemahaman konsep:")}
                   </span>
                   <p className="text-body-regular text-text-primary">
                     {lastSubmissionResult?.microFeedback ||
                       lastSubmissionResult?.explanation ||
-                      "Jawaban telah tersimpan di sistem."}
+                      (isEn ? "Answer recorded in session." : "Jawaban telah tersimpan di sistem.")}
                   </p>
                 </div>
 
                 <div className="flex items-center justify-center gap-2 text-caption-1-medium text-text-secondary pt-1">
                   <span className="size-2 rounded-full bg-[#9CA3AF]" />
-                  <span>Menunggu guru membuka pertanyaan berikutnya...</span>
+                  <span>
+                    {isEn
+                      ? "Waiting for educator to open next question..."
+                      : "Menunggu guru membuka pertanyaan berikutnya..."}
+                  </span>
                 </div>
               </motion.div>
             )}
@@ -806,12 +828,12 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
           >
             <div className="text-center pb-3 border-b border-separator-border space-y-1">
               <h2 className="text-title-3-semibold text-text-primary">
-                Papan Skor Sementara
+                {isEn ? "Interim scoreboard" : "Papan skor sementara"}
               </h2>
               <p className="text-caption-1-medium text-text-secondary">
-                Peringkat kamu saat ini:{" "}
-                <strong className="text-text-primary">#{myRank}</strong> (
-                {myScore.toLocaleString()} poin)
+                {isEn
+                  ? `Your current rank: #${myRank} (${myScore.toLocaleString()} pts)`
+                  : `Peringkat kamu saat ini: #${myRank} (${myScore.toLocaleString()} poin)`}
               </p>
             </div>
 
@@ -844,12 +866,12 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                           initials={getInitials(player.nickname)}
                         />
                         <span className="text-body-medium text-text-primary truncate">
-                          {player.nickname} {isMe && "(Kamu)"}
+                          {player.nickname} {isMe && (isEn ? "(you)" : "(kamu)")}
                         </span>
                       </div>
 
                       <span className="px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums bg-background-primary-default border border-border-button-default">
-                        {player.score.toLocaleString()} poin
+                        {player.score.toLocaleString()} {isEn ? "pts" : "poin"}
                       </span>
                     </div>
                   );
@@ -870,20 +892,20 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             animate={{ opacity: 1, scale: 1 }}
             className="text-center py-8 px-6 bg-background-primary-default border border-border-button-default rounded-3xl shadow-card space-y-6"
           >
-            <div className="size-12 mx-auto rounded-2xl bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20 flex items-center justify-center shadow-xs">
+            <div className="size-12 mx-auto rounded-2xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center shadow-xs">
               <RiTrophyLine className="size-6" aria-hidden />
             </div>
 
             <div className="space-y-1">
               <h2 className="text-title-2-semibold text-text-primary">
-                Sesi Kuis Selesai!
+                {isEn ? "Quiz session completed!" : "Sesi kuis selesai!"}
               </h2>
               <p className="text-body-regular text-text-secondary">
-                Total perolehan kamu:{" "}
+                {isEn ? "Your total score: " : "Total perolehan kamu: "}
                 <strong className="text-body-semibold text-text-primary">
-                  {myScore.toLocaleString()} poin
+                  {myScore.toLocaleString()} {isEn ? "pts" : "poin"}
                 </strong>{" "}
-                (Peringkat #{myRank}).
+                ({isEn ? `rank #${myRank}` : `peringkat #${myRank}`}).
               </p>
             </div>
 
@@ -891,11 +913,11 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-3 text-start">
               <div className="flex items-center justify-between">
                 <span className="text-body-semibold text-text-primary flex items-center gap-1.5">
-                  <RiBarChartBoxLine className="size-4 text-[#0F766E]" />
-                  Telemetri Hasil Belajarmu
+                  <RiBarChartBoxLine className="size-4 text-accent-700" />
+                  {isEn ? "Your learning performance summary" : "Rangkuman hasil belajarmu"}
                 </span>
-                <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
-                  Akurasi: {accuracyPercent}%
+                <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                  {isEn ? "Accuracy: " : "Akurasi: "}{accuracyPercent}%
                 </span>
               </div>
 
@@ -906,18 +928,23 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                     className="p-2.5 rounded-xl bg-background-primary-default border border-border-button-default flex items-center justify-between text-caption-1-medium"
                   >
                     <span className="truncate">
-                      Soal #{item.questionOrder}: {item.concept}
+                      {isEn ? `Question #${item.questionOrder}: ` : `Soal #${item.questionOrder}: `}
+                      {item.concept}
                     </span>
                     <span
                       className={cx(
-                        "inline-flex items-center gap-1 px-2 py-0.5 rounded text-caption-2-medium shrink-0",
+                        "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-caption-2-medium shrink-0",
                         item.isCorrect
-                          ? "bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20"
-                          : "bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/20"
+                          ? "bg-accent-700/10 text-accent-700 border border-accent-700/20"
+                          : "bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20"
                       )}
                     >
                       {item.isCorrect ? <RiCheckLine className="size-3" /> : <RiRestartLine className="size-3" />}
-                      <span>{item.isCorrect ? "Benar" : "Perlu diulang"}</span>
+                      <span>
+                        {item.isCorrect
+                          ? (isEn ? "Correct" : "Benar")
+                          : (isEn ? "Needs review" : "Perlu diulang")}
+                      </span>
                     </span>
                   </div>
                 ))}
@@ -931,7 +958,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                 leadingIcon={RiPlayCircleLine}
                 className="flex-1"
               >
-                Masuk ke Ruang Lain
+                {isEn ? "Join another room" : "Masuk ke ruang lain"}
               </ButtonLink>
               <ButtonLink
                 href="/"
@@ -939,7 +966,7 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                 leadingIcon={RiArrowLeftLine}
                 className="flex-1"
               >
-                Kembali ke Beranda
+                {isEn ? "Back to home" : "Kembali ke beranda"}
               </ButtonLink>
             </div>
           </motion.div>
@@ -957,11 +984,11 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
           >
             <div className="flex items-center justify-between pb-2 border-b border-separator-border">
               <div className="flex items-center gap-2">
-                <div className="size-8 rounded-xl bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20 flex items-center justify-center">
-                  <RiSparklingLine className="size-4" />
+                <div className="size-8 rounded-xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center">
+                  <RiCopilotFill className="size-4" />
                 </div>
                 <h4 className="text-body-semibold text-text-primary">
-                  Exile Student Copilot
+                  {isEn ? "Exile student copilot" : "Copilot siswa exile"}
                 </h4>
               </div>
               <button
@@ -977,17 +1004,29 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
             <div className="flex flex-wrap gap-1.5">
               <button
                 type="button"
-                onClick={() => handleAskStudentCopilot("Rangkumkan penjelasan materi pembelajaran saat ini.")}
+                onClick={() =>
+                  handleAskStudentCopilot(
+                    isEn
+                      ? "Summarize the current lesson material."
+                      : "Rangkumkan penjelasan materi pembelajaran saat ini."
+                  )
+                }
                 className="cursor-pointer px-2.5 py-1 rounded-lg bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-[11px] text-text-primary"
               >
-                Rangkum Penjelasan Guru
+                {isEn ? "Summarize lesson" : "Rangkum penjelasan guru"}
               </button>
               <button
                 type="button"
-                onClick={() => handleAskStudentCopilot("Saya belum mengerti maksud soal aktif ini, beri petunjuk.")}
+                onClick={() =>
+                  handleAskStudentCopilot(
+                    isEn
+                      ? "Give me a hint on this active question."
+                      : "Saya belum mengerti maksud soal aktif ini, beri petunjuk."
+                  )
+                }
                 className="cursor-pointer px-2.5 py-1 rounded-lg bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-[11px] text-text-primary"
               >
-                Beri Petunjuk Soal Ini
+                {isEn ? "Hint for current question" : "Beri petunjuk soal ini"}
               </button>
             </div>
 
@@ -1000,21 +1039,21 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                     "p-3 rounded-2xl whitespace-pre-wrap leading-relaxed max-w-[90%]",
                     msg.role === "user"
                       ? "ms-auto bg-background-primary-default text-text-primary border border-border-button-default"
-                      : "me-auto bg-background-primary-default border border-[#0F766E]/20 text-text-primary shadow-2xs"
+                      : "me-auto bg-background-primary-default border border-accent-700/20 text-text-primary shadow-2xs"
                   )}
                 >
                   {msg.role === "assistant" && (
-                    <span className="text-[10px] font-semibold text-[#0F766E] uppercase block mb-1">
+                    <span className="text-[10px] font-semibold text-accent-700 block mb-1">
                       Copilot
                     </span>
                   )}
-                  {msg.content}
+                  <FormattedMessage content={msg.content} />
                 </div>
               ))}
               {copilotLoading && (
-                <div className="p-2.5 rounded-2xl me-auto bg-background-primary-default border border-[#0F766E]/20 flex items-center gap-2 text-caption-2-medium text-text-secondary">
+                <div className="p-2.5 rounded-2xl me-auto bg-background-primary-default border border-accent-700/20 flex items-center gap-2 text-caption-2-medium text-text-secondary">
                   <Spinner size="xs" />
-                  <span>Copilot sedang mengetik...</span>
+                  <span>{isEn ? "Copilot is typing..." : "Copilot sedang mengetik..."}</span>
                 </div>
               )}
             </div>
@@ -1031,7 +1070,11 @@ export default function PlayArenaClient({ roomCode }: { roomCode: string }) {
                 type="text"
                 value={copilotInput}
                 onChange={(e) => setCopilotInput(e.target.value)}
-                placeholder="Tanyakan konsep yang belum kamu mengerti..."
+                placeholder={
+                  isEn
+                    ? "Ask any concept you don't understand..."
+                    : "Tanyakan konsep yang belum kamu mengerti..."
+                }
                 className="flex-1 px-3.5 py-2 rounded-xl bg-background-secondary-default border border-border-button-default text-caption-1-medium text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus-ring"
               />
               <Button

@@ -1,75 +1,46 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { callAI } from "@/lib/ai/gateway";
-import {
-  buildMicroExplanationPrompt,
-  MicroExplanationSchema,
-} from "@/lib/ai/prompts";
+import { chatText, AIUnavailableError } from "@/lib/ai/llm";
+import { checkRateLimit } from "@/lib/security/rate-limiter";
 
-const ExplainErrorRequestSchema = z.object({
-  question: z.string().min(3, "Question text is required"),
-  selectedOption: z.string().min(1, "Selected option is required"),
-  correctOption: z.string().min(1, "Correct option is required"),
-  options: z
-    .array(
-      z.object({
-        label: z.string(),
-        text: z.string(),
-      })
-    )
-    .optional(),
+const BodySchema = z.object({
+  question: z.string().min(3),
+  selectedOption: z.string().min(1),
+  correctOption: z.string().min(1),
+  options: z.array(z.object({ label: z.string(), text: z.string() })).optional(),
   conceptTag: z.string().optional(),
 });
 
 export async function POST(req: Request) {
+  const rateLimit = await checkRateLimit(req, 20, 60_000);
+  if (!rateLimit.allowed && rateLimit.errorResponse) return rateLimit.errorResponse;
+
+  const parsed = BodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Format permintaan tidak valid" }, { status: 400 });
+  }
+  const { question, selectedOption, correctOption, options, conceptTag } = parsed.data;
+
+  const optionText = (label: string) => options?.find((o) => o.label === label)?.text ?? label;
+
   try {
-    const rawBody = await req.json().catch(() => ({}));
-    const parsed = ExplainErrorRequestSchema.safeParse(rawBody);
-
-    if (!parsed.success) {
-      return NextResponse.json(
+    const feedback = await chatText(
+      [
         {
-          success: false,
-          error: "Invalid request payload",
-          details: parsed.error.issues,
+          role: "system",
+          content:
+            "Kamu menjelaskan kepada siswa kenapa jawabannya salah. Tulis maksimal dua kalimat bahasa Indonesia yang santai dan jelas: apa yang keliru dari pilihannya, lalu apa yang benar. Jangan membuka dengan pujian atau kata 'Tentu'. Jangan memakai kata 'miskonsepsi'.",
         },
-        { status: 400 }
-      );
-    }
-
-    const { question, selectedOption, correctOption, options, conceptTag } =
-      parsed.data;
-
-    const { systemPrompt, prompt } = buildMicroExplanationPrompt(
-      question,
-      selectedOption,
-      correctOption,
-      options,
-      conceptTag
+        {
+          role: "user",
+          content: `Soal: ${question}\n${conceptTag ? `Topik: ${conceptTag}\n` : ""}Jawaban siswa: ${selectedOption}. ${optionText(selectedOption)}\nJawaban benar: ${correctOption}. ${optionText(correctOption)}`,
+        },
+      ],
+      { temperature: 0.3, timeoutMs: 20_000 }
     );
-
-    const result = await callAI(prompt, MicroExplanationSchema, {
-      systemPrompt,
-      temperature: 0.5,
-    });
-
-    return NextResponse.json({
-      success: true,
-      feedback: result.feedback,
-      misconceptionIdentified: result.misconceptionIdentified,
-      quickTip: result.quickTip,
-    });
-  } catch (err: unknown) {
-    console.error("[explain-error error]", err);
-    return NextResponse.json({
-      success: true,
-      feedback:
-        "Jawabanmu hampir tepat! Ingat bahwa kata untuk memuliakan orang lain (Alus Singgih) tidak boleh dipakai untuk diri sendiri.",
-      misconceptionIdentified:
-        "Tertukar antara Alus Singgih dan Alus Sor",
-      quickTip:
-        "Ingat: 'Singgih' = meninggikan guru/orang tua, 'Sor' = merendahkan diri sendiri (titiang nunas/matur)!",
-      fallbackActivated: true,
-    });
+    return NextResponse.json({ success: true, feedback });
+  } catch (err) {
+    const status = err instanceof AIUnavailableError ? 502 : 500;
+    return NextResponse.json({ error: "Penjelasan tidak tersedia." }, { status });
   }
 }

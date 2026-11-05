@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 512 512" width="512" height="512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Tridatu Terracotta Accent Gradient -->
+    <linearGradient id="exile-crimson" x1="220" y1="200" x2="380" y2="360" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#FF5A4F" />
+      <stop offset="55%" stop-color="#EF4444" />
+      <stop offset="100%" stop-color="#B91C1C" />
+    </linearGradient>
+
+    <!-- Monolith Titanium Highlight -->
+    <linearGradient id="monolith-grad" x1="140" y1="120" x2="380" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#F5F2EB" />
+      <stop offset="100%" stop-color="#D8D2C7" />
+    </linearGradient>
+
+    <!-- Squircle Gradient (Subtle 8% lighting drop) -->
+    <linearGradient id="tile-grad" x1="256" y1="32" x2="256" y2="480" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#181715" />
+      <stop offset="100%" stop-color="#0D0C0B" />
+    </linearGradient>
+
+    <!-- Ambient Occlusion / Drop Shadow -->
+    <filter id="master-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.45" />
+      <feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+
+    <filter id="crimson-glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="12" flood-color="#EF4444" flood-opacity="0.35" />
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.25" />
+    </filter>
+
+    <!-- Apple continuous squircle path clip if needed -->
+    <clipPath id="squircle-clip">
+      <rect x="36" y="36" width="440" height="440" rx="104" />
+    </clipPath>
+  </defs>
+
+  
+
+  <!-- =========================================================================
+       THE EXILE TOPOLOGICAL EMBLEM (Masterpiece Glyph)
+       ========================================================================= -->
+  <g id="exile-emblem" filter="url(#master-shadow)">
+    <!-- 1. The Monolithic Foundation & Upper Canopy (Forms the architectural E) -->
+    <!-- Top Bar: x=144 to 356, y=124 to 184 -->
+    <!-- Vertical Spine: x=144 to 228, y=124 to 388 -->
+    <!-- Bottom Bar: x=144 to 356, y=328 to 388 -->
+    <path d="
+      M 160 124 
+      L 344 124 
+      C 355.05 124 364 132.95 364 144 
+      L 364 168 
+      C 364 179.05 355.05 188 344 188 
+      L 236 188 
+      L 236 324 
+      L 344 324 
+      C 355.05 324 364 332.95 364 344 
+      L 364 368 
+      C 364 379.05 355.05 388 344 388 
+      L 160 388 
+      C 148.95 388 140 379.05 140 368 
+      L 140 144 
+      C 140 132.95 148.95 124 160 124 
+      Z
+    " fill="url(#monolith-grad)" />
+
+    <!-- 2. Spine Chamfer & Visual Depth Cut (Gives tactile bevel to the monolithic spine) -->
+    <path d="
+      M 142 144 
+      L 142 368 
+      L 172 352 
+      L 172 160 
+      Z
+    " fill="#B5ADA0" opacity="0.3" />
+
+    <!-- 3. The Middle Cantilever Core (Negative Space Separator) -->
+    <path d="
+      M 236 236 
+      L 296 236 
+      C 304.84 236 312 243.16 312 252 
+      L 312 260 
+      C 312 268.84 304.84 276 296 276 
+      L 236 276 
+      Z
+    " fill="url(#monolith-grad)" />
+
+    <!-- 4. The Closed-Loop Formative Ribbon (Terracotta Crimson / Tridatu Focus) -->
+    <!-- This dynamic isometric ribbon loops seamlessly from the bottom tier, 
+         sweeps upward through a 45-degree angle, and injects into the center core, 
+         embodying the closed-loop formative evaluation cycle -->
+    <path d="
+      M 312 236
+      L 364 184
+      C 372.5 175.5 388 181.5 388 193.5
+      L 388 318.5
+      C 388 330.5 372.5 336.5 364 328
+      L 312 276
+      L 332 256
+      Z
+    " fill="url(#exile-crimson)" filter="url(#crimson-glow)" />
+
+    <!-- 5. Optical Precision Core (The Formative Focal Point) -->
+    <!-- A clean circular aperture cut right at the convergence axis -->
+    <circle cx="360" cy="256" r="7" fill="#141312" stroke="url(#exile-crimson)" stroke-width="2.5" />
+
+    <!-- 6. Specular Chamfer Hairline (Top edge gleam) -->
+    <line x1="162" y1="125" x2="342" y2="125" stroke="rgba(255, 255, 255, 0.25)" stroke-width="1.5" stroke-linecap="round" />
+  </g>
+</svg>

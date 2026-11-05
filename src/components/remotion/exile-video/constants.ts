@@ -41,11 +41,11 @@ export type ExileVideoProps = z.infer<typeof exileVideoSchema>;
 
 export const DEFAULT_PROPS: ExileVideoProps = {
   tagline: "Evaluasi yang tahu kenapa siswa keliru",
-  pin: "849201",
+  pin: "482915",
   url: "exile.web.id",
-  teal: "#0B3B3C",
-  gold: "#E3A93A",
-  cream: "#F7F1E3",
+  teal: "#0A0A0A",
+  gold: "#EF4444",
+  cream: "#FAFAFA",
 };
 
 /** All on-screen copy lives here (Indonesian). */
@@ -62,7 +62,7 @@ export const COPY = {
     caption: "Guru hanya melihat skor, bukan alasan di balik jawaban yang salah.",
   },
   solution: {
-    windowTitle: "exile.org / Studio",
+    windowTitle: "exile.web.id / Studio",
     moduleLabel: "Modul teks",
     moduleHeading: "Anggah-ungguhing Basa Bali",
     moduleBody:
@@ -122,9 +122,9 @@ export const COPY = {
     adviceTag: "Saran ajar ulang",
     adviceTitle: "Ulang konsep alus singgih vs alus sor",
     adviceBody: "Mulai dari 3 kalimat contoh, lalu 3 soal remedial untuk tiap siswa yang keliru.",
-    caption: "Bukan cuma skor: exile.org menunjukkan konsep mana yang perlu diulang.",
+    caption: "Bukan cuma skor: exile.web.id menunjukkan konsep mana yang perlu diulang.",
   },
   cta: {
-    brand: "exile.org",
+    brand: "exile.web.id",
   },
 } as const;

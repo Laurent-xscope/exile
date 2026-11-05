@@ -1,0 +1,99 @@
+{
+  "project": "Exile - Frontier-Grade Learning & Assessment Platform",
+  "version": "2.0.0",
+  "stories": [
+    {
+      "id": "US-001",
+      "title": "Remove gold theme and implement clean Light/Dark mode with toggle",
+      "priority": 1,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Gold color tokens (#CA8A04, text-amber/yellow) removed in favor of clean high-contrast neutral palette (slate/zinc: black, white, gray, emerald for success)",
+        "next-themes ThemeProvider integrated into root layout with attribute='class' and defaultTheme='system'",
+        "Universal theme toggle component (Sun/Moon) available in header on all pages (Landing, Studio, Host, Play)",
+        "Both dark mode (dark:bg-zinc-950 dark:text-zinc-100) and light mode (bg-white text-zinc-900) look crisp and readable with high contrast"
+      ]
+    },
+    {
+      "id": "US-002",
+      "title": "Universal Settings Modal & persistent preferences",
+      "priority": 2,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Global Settings button/drawer in top navigation bar across all pages",
+        "Configurable toggles: Sound effects (On/Off), Volume slider, Question timer duration default (15s, 20s, 30s), High contrast mode, and Language preview",
+        "Settings persist to localStorage under 'exile_user_settings' and hydrate on mount",
+        "Closing settings applies changes immediately across the active session"
+      ]
+    },
+    {
+      "id": "US-003",
+      "title": "Set up Supabase Auth & Google OAuth login flow",
+      "priority": 3,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Dedicated /login and /auth/callback route configured using @supabase/supabase-js",
+        "Google OAuth provider button with clean iconography and loading states",
+        "Email/Password magic link or credentials option with input validation",
+        "Auth status drawer in header: displays avatar, name, and logout when authenticated, or 'Masuk / Daftar' when unauthenticated",
+        "Teachers can sign in before hosting to save quizzes to their account, with seamless guest fallback"
+      ]
+    },
+    {
+      "id": "US-004",
+      "title": "Standardize battle-tested UI primitives (no sloppy rewrites)",
+      "priority": 4,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Eliminate fragile custom HTML controls in favor of standard components (Lucide/Remix icons, Sonner toasts, next-themes, TanStack Table)",
+        "Mobile-first responsive layout with proper tap targets and flex/grid reflow",
+        "Clear accessible focus rings (focus-visible:ring-2 focus-visible:ring-zinc-400)"
+      ]
+    },
+    {
+      "id": "US-005",
+      "title": "Audit and eradicate all hardcoding",
+      "priority": 5,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Zero static mock PINs (no '849201' hardcoded as permanent input default)",
+        "Zero static student counts (real player count from state.players.length)",
+        "Dynamic room creation from Studio generates a unique 6-digit PIN and redirects to host",
+        "Student arena joins via real PIN, registers player in Supabase, and updates tally in real time"
+      ]
+    },
+    {
+      "id": "US-006",
+      "title": "Performance, caching, and resilient API architecture",
+      "priority": 6,
+      "passes": true,
+      "acceptanceCriteria": [
+        "Lightweight polling with etag/state comparison or Supabase Realtime WebSocket events",
+        "Cache-Control headers configured for static assets and dynamic route handlers",
+        "No heavy uncompressed client bundles or redundant background fetches"
+      ]
+    },
+    {
+      "id": "US-007",
+      "title": "Verification loop, E2E browser test & Quality rubric sign-off",
+      "priority": 7,
+      "passes": true,
+      "acceptanceCriteria": [
+        "scripts/verify-full passes with 0 TypeScript errors and 0 lint failures",
+        "agent-browser tests theme toggle (light/dark), settings modal, studio quiz launch, and student game arena",
+        "All acceptance criteria verified with fresh evidence before marking complete"
+      ]
+    },
+    {
+      "id": "US-008",
+      "title": "Production Vercel deployment & custom domain live verification",
+      "priority": 8,
+      "passes": false,
+      "acceptanceCriteria": [
+        "Production build deployed to Vercel",
+        "https://www.exile.web.id and https://exile.web.id respond with HTTP 200/308 over HTTPS",
+        "Let's Encrypt SSL certificate remains valid and functional"
+      ]
+    }
+  ]
+}

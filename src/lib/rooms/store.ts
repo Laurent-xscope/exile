@@ -1,5 +1,23 @@
-import { supabase } from "@/lib/supabase";
+import {
+  getSupabaseAdmin,
+  isDatabaseEnabled,
+} from "@/lib/supabase-admin";
 import type { Question } from "@/lib/ai/prompts";
+import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
+import {
+  calculateResponseScore,
+  deriveScoreBreakdown,
+  evaluateQuizResponse,
+  type ScoreBreakdown,
+} from "@/lib/quiz/scoring";
+
+// Guarded at every call site: when no service-role key is configured the app
+// runs in stateless in-memory mode and this client is never used.
+const supabase = getSupabaseAdmin();
+function db() {
+  if (!supabase) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required when Supabase is configured.");
+  return supabase;
+}
 
 export interface PlayerRecord {
   id: string;
@@ -11,6 +29,13 @@ export interface PlayerRecord {
   isConnected: boolean;
   lastSeenAt: string;
   status: "approved" | "pending" | "rejected";
+  token: string;
+}
+
+export interface LeaderboardScoreBreakdown extends ScoreBreakdown {
+  total: number;
+  correctAnswers: number;
+  submissions: number;
 }
 
 export interface SubmissionRecord {
@@ -30,6 +55,7 @@ export interface GameRoomRecord {
   id: string;
   roomCode: string;
   quizId: string;
+  hostToken: string;
   hostName: string;
   status: "waiting" | "active" | "question_active" | "showing_leaderboard" | "finished";
   currentQuestionIndex: number;
@@ -55,215 +81,56 @@ function withTimeout<T>(promise: PromiseLike<T>, ms = 1500): Promise<T | null> {
   ]);
 }
 
-export const DEFAULT_ROOM_QUESTIONS: Question[] = [
-  {
-    id: "a1111111-1111-1111-1111-111111111111",
-    questionOrder: 1,
-    question:
-      "Manakah langkah awal yang paling tepat sebelum merumuskan hipotesis dalam sebuah penyelidikan ilmiah?",
-    options: [
-      {
-        label: "A",
-        text: "Mengamati fenomena dan merumuskan pertanyaan masalah",
-        isCorrect: true,
-        distractorRationale:
-          "Kunci benar: Pengamatan terarah dan rumusan masalah yang jelas menjadi landasan utama penyusunan hipotesis teruji.",
-      },
-      {
-        label: "B",
-        text: "Menarik kesimpulan akhir secara langsung tanpa pengujian",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Kesimpulan hanya dapat ditarik setelah pengumpulan data dan analisis bukti selesai dilakukan.",
-      },
-      {
-        label: "C",
-        text: "Mempublikasikan hipotesis tanpa verifikasi eksperimen",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Publikasi ilmiah menuntut prosedur verifikasi, telaah sejawat, dan replikasi metodologis.",
-      },
-      {
-        label: "D",
-        text: "Mengubah data mentah agar sesuai dengan ekspektasi awal",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Manipulasi data melanggar integritas ilmiah dan menghasilkan kesimpulan yang tidak valid.",
-      },
-    ],
-    correctAnswer: "A",
-    explanation:
-      "Metode ilmiah selalu diawali dengan observasi sistematis untuk mengidentifikasi variabel dan merumuskan masalah sebelum menyusun dugaan sementara (hipotesis).",
-    conceptTag: "Metode Ilmiah: Observasi & Rumusan Masalah",
-    culturalContext: "Prinsip Berpikir Kritis & Riset Terstruktur",
-  },
-  {
-    id: "a2222222-2222-2222-2222-222222222222",
-    questionOrder: 2,
-    question:
-      "Jika grafik kecepatan terhadap waktu (v-t) menunjukkan garis lurus horizontal di atas sumbu waktu, apa karakteristik gerak benda tersebut?",
-    options: [
-      {
-        label: "A",
-        text: "Benda bergerak dengan kecepatan konstan (percepatan nol)",
-        isCorrect: true,
-        distractorRationale:
-          "Kunci benar: Garis horizontal pada kurva v-t menandakan nilai kecepatan tetap seiring bertambahnya waktu.",
-      },
-      {
-        label: "B",
-        text: "Benda berada dalam kondisi diam total tanpa perpindahan",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Benda diam diwakili oleh garis pada v = 0 atau garis horizontal pada grafik posisi (s-t).",
-      },
-      {
-        label: "C",
-        text: "Kecepatan benda bertambah secara eksponensial seiring waktu",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Kecepatan bertambah menghasilkan garis miring ke atas (gradien positif).",
-      },
-      {
-        label: "D",
-        text: "Benda mengalami perlambatan konstan menuju berhenti",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Perlambatan ditandai dengan gradien miring ke bawah menuju nilai nol.",
-      },
-    ],
-    correctAnswer: "A",
-    explanation:
-      "Pada grafik kecepatan terhadap waktu, kemiringan (gradien) menyatakan percepatan. Garis datar horizontal memiliki gradien nol, sehingga percepatan a = 0 (Gerak Lurus Beraturan).",
-    conceptTag: "Kinematika: Interpretasi Grafik Gerak",
-    culturalContext: "Literasi Numerasi & Analisis Data",
-  },
-  {
-    id: "a3333333-3333-3333-3333-333333333333",
-    questionOrder: 3,
-    question:
-      "Dalam jejaring ekosistem, jika populasi herbivora mengalami penurunan drastis secara tiba-tiba, dampak jangka pendek yang paling logis adalah...",
-    options: [
-      {
-        label: "A",
-        text: "Biomassa produsen cenderung meningkat dan karnivora primer mengalami defisit pangan",
-        isCorrect: true,
-        distractorRationale:
-          "Kunci benar: Berkurangnya pemangsa produsen memberi ruang vegetasi pulih, sementara predator di atasnya kehilangan mangsa utama.",
-      },
-      {
-        label: "B",
-        text: "Seluruh tingkatan trofik langsung musnah tanpa adaptasi",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Ekosistem memiliki mekanisme penyangga dinamis, kepunahan masal seketika tidak terjadi.",
-      },
-      {
-        label: "C",
-        text: "Energi matahari berhenti masuk ke sistem fotosintesis",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Energi matahari merupakan faktor abiotik independen dari populasi trofik.",
-      },
-      {
-        label: "D",
-        text: "Pengurai (dekomposer) berhenti mendaur ulang zat hara tanah",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Dekomposer tetap mengurai sisa organik dari tumbuhan maupun bangkai hewan yang mati.",
-      },
-    ],
-    correctAnswer: "A",
-    explanation:
-      "Herbivora berfungsi sebagai jembatan transfer energi dari produsen ke karnivora. Penurunan populasi ini menekan predator sekunder sekaligus mengurangi laju konsumsi tumbuhan.",
-    conceptTag: "Ekologi: Dinamika Rantai Makanan & Trofik",
-    culturalContext: "Keseimbangan Ekosistem & Biosfer",
-  },
-  {
-    id: "a4444444-4444-4444-4444-444444444444",
-    questionOrder: 4,
-    question:
-      "Ketika mengevaluasi keabsahan data digital atau artikel informasi, langkah verifikasi primer yang paling dianjurkan adalah...",
-    options: [
-      {
-        label: "A",
-        text: "Melakukan uji silang rujukan primer dan memverifikasi metodologi sumber",
-        isCorrect: true,
-        distractorRationale:
-          "Kunci benar: Penelusuran dokumen orisinal dan reputasi penerbit primer mencegah distorsi informasi sekunder.",
-      },
-      {
-        label: "B",
-        text: "Menyimpulkan validitas hanya dari banyaknya jumlah suka (likes) di media sosial",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Metrik popularitas algoritma media sosial tidak berkorelasi dengan akurasi fakta faktual.",
-      },
-      {
-        label: "C",
-        text: "Membaca tajuk utama sensasional tanpa meninjau isi tubuh teks",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Judul sensasional (clickbait) sering kali melebih-lebihkan atau tidak mencerminkan data isi.",
-      },
-      {
-        label: "D",
-        text: "Menerima informasi tanpa ragu jika ditulis dengan tata bahasa formal",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Format formal dapat disimulasikan dan tidak menjamin ketiadaan misinformasi.",
-      },
-    ],
-    correctAnswer: "A",
-    explanation:
-      "Literasi informasi kritis menuntut pengecekan bukti primer, identifikasi bias penulis, dan verifikasi silang independen.",
-    conceptTag: "Literasi Digital: Verifikasi Fakta & Bukti",
-    culturalContext: "Evaluasi Kritis Informasi Digital",
-  },
-  {
-    id: "a5555555-5555-5555-5555-555555555555",
-    questionOrder: 5,
-    question:
-      "Dalam diskusi kolaboratif pemecahan masalah kelas, tindakan yang paling mencerminkan komunikasi ilmiah efektif adalah...",
-    options: [
-      {
-        label: "A",
-        text: "Mendengarkan aktif perspektif kelompok dan menguji setiap argumen berdasarkan data objektif",
-        isCorrect: true,
-        distractorRationale:
-          "Kunci benar: Kolaborasi ilmiah bertumpu pada pertukaran ide terbuka yang divalidasi oleh bukti terukur.",
-      },
-      {
-        label: "B",
-        text: "Mempertahankan opini pribadi dengan menolak seluruh koreksi data dari teman",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Sikap defensif menutup peluang identifikasi kekeliruan konsep dan perbaikan solusi.",
-      },
-      {
-        label: "C",
-        text: "Menyerahkan seluruh keputusan tanpa memberikan kontribusi penalaran",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Sikap pasif menghambat sinergi pemecahan masalah multidimensi dalam kelompok.",
-      },
-      {
-        label: "D",
-        text: "Mengabaikan fakta jika bertentangan dengan asumsi awal mayoritas",
-        isCorrect: false,
-        distractorRationale:
-          "Pengecoh: Konsensus tanpa dukungan bukti empiris merupakan bias kelompok (groupthink).",
-      },
-    ],
-    correctAnswer: "A",
-    explanation:
-      "Komunikasi ilmiah yang sehat mengintegrasikan empati dialogis dengan ketatnya uji silang penalaran berbasis data.",
-    conceptTag: "Kolaborasi & Berpikir Kritis: Konsensus Ilmiah",
-    culturalContext: "Etika Diskusi & Pembelajaran Kolaboratif",
-  },
-];
+export const SEED_QUIZ_ID = "e1a84f3c-5026-4d2c-9749-34b865fa7b21";
 
-export const SEED_BALI_QUESTIONS = DEFAULT_ROOM_QUESTIONS;
+export class PlayerIdentityConflictError extends Error {
+  constructor() {
+    super("Nama ini sudah dipakai di ruangan. Gunakan perangkat yang sama atau pilih nama lain.");
+    this.name = "PlayerIdentityConflictError";
+  }
+}
+
+function safeEqual(a?: string | null, b?: string | null): boolean {
+  if (!a || !b || a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+function normalizeQuestions(input: Question[]): Question[] {
+  return input.map((q, idx) => {
+    const withShuffled = shuffleQuestionOptions(q);
+    return {
+      ...withShuffled,
+      id: isValidUuid(withShuffled.id) ? withShuffled.id : crypto.randomUUID(),
+      questionOrder: withShuffled.questionOrder ?? idx + 1,
+    };
+  });
+}
+
+async function loadQuestionsForQuiz(quizId: string): Promise<Question[]> {
+  if (!isDatabaseEnabled()) return [];
+  const { data, error } = await db().from("questions")
+    .select("*")
+    .eq("quiz_id", quizId)
+    .order("question_order", { ascending: true });
+
+  if (error || !data) return [];
+
+  return data.map((q) => ({
+    id: q.id,
+    questionOrder: q.question_order,
+    question: q.question_text,
+    options: q.options,
+    correctAnswer: q.correct_answer,
+    explanation: q.explanation,
+    conceptTag: q.concept_tag,
+    culturalContext: q.cultural_context || undefined,
+  }));
+}
+
 
 const inMemoryRooms = new Map<string, GameRoomRecord>();
 
@@ -286,6 +153,32 @@ export function generateRoomCode(): string {
   return pin;
 }
 
+export function shuffleQuestionOptions(q: Question): Question {
+  const options = [...q.options];
+  for (let i = options.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [options[i], options[j]] = [options[j], options[i]];
+  }
+  const labels: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
+  let newCorrectAnswer: "A" | "B" | "C" | "D" = "A";
+  const updatedOptions = options.map((opt, idx) => {
+    const label = labels[idx];
+    if (opt.isCorrect) {
+      newCorrectAnswer = label;
+    }
+    return {
+      ...opt,
+      label,
+    };
+  });
+
+  return {
+    ...q,
+    options: updatedOptions,
+    correctAnswer: newCorrectAnswer,
+  };
+}
+
 export async function createGameRoom(params: {
   quizId?: string;
   hostName?: string;
@@ -301,16 +194,18 @@ export async function createGameRoom(params: {
   const roomId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  const hasCustomQuestions = Boolean(params.questions && params.questions.length > 0);
-  let questions: Question[] = hasCustomQuestions
-    ? params.questions!.map((q, idx) => ({
-        ...q,
-        id: isValidUuid(q.id) ? q.id : crypto.randomUUID(),
-        questionOrder: q.questionOrder ?? idx + 1,
-      }))
-    : DEFAULT_ROOM_QUESTIONS.map((q) => ({ ...q }));
+  const providedQuestions = params.questions ?? [];
+  const validQuizId = isValidUuid(params.quizId) ? params.quizId! : null;
+  let questions = normalizeQuestions(providedQuestions);
+  let resolvedQuizId = validQuizId ?? SEED_QUIZ_ID;
 
-  if (params.settings?.shuffleQuestions) {
+  // A quiz id without inline questions must be hydrated from the database.
+  if (questions.length === 0) {
+    questions = await loadQuestionsForQuiz(resolvedQuizId);
+  }
+
+
+  if (params.settings?.shuffleQuestions && questions.length > 0) {
     questions = [...questions];
     for (let i = questions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -322,13 +217,9 @@ export async function createGameRoom(params: {
     }));
   }
 
-  let resolvedQuizId = isValidUuid(params.quizId)
-    ? params.quizId!
-    : "e1a84f3c-5026-4d2c-9749-34b865fa7b21";
-
-  if (!isValidUuid(params.quizId) || hasCustomQuestions) {
+  if (providedQuestions.length > 0) {
     const stored = await storeQuiz({
-      id: isValidUuid(params.quizId) ? params.quizId! : crypto.randomUUID(),
+      id: validQuizId ?? crypto.randomUUID(),
       title: "Kuis Kelas Exile",
       description: "Asesmen interaktif Kurikulum Merdeka",
       questions,
@@ -341,6 +232,7 @@ export async function createGameRoom(params: {
     id: roomId,
     roomCode,
     quizId: resolvedQuizId,
+    hostToken: crypto.randomUUID(),
     hostName: params.hostName?.trim() || "Guru",
     status: "waiting",
     currentQuestionIndex: 0,
@@ -361,16 +253,15 @@ export async function createGameRoom(params: {
   inMemoryRooms.set(roomCode, newRoom);
 
   try {
-    const isPlaceholder =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+    const isPlaceholder = !isDatabaseEnabled();
 
     if (!isPlaceholder) {
       await withTimeout(
-        supabase.from("game_rooms").insert({
+        db().from("game_rooms").insert({
           id: roomId,
           room_code: roomCode,
           quiz_id: newRoom.quizId,
+          host_token: newRoom.hostToken,
           host_name: newRoom.hostName,
           status: newRoom.status,
           current_question_index: 0,
@@ -388,22 +279,22 @@ export async function createGameRoom(params: {
 
 export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord | null> {
   const cached = inMemoryRooms.get(roomCode) || null;
-  if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 1500) {
+  // When the database is authoritative, keep only a very short cache so a
+  // different server instance cannot serve minutes-old room state.
+  if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 250) {
     return cached;
   }
 
   try {
-    const isPlaceholder =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+    const isPlaceholder = !isDatabaseEnabled();
 
     if (isPlaceholder) return cached;
 
     const synced = await withTimeout(
       Promise.all([
-        supabase.from("game_rooms").select("*").eq("room_code", roomCode).maybeSingle(),
-        supabase.from("players").select("*").eq("room_code", roomCode),
-        supabase.from("submissions").select("*").eq("room_code", roomCode),
+        db().from("game_rooms").select("*").eq("room_code", roomCode).maybeSingle(),
+        db().from("players").select("*").eq("room_code", roomCode),
+        db().from("submissions").select("*").eq("room_code", roomCode),
       ]),
       2000
     );
@@ -432,6 +323,7 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
           isConnected: p.is_connected,
           lastSeenAt: p.last_seen_at || new Date().toISOString(),
           status: (p.status as "approved" | "pending" | "rejected") || "approved",
+          token: p.player_token || "",
         });
       }
     }
@@ -460,11 +352,10 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
     }
     const submissions = Array.from(submissionsMap.values());
 
-    let questions: Question[] = cached?.questions || SEED_BALI_QUESTIONS;
+    let questions: Question[] = cached?.questions || [];
     if ((!cached || cached.questions.length === 0) && roomData.quiz_id) {
       const qRes = await withTimeout(
-        supabase
-          .from("questions")
+        db().from("questions")
           .select("*")
           .eq("quiz_id", roomData.quiz_id)
           .order("question_order", { ascending: true }),
@@ -489,7 +380,8 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
     const restoredRoom: GameRoomRecord = {
       id: roomData.id,
       roomCode: roomData.room_code,
-      quizId: roomData.quiz_id || cached?.quizId || "e1a84f3c-5026-4d2c-9749-34b865fa7b21",
+      quizId: roomData.quiz_id || cached?.quizId || SEED_QUIZ_ID,
+      hostToken: roomData.host_token || cached?.hostToken || "",
       hostName: roomData.host_name || cached?.hostName || "Guru",
       status: roomData.status || cached?.status || "waiting",
       currentQuestionIndex: roomData.current_question_index ?? cached?.currentQuestionIndex ?? 0,
@@ -521,10 +413,14 @@ export async function joinGameRoom(params: {
   roomCode: string;
   nickname: string;
   avatar?: string;
+  playerToken?: string;
 }): Promise<{ player: PlayerRecord; room: GameRoomRecord } | null> {
-  const room = await ensureRoomLoaded(params.roomCode);
+  const roomCode = normalizeRoomCode(params.roomCode);
+  if (!isValidRoomCode(roomCode)) return null;
 
-  if (!room) {
+  const room = await ensureRoomLoaded(roomCode);
+
+  if (!room || room.status === "finished") {
     return null;
   }
 
@@ -538,8 +434,17 @@ export async function joinGameRoom(params: {
 
   const initialStatus: "approved" | "pending" =
     room.settings.autoApproveStudents !== false ? "approved" : "pending";
+  const db = getSupabaseAdmin();
 
   if (existingPlayer) {
+    // A nickname alone must never grant control of an existing player record.
+    // Reconnects must present the token saved on the original device.
+    const keepsToken = Boolean(
+      params.playerToken && safeEqual(existingPlayer.token, params.playerToken)
+    );
+    if (!keepsToken) {
+      throw new PlayerIdentityConflictError();
+    }
     existingPlayer.isConnected = true;
     existingPlayer.lastSeenAt = new Date().toISOString();
     if (existingPlayer.status === "rejected") {
@@ -547,19 +452,16 @@ export async function joinGameRoom(params: {
     }
     room.lastSyncedAt = Date.now();
     try {
-      const isPlaceholder =
-        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
-
-      if (!isPlaceholder) {
+      if (db) {
         await withTimeout(
-          supabase
+          db
             .from("players")
             .update({
+              player_token: existingPlayer.token,
               is_connected: true,
               last_seen_at: existingPlayer.lastSeenAt,
             })
-            .match({ id: existingPlayer.id }),
+            .match({ room_code: roomCode, id: existingPlayer.id }),
           1500
         );
       }
@@ -572,7 +474,7 @@ export async function joinGameRoom(params: {
   const playerId = crypto.randomUUID();
   const newPlayer: PlayerRecord = {
     id: playerId,
-    roomCode: params.roomCode,
+    roomCode,
     nickname: params.nickname.trim(),
     avatar: params.avatar || "garuda",
     score: 0,
@@ -580,6 +482,7 @@ export async function joinGameRoom(params: {
     isConnected: true,
     lastSeenAt: new Date().toISOString(),
     status: initialStatus,
+    token: crypto.randomUUID(),
   };
 
   room.players.set(playerId, newPlayer);
@@ -587,29 +490,55 @@ export async function joinGameRoom(params: {
   room.lastSyncedAt = Date.now();
 
   try {
-    const isPlaceholder =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
-
-    if (!isPlaceholder) {
-      await withTimeout(
-        supabase.from("players").insert({
+    if (db) {
+      const insertRes = await withTimeout(
+        db.from("players").insert({
           id: playerId,
-          room_code: params.roomCode,
+          room_code: roomCode,
           nickname: newPlayer.nickname,
           avatar: newPlayer.avatar,
           score: 0,
           streak: 0,
           is_connected: true,
+          status: newPlayer.status,
+          player_token: newPlayer.token,
         }),
         1500
       );
+
+      if (insertRes?.error) {
+        if (insertRes.error.code === "23505") {
+          room.players.delete(playerId);
+          throw new PlayerIdentityConflictError();
+        }
+        console.error("[RoomStore] Failed to insert player into Supabase:", insertRes.error.message);
+      }
     }
   } catch (err) {
+    if (err instanceof PlayerIdentityConflictError) throw err;
     console.warn("[RoomStore] Supabase player sync omitted:", err);
   }
 
   return { player: newPlayer, room };
+}
+
+export async function validateHostToken(
+  roomCode: string,
+  token: string | null
+): Promise<boolean> {
+  if (!token) return false;
+  const room = await ensureRoomLoaded(roomCode);
+  return Boolean(room && safeEqual(room.hostToken, token));
+}
+
+export async function validatePlayerToken(
+  roomCode: string,
+  playerId: string,
+  token: string | null
+): Promise<boolean> {
+  if (!token || !playerId) return false;
+  const room = await ensureRoomLoaded(roomCode);
+  return Boolean(room && safeEqual(room.players.get(playerId)?.token, token));
 }
 
 export async function getGameRoomState(roomCode: string) {
@@ -622,8 +551,12 @@ export async function getGameRoomState(roomCode: string) {
   const playersList = Array.from(room.players.values());
   const leaderboard = [...playersList].sort((a, b) => b.score - a.score);
 
+  const isQuestionVisible =
+    room.status === "active" || room.status === "question_active";
   const currentQ =
-    room.questions && room.questions.length > room.currentQuestionIndex
+    isQuestionVisible &&
+    room.questions &&
+    room.questions.length > room.currentQuestionIndex
       ? room.questions[room.currentQuestionIndex]
       : null;
 
@@ -668,150 +601,224 @@ export async function getGameRoomState(roomCode: string) {
         score: p.score,
         streak: p.streak,
       })),
+    questionStartedAt: isQuestionVisible ? room.questionStartTime : undefined,
+    serverTime: new Date().toISOString(),
     settings: room.settings,
     totalSubmissionsCount: room.submissions.length,
     updatedAt: room.updatedAt,
   };
 }
 
+export type SubmissionFailureReason =
+  | "not_found"
+  | "unauthorized"
+  | "inactive"
+  | "not_approved"
+  | "invalid_question"
+  | "write_failed";
+
+export type SubmissionResult =
+  | {
+      ok: true;
+      submission: SubmissionRecord;
+      updatedPlayer: PlayerRecord;
+      correctAnswer: string;
+      explanation: string;
+      duplicate?: boolean;
+    }
+  | { ok: false; reason: SubmissionFailureReason };
+
 export async function recordAnswerSubmission(params: {
   roomCode: string;
   playerId: string;
+  playerToken?: string;
+  hostBypass?: boolean;
   questionId: string;
   selectedOption: string;
   responseTimeMs: number;
   microFeedback?: string;
-}) {
+}): Promise<SubmissionResult> {
   const room = await ensureRoomLoaded(params.roomCode);
-  if (!room) return null;
+  if (!room) return { ok: false, reason: "not_found" };
 
-  const isPlaceholder =
-    process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+  const player = room.players.get(params.playerId);
+  if (!player) return { ok: false, reason: "not_found" };
 
-  let player = room.players.get(params.playerId);
-  if (!player) {
-    const resolvedPlayerId = isValidUuid(params.playerId)
-      ? params.playerId
-      : crypto.randomUUID();
-    const fallbackPlayer: PlayerRecord = {
-      id: resolvedPlayerId,
-      roomCode: params.roomCode,
-      nickname: `Siswa ${resolvedPlayerId.slice(-3)}`,
-      avatar: "garuda",
-      score: 0,
-      streak: 0,
-      isConnected: true,
-      lastSeenAt: new Date().toISOString(),
-      status: "approved",
-    };
-    room.players.set(resolvedPlayerId, fallbackPlayer);
-    player = fallbackPlayer;
-
-    if (!isPlaceholder) {
-      try {
-        await withTimeout(
-          supabase.from("players").upsert({
-            id: player.id,
-            room_code: params.roomCode,
-            nickname: player.nickname,
-            avatar: player.avatar,
-            score: player.score,
-            streak: player.streak,
-            is_connected: true,
-            last_seen_at: player.lastSeenAt,
-          }),
-          1500
-        );
-      } catch (err) {
-        console.warn("[RoomStore] Supabase fallback player upsert omitted:", err);
-      }
-    }
+  if (!params.hostBypass && !safeEqual(player.token, params.playerToken)) {
+    return { ok: false, reason: "unauthorized" };
+  }
+  if (player.status !== "approved") {
+    return { ok: false, reason: "not_approved" };
+  }
+  if (room.status !== "active" && room.status !== "question_active") {
+    return { ok: false, reason: "inactive" };
   }
 
-  if (!player) return null;
+  const question = room.questions[room.currentQuestionIndex];
+  if (!question || question.id !== params.questionId) {
+    return { ok: false, reason: "invalid_question" };
+  }
 
-  const question = room.questions.find(
-    (q) => q.id === params.questionId || !params.questionId
+  const selectedOption = params.selectedOption.trim().toUpperCase();
+  if (!["A", "B", "C", "D"].includes(selectedOption)) {
+    return { ok: false, reason: "invalid_question" };
+  }
+
+  // Idempotency: a player may submit at most once per question.
+  const duplicate = room.submissions.find(
+    (s) => s.playerId === player.id && s.questionId === question.id
   );
-  const isCorrect = question
-    ? question.correctAnswer === params.selectedOption.toUpperCase()
-    : false;
-
-  // Base 500 + up to 500 speed bonus, plus 50 per streak step.
-  let scoreAwarded = 0;
-  if (isCorrect) {
-    const timeLimitMs = (room.settings.timePerQuestionSec || 20) * 1000;
-    const timeFactor = Math.max(0, 1 - params.responseTimeMs / timeLimitMs);
-    const baseScore = 500 + Math.round(500 * timeFactor);
-    const streakBonus = room.settings.streakBonus ? player.streak * 50 : 0;
-    scoreAwarded = baseScore + streakBonus;
-
-    player.score += scoreAwarded;
-    player.streak += 1;
-  } else {
-    player.streak = 0;
+  if (duplicate) {
+    return {
+      ok: true,
+      duplicate: true,
+      submission: duplicate,
+      updatedPlayer: player,
+      correctAnswer: question.correctAnswer,
+      explanation: question.explanation,
+    };
   }
 
-  const validQuestionId = isValidUuid(params.questionId)
-    ? params.questionId
-    : question && isValidUuid(question.id)
-      ? question.id!
-      : null;
+  const isCorrect = evaluateQuizResponse(question, selectedOption);
+  const timeLimitMs = (room.settings.timePerQuestionSec || 20) * 1000;
+  const serverStart = room.questionStartTime
+    ? Date.parse(room.questionStartTime)
+    : Number.NaN;
+  const serverElapsed = Number.isFinite(serverStart)
+    ? Math.max(0, Date.now() - serverStart)
+    : null;
+
+  // The client clock is only a fallback for old rooms. Normal play is scored
+  // from the server's question start so a tampered responseTime cannot win.
+  if (
+    !params.hostBypass &&
+    serverElapsed !== null &&
+    serverElapsed > timeLimitMs + 1500
+  ) {
+    return { ok: false, reason: "inactive" };
+  }
+
+  const responseTimeMs = Math.max(
+    0,
+    Math.min(
+      params.hostBypass ? params.responseTimeMs : serverElapsed ?? params.responseTimeMs,
+      120_000
+    )
+  );
+
+  // Shared with the instant player: 600 base, up to 400 speed, and the
+  // reference streak tiers starting at the second consecutive correct answer.
+  const scoreAwarded = calculateResponseScore({
+    isCorrect,
+    timeTakenMs: responseTimeMs,
+    totalTimeMs: timeLimitMs,
+    currentStreak: player.streak,
+    streakBonusEnabled: room.settings.streakBonus,
+  }).total;
 
   const submission: SubmissionRecord = {
     id: crypto.randomUUID(),
     roomCode: params.roomCode,
     playerId: player.id,
-    questionId: validQuestionId || params.questionId,
-    selectedOption: params.selectedOption,
+    questionId: question.id,
+    selectedOption,
     isCorrect,
-    responseTimeMs: params.responseTimeMs,
+    responseTimeMs,
     scoreAwarded,
     microFeedback: params.microFeedback,
     createdAt: new Date().toISOString(),
   };
 
+  const db = getSupabaseAdmin();
+  if (db) {
+    const { error: insertError } = await db.from("submissions").insert({
+      id: submission.id,
+      room_code: params.roomCode,
+      player_id: player.id,
+      question_id: question.id,
+      selected_option: selectedOption,
+      is_correct: isCorrect,
+      response_time_ms: responseTimeMs,
+      score_awarded: scoreAwarded,
+      micro_feedback: params.microFeedback || null,
+    });
+
+    if (insertError) {
+      if (insertError.code === "23505") {
+        const { data: existingRow } = await db
+          .from("submissions")
+          .select("*")
+          .eq("room_code", params.roomCode)
+          .eq("player_id", player.id)
+          .eq("question_id", question.id)
+          .maybeSingle();
+
+        if (existingRow) {
+          const existing: SubmissionRecord = {
+            id: existingRow.id,
+            roomCode: existingRow.room_code,
+            playerId: existingRow.player_id,
+            questionId: existingRow.question_id,
+            selectedOption: existingRow.selected_option,
+            isCorrect: existingRow.is_correct,
+            responseTimeMs: existingRow.response_time_ms,
+            scoreAwarded: existingRow.score_awarded,
+            microFeedback: existingRow.micro_feedback || undefined,
+            createdAt: existingRow.created_at,
+          };
+          if (
+            !room.submissions.some((s) => s.id === existing.id)
+          ) {
+            room.submissions.push(existing);
+          }
+          return {
+            ok: true,
+            duplicate: true,
+            submission: existing,
+            updatedPlayer: player,
+            correctAnswer: question.correctAnswer,
+            explanation: question.explanation,
+          };
+        }
+      }
+      console.error("[RoomStore] Failed to persist submission:", insertError.message);
+      return { ok: false, reason: "write_failed" };
+    }
+
+    const { data: scoreRows, error: scoreError } = await db.rpc(
+      "apply_player_score",
+      {
+        p_room_code: params.roomCode,
+        p_player_id: player.id,
+        p_score_delta: scoreAwarded,
+        p_streak_delta: isCorrect ? 1 : -999999,
+      }
+    );
+
+    if (!scoreError && Array.isArray(scoreRows) && scoreRows[0]) {
+      const updated = scoreRows[0] as { score: number; streak: number };
+      player.score = updated.score;
+      player.streak = updated.streak;
+    } else {
+      console.error("[RoomStore] Failed to update score atomically:", scoreError?.message);
+      player.score += scoreAwarded;
+      player.streak = isCorrect ? player.streak + 1 : 0;
+    }
+  } else {
+    player.score += scoreAwarded;
+    player.streak = isCorrect ? player.streak + 1 : 0;
+  }
+
   room.submissions.push(submission);
   room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
 
-  try {
-    if (!isPlaceholder) {
-      await withTimeout(
-        Promise.all([
-          supabase
-            .from("players")
-            .update({
-              score: player.score,
-              streak: player.streak,
-              last_seen_at: new Date().toISOString(),
-            })
-            .match({ room_code: params.roomCode, id: player.id }),
-          supabase.from("submissions").insert({
-            id: submission.id,
-            room_code: params.roomCode,
-            player_id: player.id,
-            question_id: validQuestionId,
-            selected_option: params.selectedOption,
-            is_correct: isCorrect,
-            response_time_ms: params.responseTimeMs,
-            score_awarded: scoreAwarded,
-            micro_feedback: params.microFeedback || null,
-          }),
-        ]),
-        1500
-      );
-    }
-  } catch (err) {
-    console.warn("[RoomStore] Supabase submission sync omitted:", err);
-  }
-
   return {
+    ok: true,
     submission,
     updatedPlayer: player,
-    correctAnswer: question?.correctAnswer || "A",
-    explanation: question?.explanation || "",
+    correctAnswer: question.correctAnswer,
+    explanation: question.explanation,
   };
 }
 
@@ -823,7 +830,7 @@ export async function getRoomSubmissions(roomCode: string) {
 
 export async function getRoomQuestions(roomCode: string): Promise<Question[]> {
   const room = await ensureRoomLoaded(roomCode);
-  return room ? room.questions : SEED_BALI_QUESTIONS;
+  return room ? room.questions : [];
 }
 
 export interface StoredQuizRecord {
@@ -843,11 +850,14 @@ export async function storeQuiz(
   quiz: Omit<StoredQuizRecord, "createdAt">
 ): Promise<StoredQuizRecord> {
   const normalizedQuizId = isValidUuid(quiz.id) ? quiz.id : crypto.randomUUID();
-  const normalizedQuestions = (quiz.questions || []).map((q, index) => ({
-    ...q,
-    id: isValidUuid(q.id) ? q.id : crypto.randomUUID(),
-    questionOrder: q.questionOrder || index + 1,
-  }));
+  const normalizedQuestions = (quiz.questions || []).map((q, index) => {
+    const shuffled = shuffleQuestionOptions(q);
+    return {
+      ...shuffled,
+      id: isValidUuid(shuffled.id) ? shuffled.id : crypto.randomUUID(),
+      questionOrder: shuffled.questionOrder || index + 1,
+    };
+  });
 
   const record: StoredQuizRecord = {
     ...quiz,
@@ -858,14 +868,12 @@ export async function storeQuiz(
   inMemoryQuizzes.set(record.id, record);
 
   try {
-    const isPlaceholder =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+    const isPlaceholder = !isDatabaseEnabled();
 
     if (!isPlaceholder) {
       await withTimeout(
         (async () => {
-          await supabase.from("quizzes").upsert({
+          await db().from("quizzes").upsert({
             id: record.id,
             title: record.title,
             description: record.description || null,
@@ -886,7 +894,7 @@ export async function storeQuiz(
               concept_tag: q.conceptTag,
               cultural_context: q.culturalContext || null,
             }));
-            await supabase.from("questions").upsert(questionRows);
+            await db().from("questions").upsert(questionRows);
           }
         })(),
         1500
@@ -903,17 +911,51 @@ export function getStoredQuiz(quizId: string): StoredQuizRecord | null {
   return inMemoryQuizzes.get(quizId) || null;
 }
 
+/** Attach a freshly generated question set to a room that has not started yet. */
+export async function setRoomQuestions(
+  roomCode: string,
+  input: { title: string; description?: string; questions: Question[] }
+): Promise<Question[] | null> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room || room.status !== "waiting") return null;
+
+  const stored = await storeQuiz({
+    id: crypto.randomUUID(),
+    title: input.title,
+    description: input.description ?? "",
+    questions: input.questions,
+  });
+
+  room.questions = stored.questions;
+  room.quizId = stored.id;
+  room.currentQuestionIndex = 0;
+  room.updatedAt = new Date().toISOString();
+  room.lastSyncedAt = Date.now();
+
+  try {
+    if (isDatabaseEnabled()) {
+      await withTimeout(
+        db().from("game_rooms").update({ quiz_id: stored.id, updated_at: room.updatedAt }).match({ room_code: roomCode }),
+        1500
+      );
+    }
+  } catch (err) {
+    console.warn("[RoomStore] Supabase quiz attach omitted:", err);
+  }
+
+  return room.questions;
+}
+
 export async function advanceRoomQuestion(roomCode: string): Promise<{
   success: boolean;
   isFinished: boolean;
   currentQuestionIndex: number;
 }> {
   const room = await ensureRoomLoaded(roomCode);
-  if (!room) return { success: false, isFinished: false, currentQuestionIndex: 0 };
-
-  const isPlaceholder =
-    process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+  if (!room) {
+    return { success: false, isFinished: false, currentQuestionIndex: 0 };
+  }
+  const isPlaceholder = !isDatabaseEnabled();
 
   const nextIndex = room.currentQuestionIndex + 1;
   if (nextIndex >= room.questions.length) {
@@ -924,8 +966,7 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
     try {
       if (!isPlaceholder) {
         await withTimeout(
-          supabase
-            .from("game_rooms")
+          db().from("game_rooms")
             .update({
               status: "finished",
               updated_at: room.updatedAt,
@@ -950,8 +991,7 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
   try {
     if (!isPlaceholder) {
       await withTimeout(
-        supabase
-          .from("game_rooms")
+        db().from("game_rooms")
           .update({
             current_question_index: nextIndex,
             status: "active",
@@ -983,9 +1023,7 @@ export async function setRoomStatus(
   room.lastSyncedAt = Date.now();
 
   try {
-    const isPlaceholder =
-      process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
+    const isPlaceholder = !isDatabaseEnabled();
 
     if (!isPlaceholder) {
       const updatePayload: Record<string, unknown> = {
@@ -996,8 +1034,7 @@ export async function setRoomStatus(
         updatePayload.question_start_time = room.questionStartTime;
       }
       await withTimeout(
-        supabase
-          .from("game_rooms")
+        db().from("game_rooms")
           .update(updatePayload)
           .match({ room_code: roomCode }),
         1500
@@ -1032,12 +1069,45 @@ export async function getTeacherRoomDetails(roomCode: string) {
   }
 
   const playersList = Array.from(room.players.values()).map((p) => ({
-    ...p,
+    id: p.id,
+    roomCode: p.roomCode,
+    nickname: p.nickname,
+    avatar: p.avatar,
+    score: p.score,
+    streak: p.streak,
+    isConnected: p.isConnected,
+    lastSeenAt: p.lastSeenAt,
     status: p.status || "approved",
   }));
   const approvedList = playersList.filter((p) => p.status === "approved");
   const pendingList = playersList.filter((p) => p.status === "pending");
   const leaderboard = [...approvedList].sort((a, b) => b.score - a.score);
+
+  const timeLimitMs = (room.settings.timePerQuestionSec || 20) * 1000;
+  const breakdownByPlayer = new Map<string, LeaderboardScoreBreakdown>();
+  for (const submission of room.submissions) {
+    const breakdown = deriveScoreBreakdown({
+      isCorrect: submission.isCorrect,
+      scoreAwarded: submission.scoreAwarded,
+      timeTakenMs: submission.responseTimeMs,
+      totalTimeMs: timeLimitMs,
+    });
+    const summary = breakdownByPlayer.get(submission.playerId) || {
+      base: 0,
+      timer: 0,
+      streak: 0,
+      total: 0,
+      correctAnswers: 0,
+      submissions: 0,
+    };
+    summary.base += breakdown.base;
+    summary.timer += breakdown.timer;
+    summary.streak += breakdown.streak;
+    summary.total += submission.scoreAwarded;
+    summary.correctAnswers += submission.isCorrect ? 1 : 0;
+    summary.submissions += 1;
+    breakdownByPlayer.set(submission.playerId, summary);
+  }
 
   return {
     roomId: room.id,
@@ -1067,6 +1137,14 @@ export async function getTeacherRoomDetails(roomCode: string) {
       avatar: p.avatar,
       score: p.score,
       streak: p.streak,
+      breakdown: breakdownByPlayer.get(p.id) || {
+        base: 0,
+        timer: 0,
+        streak: 0,
+        total: 0,
+        correctAnswers: 0,
+        submissions: 0,
+      },
     })),
     players: playersList,
     pendingPlayers: pendingList,
@@ -1082,6 +1160,15 @@ export async function approvePlayer(roomCode: string, playerId: string): Promise
   player.status = "approved";
   room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
+
+  const db = getSupabaseAdmin();
+  if (db) {
+    const { error } = await db
+      .from("players")
+      .update({ status: "approved" })
+      .match({ room_code: roomCode, id: playerId });
+    if (error) console.error("[RoomStore] approvePlayer sync failed:", error.message);
+  }
   return true;
 }
 
@@ -1093,6 +1180,15 @@ export async function rejectPlayer(roomCode: string, playerId: string): Promise<
   player.status = "rejected";
   room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
+
+  const db = getSupabaseAdmin();
+  if (db) {
+    const { error } = await db
+      .from("players")
+      .update({ status: "rejected" })
+      .match({ room_code: roomCode, id: playerId });
+    if (error) console.error("[RoomStore] rejectPlayer sync failed:", error.message);
+  }
   return true;
 }
 
@@ -1108,6 +1204,16 @@ export async function approveAllPlayers(roomCode: string): Promise<number> {
   }
   room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
+
+  const db = getSupabaseAdmin();
+  if (db && count > 0) {
+    const { error } = await db
+      .from("players")
+      .update({ status: "approved" })
+      .eq("room_code", roomCode)
+      .eq("status", "pending");
+    if (error) console.error("[RoomStore] approveAllPlayers sync failed:", error.message);
+  }
   return count;
 }
 
@@ -1125,5 +1231,14 @@ export async function toggleAutoApprove(roomCode: string, enabled?: boolean): Pr
   }
   room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
+
+  const db = getSupabaseAdmin();
+  if (db) {
+    const { error } = await db
+      .from("game_rooms")
+      .update({ settings: room.settings, updated_at: room.updatedAt })
+      .match({ room_code: roomCode });
+    if (error) console.error("[RoomStore] toggleAutoApprove sync failed:", error.message);
+  }
   return target;
 }

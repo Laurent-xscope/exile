@@ -38,7 +38,7 @@ export function CheckboxGlyph({
     <span
       aria-hidden
       className={cx(
-        "flex shrink-0 items-center justify-center rounded-sm",
+        "flex shrink-0 items-center justify-center rounded-md",
         "transition-[background-color,border-color,box-shadow] duration-150 ease",
         s.box,
         isMarked

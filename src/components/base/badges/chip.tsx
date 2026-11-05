@@ -30,17 +30,22 @@ type ChipVariant = "bold" | "subtle" | "caption";
 export type ChipColor = "orange" | "lime" | "rose" | "yellow" | "cyan" | "blue" | "purple" | "neutral" | "gray" | "soft";
 
 /** Background and text pair per colour, shared with Tag Group's tags. */
+const CHIP_SUCCESS = "bg-[#F0FDF4] dark:bg-[#052E16] text-[#16A34A] border-[#16A34A]";
+const CHIP_WARNING = "bg-[#FEFCE8] dark:bg-[#2A2306] text-[#CA8A04] border-[#CA8A04]";
+const CHIP_ERROR = "bg-[#FEF2F2] dark:bg-[#2A0A0A] text-[#EF4444] border-[#EF4444]";
+const CHIP_NEUTRAL = "bg-transparent text-muted border-line2";
+
 export const CHIP_COLORS: Record<ChipColor, string> = {
-  orange: "bg-status-orange-background text-status-orange-text",
-  lime: "bg-status-lime-background text-status-lime-text",
-  rose: "bg-status-rose-background text-status-rose-text",
-  yellow: "bg-status-yellow-background text-status-yellow-text",
-  cyan: "bg-status-cyan-background text-status-cyan-text",
-  blue: "bg-status-blue-background text-status-blue-text",
-  purple: "bg-status-purple-background text-status-purple-text",
-  neutral: "bg-background-tertiary-default text-text-secondary",
-  gray: "bg-background-secondary-default text-text-primary",
-  soft: "bg-background-secondary-default text-text-secondary",
+  orange: CHIP_ERROR,
+  lime: CHIP_SUCCESS,
+  rose: CHIP_ERROR,
+  yellow: CHIP_WARNING,
+  cyan: CHIP_NEUTRAL,
+  blue: CHIP_NEUTRAL,
+  purple: CHIP_NEUTRAL,
+  neutral: CHIP_NEUTRAL,
+  gray: "bg-ink text-paper border-ink",
+  soft: "bg-surface text-muted border-line",
 };
 
 export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
@@ -50,11 +55,11 @@ export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const styles = sortCx({
-  base: "inline-flex items-center justify-center rounded-md px-1.5 whitespace-nowrap transition-[padding,font-size] duration-200 ease",
+  base: "inline-flex items-center justify-center rounded-lg border-2 px-3 whitespace-nowrap font-semibold tracking-[0.01em]",
   variant: {
-    bold: "py-0.5 text-body-medium",
-    subtle: "py-1 text-body-medium",
-    caption: "py-1 text-caption-1-medium",
+    bold: "py-1 text-[11px] leading-4",
+    subtle: "py-1 text-[11px] leading-4",
+    caption: "py-1 text-[11px] leading-4",
   },
   color: CHIP_COLORS,
 });

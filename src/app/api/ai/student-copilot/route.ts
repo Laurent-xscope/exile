@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { callGeminiWithRotation, geminiKeyPool } from "@/lib/ai/gateway";
-import { getGameRoomState, ensureRoomLoaded } from "@/lib/rooms/store";
+import { chatText, AIUnavailableError } from "@/lib/ai/llm";
+import {
+  getGameRoomState,
+  ensureRoomLoaded,
+  validatePlayerToken,
+} from "@/lib/rooms/store";
+import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
+import { checkRateLimit } from "@/lib/security/rate-limiter";
 
 const MessageSchema = z.object({
   role: z.enum(["user", "assistant", "system"]),
@@ -10,11 +16,17 @@ const MessageSchema = z.object({
 
 const StudentCopilotSchema = z.object({
   roomCode: z.string().min(4),
-  playerId: z.string().optional(),
+  playerId: z.string().min(1),
+  playerToken: z.string().min(1),
   messages: z.array(MessageSchema).min(1),
 });
 
 export async function POST(req: Request) {
+  const rateLimit = await checkRateLimit(req, 10, 60_000);
+  if (!rateLimit.allowed && rateLimit.errorResponse) {
+    return rateLimit.errorResponse;
+  }
+
   try {
     const raw = await req.json();
     const parsed = StudentCopilotSchema.safeParse(raw);
@@ -26,7 +38,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const { roomCode, playerId, messages } = parsed.data;
+    const { roomCode: rawCode, playerId, playerToken, messages } = parsed.data;
+    const roomCode = normalizeRoomCode(rawCode);
+
+    if (!isValidRoomCode(roomCode)) {
+      return NextResponse.json(
+        { error: "PIN ruangan harus tepat 6 digit." },
+        { status: 400 }
+      );
+    }
+
+    if (!(await validatePlayerToken(roomCode, playerId, playerToken))) {
+      return NextResponse.json(
+        { error: "Sesi pemain tidak valid. Gabung ulang ke ruangan." },
+        { status: 401 }
+      );
+    }
     const room = await ensureRoomLoaded(roomCode);
     const state = await getGameRoomState(roomCode);
 
@@ -41,87 +68,40 @@ export async function POST(req: Request) {
     const currentQ = state.currentQuestion;
     const questions = room.questions || [];
 
+    // Never send answer keys or explanations to the student-facing model.
     const materialsSummary = questions
       .map(
         (q, idx) =>
-          `Poin ${idx + 1}: ${q.conceptTag || "Materi Umum"} — ${q.explanation || q.question}`
+          `${idx + 1}. ${q.conceptTag || "Umum"}`
       )
       .join("\n");
 
-    const systemInstruction = `Anda adalah Exile Student Copilot, asisten belajar pribadi yang ramah, santun, dan jelas bagi siswa yang sedang mengikuti sesi kelas di ruang kuis "${roomCode}".
+    const system = `Kamu teman belajar untuk siswa di ruang kuis ${roomCode}. Bantu siswa memahami materi: jelaskan istilah, rangkum konsep, dan beri petunjuk bertahap. Jika soal sedang aktif, jangan membocorkan jawabannya; beri petunjuk saja.
 
-IDENTITAS DAN PERAN:
-1. Nama Anda adalah Exile Student Copilot.
-2. Tugas Anda adalah membantu siswa memahami materi yang baru saja diterangkan oleh guru atau ditanyakan di kuis.
-3. Anda dapat:
-   - Merangkum (summarize) konsep inti materi pelajaran secara sederhana dan mudah dicerna.
-   - Menjelaskan istilah asing atau konsep yang membingungkan siswa.
-   - Memberi petunjuk berpikir (clues / scaffolding) tanpa langsung membocorkan jawaban mentah jika soal sedang aktif dijawab.
-4. Gaya bicara: Hangat, menyemangati, edukatif, bahasa Indonesia yang santun dan jelas, tidak menggunakan huruf besar berlebihan (no ALL CAPS).
+Siswa: ${currentPlayer?.nickname || "Siswa"}, skor ${currentPlayer?.score ?? 0}.
+Soal aktif: ${currentQ ? `${currentQ.question}` : "belum ada"}
 
-KONTEKS SISWA:
-- Nama panggilan siswa: ${currentPlayer?.nickname || "Siswa"}
-- Skor saat ini: ${currentPlayer?.score ?? 0} poin
-- Soal aktif saat ini: ${
-      currentQ
-        ? `Soal ${currentQ.questionOrder}: "${currentQ.question}" (Topik: ${
-            currentQ.conceptTag || "Konsep Umum"
-          })`
-        : "Menunggu pertanyaan berikutnya dari pengajar"
+Topik di kuis ini:
+${materialsSummary || "Belum ada."}
+
+Jawab dalam bahasa Indonesia yang santai, singkat, tanpa pembuka seperti "Tentu!", tanpa emoji.`;
+
+    try {
+      const reply = await chatText(
+        [
+          { role: "system", content: system },
+          ...messages
+            .filter((m) => m.role !== "system")
+            .slice(-10)
+            .map((m) => ({ role: m.role as "user" | "assistant", content: m.content })),
+        ],
+        { temperature: 0.5, timeoutMs: 30_000 }
+      );
+      return NextResponse.json({ success: true, reply });
+    } catch (aiErr) {
+      const status = aiErr instanceof AIUnavailableError ? 502 : 500;
+      return NextResponse.json({ error: "Asisten belum bisa menjawab. Coba lagi." }, { status });
     }
-
-RINGKASAN KONSEP MATERI KELAS:
-${materialsSummary || "Materi sedang disampaikan oleh pengajar."}
-`;
-
-    const conversationHistory = messages.map((m) => ({
-      role: m.role === "assistant" ? ("model" as const) : ("user" as const),
-      parts: [{ text: m.content }],
-    }));
-
-    if (geminiKeyPool.hasConfiguredKeys()) {
-      try {
-        const responseText = await callGeminiWithRotation(
-          {
-            systemInstruction: {
-              parts: [{ text: systemInstruction }],
-            },
-            contents: conversationHistory,
-            generationConfig: {
-              temperature: 0.7,
-              maxOutputTokens: 1024,
-            },
-          },
-          6000
-        );
-        if (responseText && responseText.trim().length > 0) {
-          return NextResponse.json({
-            success: true,
-            reply: responseText.trim(),
-          });
-        }
-      } catch (geminiErr) {
-        console.warn("[student-copilot] Gemini call failed, using fallback:", geminiErr);
-      }
-    }
-
-    // Heuristic Fallback
-    const lastMsg = messages[messages.length - 1]?.content.toLowerCase() || "";
-    let fallbackReply = "";
-
-    if (lastMsg.includes("rangkum") || lastMsg.includes("summarize") || lastMsg.includes("ringkas")) {
-      fallbackReply = `Berikut rangkuman inti materi pelajaran kita hari ini:\n1. Setiap konsep ilmiah dibangun dari observasi terarah dan verifikasi data objektif.\n2. Dalam menganalisis fenomena (grafik atau ekosistem), amati pola hubungan sebab-akibat secara teliti.\n3. Jangan ragu bertanya pada bagian konsep yang terasa belum jelas!`;
-    } else if (lastMsg.includes("jelas") || lastMsg.includes("paham") || lastMsg.includes("maksud")) {
-      fallbackReply = `Tenang, mari kita bedah bersama! Yang perlu diperhatikan adalah fokus pada konsep dasarnya terlebih dahulu. Coba perhatikan petunjuk utama dari pertanyaan guru dan kaitkan dengan contoh di kehidupan sehari-hari.`;
-    } else {
-      fallbackReply = `Halo ${currentPlayer?.nickname || "teman belajar"}! Saya Exile Student Copilot. Jika ada bagian penjelasan guru atau pertanyaan kuis yang belum kamu pahami, tanyakan saja di sini ya. Saya siap membantu merangkum dan menjelaskannya!`;
-    }
-
-    return NextResponse.json({
-      success: true,
-      reply: fallbackReply,
-      fallback: true,
-    });
   } catch (err: unknown) {
     console.error("[student-copilot error]", err);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { soundEffects } from "@/lib/audio/sounds";
 
 export interface ExileSettings {
@@ -64,43 +64,51 @@ function applySettingsEffects(settings: ExileSettings): void {
   }
 }
 
+let currentSettings: ExileSettings = DEFAULT_SETTINGS;
+const settingsListeners = new Set<() => void>();
+
+function subscribeToSettings(listener: () => void): () => void {
+  settingsListeners.add(listener);
+  const loaded = loadSettings();
+  currentSettings = loaded;
+  applySettingsEffects(loaded);
+  return () => settingsListeners.delete(listener);
+}
+
+function getSettingsSnapshot(): ExileSettings {
+  return currentSettings;
+}
+
+function getServerSettingsSnapshot(): ExileSettings {
+  return DEFAULT_SETTINGS;
+}
+
 export function saveSettings(settings: ExileSettings): void {
   if (typeof window === "undefined") return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
     applySettingsEffects(settings);
-    window.dispatchEvent(new CustomEvent("exile_settings_updated", { detail: settings }));
+    currentSettings = settings;
+    settingsListeners.forEach((listener) => listener());
   } catch (err) {
     console.error("Failed to save settings:", err);
   }
 }
 
 export function useExileSettings() {
-  const [settings, setSettingsState] = useState<ExileSettings>(DEFAULT_SETTINGS);
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-    const loaded = loadSettings();
-    setSettingsState(loaded);
-    applySettingsEffects(loaded);
-
-    const handleUpdate = (e: Event) => {
-      const customEvent = e as CustomEvent<ExileSettings>;
-      if (customEvent.detail) {
-        setSettingsState(customEvent.detail);
-        applySettingsEffects(customEvent.detail);
-      }
-    };
-
-    window.addEventListener("exile_settings_updated", handleUpdate);
-    return () => window.removeEventListener("exile_settings_updated", handleUpdate);
-  }, []);
+  const settings = useSyncExternalStore(
+    subscribeToSettings,
+    getSettingsSnapshot,
+    getServerSettingsSnapshot
+  );
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   const updateSetting = <K extends keyof ExileSettings>(key: K, value: ExileSettings[K]) => {
-    const updated = { ...settings, [key]: value };
-    setSettingsState(updated);
-    saveSettings(updated);
+    saveSettings({ ...settings, [key]: value });
   };
 
   return {

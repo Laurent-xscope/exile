@@ -36,6 +36,7 @@ import {
   DEFAULT_SETTINGS,
   saveSettings,
 } from "@/lib/settings/user-settings";
+import { MacOSToggle } from "@/components/base/toggle/macos-toggle";
 import { cx } from "@/utils/cx";
 
 interface SettingsModalProps {
@@ -66,37 +67,22 @@ function SettingToggleRow({
           {description}
         </p>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={checked}
-        aria-label={title}
+      <MacOSToggle
+        checked={checked}
+        onChange={onChange}
         disabled={disabled}
-        onClick={() => onChange(!checked)}
-        className={cx(
-          "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full p-0.5 transition-colors duration-150 ease select-none cursor-pointer",
-          "outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border-focus-ring",
-          checked ? "bg-accent-600" : "bg-background-quaternary-default",
-          disabled && "cursor-not-allowed opacity-50",
-        )}
-      >
-        <span
-          aria-hidden
-          className={cx(
-            "size-5 rounded-full bg-control-indicator-background shadow-xs transition-transform duration-150 ease",
-            checked ? "translate-x-5" : "translate-x-0",
-          )}
-        />
-      </button>
+        label={title}
+        color="green"
+      />
     </div>
   );
 }
 
 const AVATAR_OPTIONS = [
-  { id: "garuda", label: "Garuda", subtitle: "Elang Dewata" },
-  { id: "barong", label: "Barong", subtitle: "Pelindung Dharma" },
-  { id: "dragon", label: "Naga", subtitle: "Naga Basuki" },
-  { id: "lotus", label: "Padma", subtitle: "Teratai Suci" },
+  { id: "garuda", label: "Garuda", subtitle: "Elang dewata" },
+  { id: "barong", label: "Barong", subtitle: "Pelindung dharma" },
+  { id: "dragon", label: "Naga", subtitle: "Naga basuki" },
+  { id: "lotus", label: "Padma", subtitle: "Teratai suci" },
 ];
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
@@ -184,7 +170,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             {activeTab === "audio" && (
               <div className="space-y-4">
                 <SettingToggleRow
-                  title="Efek Suara Web Audio"
+                  title="Efek suara"
                   description="Gamelan pentatonik untuk jawaban benar & nada interaktif"
                   checked={settings.soundEnabled}
                   onChange={(val) => updateSetting("soundEnabled", val)}
@@ -193,7 +179,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-body-medium text-text-primary">
-                      Volume Suara
+                      Volume suara
                     </span>
                     <span className="text-caption-1-medium font-mono text-text-secondary">
                       {settings.soundVolume}%
@@ -203,7 +189,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     type="range"
                     min="0"
                     max="100"
-                    aria-label="Volume Suara"
+                    aria-label="Volume suara"
                     value={settings.soundVolume}
                     onChange={(e) =>
                       updateSetting("soundVolume", Number(e.target.value))
@@ -219,7 +205,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       disabled={!settings.soundEnabled}
                       onClick={() => handleTestSound("click")}
                     >
-                      Tes Klik
+                      Tes klik
                     </Button>
                     <Button
                       variant="secondary"
@@ -228,7 +214,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       disabled={!settings.soundEnabled}
                       onClick={() => handleTestSound("correct")}
                     >
-                      Tes Gamelan
+                      Tes gamelan
                     </Button>
                     <Button
                       variant="secondary"
@@ -237,13 +223,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       disabled={!settings.soundEnabled}
                       onClick={() => handleTestSound("fanfare")}
                     >
-                      Tes Fanfare
+                      Tes fanfare
                     </Button>
                   </div>
                 </div>
 
                 <SettingToggleRow
-                  title="Detik Countdown Timer"
+                  title="Detik hitung mundur"
                   description="Suara ketukan halus saat 5 detik terakhir pertanyaan"
                   checked={settings.countdownTicks && settings.soundEnabled}
                   disabled={!settings.soundEnabled}
@@ -257,14 +243,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-body-medium text-text-primary">
-                      Durasi Default Soal (Detik)
+                      Durasi standar soal (detik)
                     </span>
                     <span className="text-caption-1-regular text-text-secondary">
                       Waktu standar untuk menjawab setiap butir soal di arena kelas
                     </span>
                   </div>
                   <SegmentedControl
-                    aria-label="Durasi Default Soal"
+                    aria-label="Durasi standar soal"
                     selectedKeys={new Set([String(settings.defaultQuestionTimeSec)])}
                     onSelectionChange={(keys) => {
                       const selected = Array.from(keys)[0];
@@ -287,14 +273,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
 
                 <SettingToggleRow
-                  title="Bonus Poin Beruntun (Streak)"
+                  title="Bonus poin beruntun (streak)"
                   description="Tambahan skor bila siswa menjawab benar secara berturut-turut"
                   checked={settings.streakBonusEnabled}
                   onChange={(val) => updateSetting("streakBonusEnabled", val)}
                 />
 
                 <SettingToggleRow
-                  title="Acak Urutan Soal (Shuffle)"
+                  title="Acak urutan soal"
                   description="Variasikan urutan soal untuk setiap sesi kuis baru"
                   checked={settings.shuffleQuestions}
                   onChange={(val) => updateSetting("shuffleQuestions", val)}
@@ -307,14 +293,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-body-medium text-text-primary">
-                      Bahasa Antarmuka
+                      Bahasa antarmuka
                     </span>
                     <span className="text-caption-1-regular text-text-secondary">
-                      Pilih bahasa aplikasi antara Bahasa Indonesia dan English (US)
+                      Pilih bahasa aplikasi antara bahasa indonesia dan english
                     </span>
                   </div>
                   <SegmentedControl
-                    aria-label="Bahasa Antarmuka"
+                    aria-label="Bahasa antarmuka"
                     selectedKeys={new Set([settings.language || "id"])}
                     onSelectionChange={(keys) => {
                       const selected = Array.from(keys)[0];
@@ -326,11 +312,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   >
                     <SegmentedControlItem id="id" className="w-full gap-2 font-medium">
                       <FlagIconID />
-                      <span>Indonesia (ID)</span>
+                      <span>Indonesia</span>
                     </SegmentedControlItem>
                     <SegmentedControlItem id="en" className="w-full gap-2 font-medium">
                       <FlagIconUS />
-                      <span>English (US)</span>
+                      <span>English</span>
                     </SegmentedControlItem>
                   </SegmentedControl>
                 </div>
@@ -338,14 +324,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-body-medium text-text-primary">
-                      Tema Antarmuka
+                      Tema antarmuka
                     </span>
                     <span className="text-caption-1-regular text-text-secondary">
                       Pilih mode pencahayaan layar atau sesuaikan otomatis dengan sistem
                     </span>
                   </div>
                   <SegmentedControl
-                    aria-label="Tema Antarmuka"
+                    aria-label="Tema antarmuka"
                     selectedKeys={new Set([currentThemeKey])}
                     onSelectionChange={(keys) => {
                       const selected = Array.from(keys)[0];
@@ -376,14 +362,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 </div>
 
                 <SettingToggleRow
-                  title="Mode Kontras Tinggi"
+                  title="Mode kontras tinggi"
                   description="Tingkatkan ketajaman garis pembatas dan rasio kontras elemen"
                   checked={settings.highContrast}
                   onChange={(val) => updateSetting("highContrast", val)}
                 />
 
                 <SettingToggleRow
-                  title="Kepadatan Tampilan Ringkas"
+                  title="Kepadatan tampilan ringkas"
                   description="Optimalkan ruang layar untuk menampilkan lebih banyak data sekaligus"
                   checked={settings.compactDensity}
                   onChange={(val) => updateSetting("compactDensity", val)}
@@ -395,9 +381,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               <div className="space-y-4">
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4">
                   <Input
-                    label="Nama Panggilan Default"
-                    placeholder="Contoh: Putu Aryana"
-                    hint="Nama ini akan otomatis terisi saat Anda bergabung ke ruang kuis."
+                    label="Nama panggilan standar"
+                    placeholder="Contoh: putu aryana"
+                    hint="Nama ini akan otomatis terisi saat anda bergabung ke ruang kuis."
                     leadingIcon={RiUser3Line}
                     value={settings.defaultNickname}
                     onChange={(val) => updateSetting("defaultNickname", val)}
@@ -408,7 +394,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-body-medium text-text-primary">
-                      Lambang Karakter Default
+                      Lambang karakter standar
                     </span>
                     <span className="text-caption-1-regular text-text-secondary">
                       Pilih identitas visual standar untuk papan peringkat kelas
@@ -462,7 +448,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           leadingIcon={RiRefreshLine}
           onClick={handleResetDefaults}
         >
-          Reset Standar
+          Reset standar
         </Button>
         <Button variant="primary" size="small" onClick={onClose}>
           Selesai

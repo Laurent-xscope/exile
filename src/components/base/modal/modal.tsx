@@ -253,7 +253,7 @@ export function ModalHeader({
     <div className={cx("flex shrink-0 items-start gap-3 px-6", className)}>
       <div className="flex min-w-0 flex-1 flex-col">
         {Icon ? (
-          <span className={cx("mb-4 flex size-10 shrink-0 items-center justify-center rounded-full", styles.icon[tone])}>
+          <span className={cx("mb-4 flex size-10 shrink-0 items-center justify-center rounded-xl", styles.icon[tone])}>
             <Icon className="size-5" aria-hidden />
           </span>
         ) : null}

@@ -10,7 +10,10 @@ import {
   rejectPlayer,
   approveAllPlayers,
   toggleAutoApprove,
+  validateHostToken,
 } from "@/lib/rooms/store";
+import { checkRateLimit } from "@/lib/security/rate-limiter";
+import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 
 const ActionSchema = z.object({
   action: z.enum([
@@ -35,9 +38,29 @@ export async function POST(
   req: Request,
   { params }: { params: Promise<{ code: string }> }
 ) {
+  const rateLimit = await checkRateLimit(req, 120, 60_000);
+  if (!rateLimit.allowed && rateLimit.errorResponse) {
+    return rateLimit.errorResponse;
+  }
+
   try {
     const { code } = await params;
-    const roomCode = code.trim();
+    const roomCode = normalizeRoomCode(code);
+    const hostToken = req.headers.get("x-host-token");
+
+    if (!isValidRoomCode(roomCode)) {
+      return NextResponse.json(
+        { error: "PIN ruangan harus tepat 6 digit." },
+        { status: 400 }
+      );
+    }
+
+    if (!(await validateHostToken(roomCode, hostToken))) {
+      return NextResponse.json(
+        { error: "Akses pengajar diperlukan untuk mengontrol ruangan ini." },
+        { status: 401 }
+      );
+    }
 
     const body = await req.json().catch(() => ({}));
     const parseResult = ActionSchema.safeParse(body);
@@ -84,6 +107,13 @@ export async function POST(
 
       case "start_quiz":
       case "resume_quiz": {
+        const existing = await getGameRoomState(roomCode);
+        if (!existing || existing.totalQuestions === 0) {
+          return NextResponse.json(
+            { error: "Belum ada soal. Unggah materi dulu untuk membuat kuis." },
+            { status: 400 }
+          );
+        }
         await setRoomStatus(roomCode, "active");
         const state = await getGameRoomState(roomCode);
         const details = await getTeacherRoomDetails(roomCode);
@@ -158,13 +188,21 @@ export async function POST(
           selectedOption ||
           ["A", "B", "C", "D"][Math.floor(Math.random() * 4)];
 
-        await recordAnswerSubmission({
+        const submission = await recordAnswerSubmission({
           roomCode,
           playerId: simulatedPlayerId,
+          hostBypass: true,
           questionId: state.currentQuestion.id || "",
           selectedOption: option,
           responseTimeMs: Math.floor(2000 + Math.random() * 4000),
         });
+
+        if (!submission.ok) {
+          return NextResponse.json(
+            { error: `Gagal mensimulasikan jawaban: ${submission.reason}` },
+            { status: 400 }
+          );
+        }
 
         const updatedDetails = await getTeacherRoomDetails(roomCode);
         return NextResponse.json({ success: true, details: updatedDetails });

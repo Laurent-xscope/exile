@@ -1,0 +1,92 @@
+{
+  "schema_version": "1.0.0",
+  "frozen": true,
+  "description": "Layer 6 Regression Resistance cases mined from real user complaints. Every case must have 0 failures before any iteration may claim Succeeded.",
+  "cases": [
+    {
+      "id": "REG-001",
+      "slug": "hardcoded-pin-849201",
+      "source_complaint": "Hardcoded room PIN 849201 / demo-room used as default or pre-seeded fallback in UI and src/lib/rooms/store.ts.",
+      "layer": 1,
+      "severity": "critical",
+      "target_paths": ["src/"],
+      "forbidden_patterns": ["849201", "demo-room"],
+      "expected_invariant": "Zero occurrences of '849201' or 'demo-room' anywhere in src/ (including src/lib/rooms/store.ts). Rooms must be created dynamically via /api/rooms/create and persisted in Supabase.",
+      "verification_command": "! grep -rnE '849201|demo-room' src/"
+    },
+    {
+      "id": "REG-002",
+      "slug": "hardcoded-4-siswa",
+      "source_complaint": "Hardcoded 'Daftar siswa (4)' / static 4 siswa counter displayed in host/studio UI instead of real connected student count.",
+      "layer": 1,
+      "severity": "critical",
+      "target_paths": ["src/"],
+      "forbidden_patterns": ["Daftar siswa (4)", "4 siswa"],
+      "expected_invariant": "Student count is strictly derived from dynamic room state (players.length), starting at 0 for newly created rooms.",
+      "verification_command": "! grep -rnE 'Daftar siswa \\(4\\)|\\b4 siswa\\b' src/"
+    },
+    {
+      "id": "REG-003",
+      "slug": "unclickable-questions",
+      "source_complaint": "Question rows in the Question Bank / Studio table were static and unclickable, preventing teachers from inspecting options, rationales, testing answers, or editing questions.",
+      "layer": 2,
+      "severity": "critical",
+      "target_paths": ["src/components/", "src/app/studio/"],
+      "expected_invariant": "Every question row in Studio / Question Bank is clickable/expandable, supports live option testing with immediate feedback, and allows custom question creation and editing.",
+      "verification_command": "grep -rnE 'expanded|onRowClick|onClick' src/components/ src/app/studio/"
+    },
+    {
+      "id": "REG-004",
+      "slug": "legacy-gold-theme-ca8a04",
+      "source_complaint": "Legacy gold/brown palette (#CA8A04, #140D08, #1A0F0A, #F5E6D3, #331F14) caused poor contrast and ignored clean Light/Dark theme requirements.",
+      "layer": 1,
+      "severity": "high",
+      "target_paths": ["src/"],
+      "forbidden_patterns": ["#CA8A04", "#140D08", "#1A0F0A", "#F5E6D3", "#331F14"],
+      "expected_invariant": "Zero legacy gold/brown hex codes anywhere in src/. UI uses BoardUI semantic tokens and high-contrast Light/Dark themes.",
+      "verification_command": "! grep -rniE '#CA8A04|#140D08|#1A0F0A|#F5E6D3|#331F14' src/"
+    },
+    {
+      "id": "REG-005",
+      "slug": "exile-org-legacy-branding",
+      "source_complaint": "UI displayed 'exile.org' or 'exile-org' instead of the clean product brand 'Exile'.",
+      "layer": 1,
+      "severity": "high",
+      "target_paths": ["src/app/", "src/components/"],
+      "forbidden_patterns": ["exile.org", "exile-org"],
+      "expected_invariant": "Zero occurrences of 'exile.org' or 'exile-org' in src/app/ or src/components/. Product brand is strictly 'Exile'.",
+      "verification_command": "! grep -rniE 'exile\\.org|exile-org' src/app/ src/components/"
+    },
+    {
+      "id": "REG-006",
+      "slug": "promotional-supabase-text-in-ui",
+      "source_complaint": "Promotional 'Supabase Cloud' or 'Supabase' text placed in user-facing titles, badges, or footers.",
+      "layer": 1,
+      "severity": "high",
+      "target_paths": ["src/app/", "src/components/"],
+      "forbidden_patterns": ["Supabase Cloud", "Powered by Supabase"],
+      "expected_invariant": "Zero occurrences of 'Supabase' in user-facing JSX text across src/app/ and src/components/.",
+      "verification_command": "scripts/verify-fast"
+    },
+    {
+      "id": "REG-007",
+      "slug": "non-persisted-studio-quizzes",
+      "source_complaint": "Quizzes and custom questions created in Studio were not persisted to Supabase, losing data on refresh or room launch.",
+      "layer": 2,
+      "severity": "critical",
+      "target_paths": ["src/app/studio/", "src/app/api/", "src/lib/rooms/store.ts"],
+      "expected_invariant": "Quizzes, custom/edited questions, rooms, players, and submissions are persisted to Supabase tables and hydrated cleanly.",
+      "verification_command": "grep -rn 'quizzes' src/app/api/ src/lib/"
+    },
+    {
+      "id": "REG-008",
+      "slug": "modal-trapped-in-header-backdrop-blur",
+      "source_complaint": "Settings modal was rendered inside the sticky header with backdrop-blur, trapping the fixed overlay inside the header's stacking context.",
+      "layer": 2,
+      "severity": "high",
+      "target_paths": ["src/components/"],
+      "expected_invariant": "Modals render via createPortal(..., document.body) or BoardUI Modal portal outside any backdrop-blur header container.",
+      "verification_command": "grep -rnE 'createPortal|Modal' src/components/"
+    }
+  ]
+}

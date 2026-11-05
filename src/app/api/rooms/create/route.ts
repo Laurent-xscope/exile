@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { createGameRoom } from "@/lib/rooms/store";
+import { checkRateLimit } from "@/lib/security/rate-limiter";
 
 const CreateRoomSchema = z.object({
   quizId: z.string().optional(),
   hostName: z.string().optional().default("Guru"),
-  questions: z.array(z.any()).optional(),
+  questions: z.array(z.unknown()).optional(),
   settings: z
     .object({
       timePerQuestionSec: z.number().int().min(5).max(120).optional(),
@@ -16,26 +17,34 @@ const CreateRoomSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const rateLimit = await checkRateLimit(req, 20, 60_000);
+  if (!rateLimit.allowed && rateLimit.errorResponse) {
+    return rateLimit.errorResponse;
+  }
+
   try {
     const rawBody = await req.json().catch(() => ({}));
     const parsed = CreateRoomSchema.safeParse(rawBody);
 
-    const quizId = parsed.success ? parsed.data.quizId : undefined;
-    const hostName = parsed.success ? parsed.data.hostName : "Guru";
-    const settings = parsed.success ? parsed.data.settings : undefined;
-    const questions = parsed.success ? parsed.data.questions : undefined;
+    if (!parsed.success) {
+      return NextResponse.json(
+        { success: false, error: "Invalid room payload", details: parsed.error.issues },
+        { status: 400 }
+      );
+    }
 
     const room = await createGameRoom({
-      quizId,
-      hostName,
-      settings,
-      questions,
+      quizId: parsed.data.quizId,
+      hostName: parsed.data.hostName,
+      settings: parsed.data.settings,
+      questions: parsed.data.questions as never,
     });
 
     return NextResponse.json({
       success: true,
       roomCode: room.roomCode,
       roomId: room.id,
+      hostToken: room.hostToken,
       hostName: room.hostName,
       status: room.status,
       totalQuestions: room.questions.length,
@@ -43,19 +52,9 @@ export async function POST(req: Request) {
     });
   } catch (err: unknown) {
     console.error("[rooms/create error]", err);
-    // Even in error, create room gracefully
-    const fallbackRoom = await createGameRoom({
-      hostName: "Guru Pengajar",
-    });
-
-    return NextResponse.json({
-      success: true,
-      roomCode: fallbackRoom.roomCode,
-      roomId: fallbackRoom.id,
-      hostName: fallbackRoom.hostName,
-      status: fallbackRoom.status,
-      totalQuestions: fallbackRoom.questions.length,
-      createdAt: fallbackRoom.createdAt,
-    });
+    return NextResponse.json(
+      { success: false, error: "Gagal membuat ruang kuis. Coba lagi." },
+      { status: 500 }
+    );
   }
 }

@@ -1,0 +1,144 @@
+{
+  "schema_version": "1.0.0",
+  "suite": "exile-loop-evals-7-layer",
+  "calibration_cadence": {
+    "schedule": "monthly_and_on_trigger",
+    "triggers": [
+      "base_model_change",
+      "rubric_edit",
+      "prompt_template_change"
+    ],
+    "target_agreement": 0.95,
+    "max_false_accept_rate": 0.0
+  },
+  "invariants": [
+    {
+      "id": "INV-001",
+      "layer": 1,
+      "category": "zero_hardcoding",
+      "description": "Zero occurrences of hardcoded room PIN '849201' or 'demo-room' anywhere in src/, including src/lib/rooms/store.ts.",
+      "check": "! grep -rnE '849201|demo-room' src/",
+      "blocking": true
+    },
+    {
+      "id": "INV-002",
+      "layer": 1,
+      "category": "zero_hardcoding",
+      "description": "Zero occurrences of static player counts such as 'Daftar siswa (4)' or hardcoded '(4)' student counters in src/.",
+      "check": "! grep -rnE 'Daftar siswa \\([0-9]+\\)|[0-9]+ siswa terdaftar' src/",
+      "blocking": true
+    },
+    {
+      "id": "INV-003",
+      "layer": 1,
+      "category": "brand_hygiene",
+      "description": "Brand is strictly 'Exile'; zero occurrences of 'exile.org' or 'exile-org' in src/app or src/components.",
+      "check": "! grep -rnE 'exile\\.org|exile-org' src/app/ src/components/",
+      "blocking": true
+    },
+    {
+      "id": "INV-004",
+      "layer": 1,
+      "category": "no_promotional_slop",
+      "description": "Zero occurrences of 'Supabase' or 'Supabase Cloud' in user-facing JSX text across src/app/ and src/components/.",
+      "check": " verify-fast JSX text scan for 'Supabase'",
+      "blocking": true
+    },
+    {
+      "id": "INV-005",
+      "layer": 1,
+      "category": "frontier_ui_boardui",
+      "description": "Zero legacy gold/brown hex literals (#CA8A04, #140D08, #1A0F0A, #F5E6D3, #331F14) anywhere in src/.",
+      "check": "! grep -rniE '#CA8A04|#140D08|#1A0F0A|#F5E6D3|#331F14' src/",
+      "blocking": true
+    },
+    {
+      "id": "INV-006",
+      "layer": 2,
+      "category": "interactivity_closed_loop",
+      "description": "Every question row in Studio/Question Bank is clickable and expandable, supports live option testing, and allows custom question creation/editing.",
+      "check": "E2E browser interaction on /studio question rows and editor modal/drawer",
+      "blocking": true
+    },
+    {
+      "id": "INV-007",
+      "layer": 2,
+      "category": "persistence_and_auth",
+      "description": "Quizzes, questions, rooms, players, and submissions persist to Supabase; /login and global Settings modal work end-to-end without portal clipping.",
+      "check": "API + E2E verification of Supabase persistence, /login, and top-level Settings modal portal",
+      "blocking": true
+    }
+  ],
+  "cases": [
+    {
+      "id": "ADJ-001",
+      "title": "Pre-seeded demo room 849201 left in store.ts while removed from page.tsx",
+      "artifact_summary": "Developer removed '849201' from src/app/page.tsx but kept demoPin = '849201' and id = 'demo-room-849201' in src/lib/rooms/store.ts.",
+      "expected_layer1_pass": false,
+      "expected_human_verdict": "REJECT",
+      "expected_rubric_scores": {
+        "zero_hardcoding": 1,
+        "frontier_ui_boardui": 4,
+        "interactivity_closed_loop": 3,
+        "no_promotional_slop": 5
+      },
+      "rationale": "Any presence of 849201 or demo-room in src/ (including store fallbacks) violates Zero Hardcoding."
+    },
+    {
+      "id": "ADJ-002",
+      "title": "Promotional 'Supabase Cloud' badge in Studio/Host footer",
+      "artifact_summary": "UI displays 'Tersinkronisasi dengan Supabase Cloud' in user-facing JSX status bar.",
+      "expected_layer1_pass": false,
+      "expected_human_verdict": "REJECT",
+      "expected_rubric_scores": {
+        "zero_hardcoding": 5,
+        "frontier_ui_boardui": 4,
+        "interactivity_closed_loop": 5,
+        "no_promotional_slop": 1
+      },
+      "rationale": "User-facing copy must never advertise backend vendors like Supabase Cloud; brand is strictly Exile."
+    },
+    {
+      "id": "ADJ-003",
+      "title": "Unclickable static question rows in Question Bank table",
+      "artifact_summary": "TanStack table renders question stems and concept badges, but clicking a row does not expand options, rationales, or live option testing.",
+      "expected_layer1_pass": true,
+      "expected_human_verdict": "REJECT",
+      "expected_rubric_scores": {
+        "zero_hardcoding": 5,
+        "frontier_ui_boardui": 4,
+        "interactivity_closed_loop": 1,
+        "no_promotional_slop": 5
+      },
+      "rationale": "Every question row must be clickable/expandable with live option testing and custom editing."
+    },
+    {
+      "id": "ADJ-004",
+      "title": "Settings Modal rendered inside sticky backdrop-blur header without portal",
+      "artifact_summary": "Settings modal is mounted as a child of the sticky header (which uses backdrop-blur-md), trapping fixed positioning inside the header bounding box.",
+      "expected_layer1_pass": true,
+      "expected_human_verdict": "REJECT",
+      "expected_rubric_scores": {
+        "zero_hardcoding": 5,
+        "frontier_ui_boardui": 1,
+        "interactivity_closed_loop": 3,
+        "no_promotional_slop": 5
+      },
+      "rationale": "Modals must use document.body portals or BoardUI Modal so they never clip inside a backdrop-blur ancestor."
+    },
+    {
+      "id": "ADJ-005",
+      "title": "Clean BoardUI implementation with dynamic rooms, persisted quizzes, and Exile branding",
+      "artifact_summary": "All rooms dynamically generated and stored in Supabase, 0 hardcoded PINs or player counts, BoardUI components & semantic tokens in Light/Dark mode, clickable/editable questions, and clean Exile branding.",
+      "expected_layer1_pass": true,
+      "expected_human_verdict": "ACCEPT",
+      "expected_rubric_scores": {
+        "zero_hardcoding": 5,
+        "frontier_ui_boardui": 5,
+        "interactivity_closed_loop": 5,
+        "no_promotional_slop": 5
+      },
+      "rationale": "Meets all Layer 1 deterministic invariants and Layer 2 Frontier quality criteria."
+    }
+  ]
+}

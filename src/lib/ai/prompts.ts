@@ -8,7 +8,7 @@ export const OptionSchema = z.object({
   label: z.enum(["A", "B", "C", "D"]),
   text: z.string().min(1, "Option text cannot be empty"),
   isCorrect: z.boolean(),
-  distractorRationale: z.string().min(1, "Distractor rationale is required to explain student misconception"),
+  distractorRationale: z.string().optional(),
 });
 
 export const QuestionSchema = z.object({
@@ -17,301 +17,23 @@ export const QuestionSchema = z.object({
   question: z.string().min(5, "Question text must be descriptive"),
   options: z.array(OptionSchema).length(4, "Must provide exactly 4 options (A, B, C, D)"),
   correctAnswer: z.enum(["A", "B", "C", "D"]),
-  explanation: z.string().min(10, "Pedagogical explanation must be provided"),
-  conceptTag: z.string().min(2, "Concept tag is required for diagnostic clustering"),
+  explanation: z.string().min(3, "Explanation must be provided"),
+  conceptTag: z.string().min(1).optional().default("Konsep Inti"),
   culturalContext: z.string().optional(),
 });
 
 export const QuizSchema = z.object({
   title: z.string().min(3),
   description: z.string(),
-  targetGrade: z.string(),
-  category: z.string(),
-  culturalTheme: z.string(),
+  targetGrade: z.string().optional(),
+  category: z.string().optional(),
+  culturalTheme: z.string().optional(),
   questions: z.array(QuestionSchema).min(1),
-});
-
-export const MicroExplanationSchema = z.object({
-  feedback: z.string().min(10, "Feedback must be clear and supportive (1-2 sentences)"),
-  misconceptionIdentified: z.string().min(5),
-  quickTip: z.string().min(5),
-});
-
-export const ClassDiagnosticSchema = z.object({
-  topic: z.string(),
-  classMasteryRate: z.number().min(0).max(100),
-  summaryText: z.string(),
-  clusterAnalysis: z.array(
-    z.object({
-      concept: z.string(),
-      errorRate: z.number().min(0).max(100),
-      primaryMisconception: z.string(),
-      affectedStudentsCount: z.number().min(0),
-    })
-  ),
-  recommendedReteaching: z.object({
-    focusConcept: z.string(),
-    pedagogicalStrategy: z.string(),
-    quickActionableStep: z.string(),
-  }),
-  adaptiveRemedialQuestions: z.array(QuestionSchema).length(3, "Must generate exactly 3 adaptive remedial questions"),
 });
 
 export type Option = z.infer<typeof OptionSchema>;
 export type Question = z.infer<typeof QuestionSchema>;
 export type Quiz = z.infer<typeof QuizSchema>;
-export type MicroExplanation = z.infer<typeof MicroExplanationSchema>;
-export type ClassDiagnostic = z.infer<typeof ClassDiagnosticSchema>;
-
-/**
- * System Prompts & Pedagogical Guidelines
- */
-
-export const BALI_PEDAGOGICAL_SYSTEM_PROMPT = `Anda adalah Pakar Kurikulum Merdeka (Fase D: SMP, Fase E/F: SMA/SMK) dan Muatan Lokal Budaya & Bahasa Bali dari Dinas Pendidikan Kepemudaan dan Olahraga Provinsi Bali.
-
-PRINSIP KETAT KURIKULUM & BUDAYA BALI:
-1. Anggah-ungguhing Basa Bali:
-   - Alus Singgih (ASI): Digunakan untuk menghormati orang berkasta lebih tinggi, pemuka agama/Sulinggih, guru, pejabat (misal: mabaos, ngandika, leda, ngaksi, seda).
-   - Alus Sor (ASO): Digunakan untuk merendahkan diri sendiri di hadapan lawan bicara (misal: nunas, nguningayang, titiang, matur, ngelungsur).
-   - Alus Mider (AMI): Kosa kata halus netral yang bisa digunakan untuk orang lain maupun diri sendiri (misal: rauh, memargi, kangkat).
-   - Alus Madia (AMA): Bahasa halus sehari-hari yang santun (misal: nggih, ten, ampun, tiang).
-   - Andap/Basa Biasa: Digunakan antar teman sebaya yang sudah akrab (misal: madaar, suba, teka).
-   - Miskonsepsi Siswa yang Paling Sering: Menggunakan kata Alus Singgih untuk diri sendiri (misal siswa mengatakan "titiang ngandika" - SALAH FATAL, seharusnya "titiang matur/nguningayang").
-
-2. Pasang Aksara Bali:
-   - Pangangge Suara: Ulu (i), Suku (u), Taling (é), Taling Tedong (o), Pepet (e).
-   - Pangangge Tengenan: Cecek (ng), Surang (r), Bisah (h), Adeg-adeg (tanda matra pemati di akhir kalimat/kata).
-   - Aturan Gantungan & Gempelan: Adeg-adeg tidak boleh di tengah kata atau kalimat jika aksara konsonan dapat digantungkan/ditempelkan.
-   - Konsonan 'r' di akhir suku kata harus memakai Surang, BUKAN adeg-adeg. Konsonan 'ng' harus memakai Cecek.
-
-3. Tri Hita Karana & Nilai Budaya:
-   - Parahyangan (Hubungan harmonis manusia dengan Ida Sang Hyang Widhi Wasa/Pura/Upakara).
-   - Pawongan (Hubungan harmonis sesama manusia/Desa Adat/Banjar/Gotong royong/Tat Twam Asi).
-   - Palemahan (Hubungan harmonis manusia dengan alam/lingkungan/Tumpek Uduh/Tumpek Kandang).
-
-4. Ketentuan Soal & Distraktor:
-   - Wajib tepat 4 pilihan jawaban: A, B, C, D.
-   - SATU opsi benar, dan TIGA opsi pengecoh (distractor).
-   - Setiap distraktor WAJIB memiliki 'distractorRationale' mendalam yang menjelaskan mengapa siswa sering terjebak memilih opsi tersebut (akar miskonsepsi siswa).
-   - Nada bahasa: Edukatif, empatik, berbasis kompetensi bernalar kritis (HOTS).
-   - Format keluaran: WAJIB HANYA JSON valid sesuai skema yang diminta, tanpa markdown berlebihan.`;
-
-/**
- * Quiz Generator Prompt Builder
- */
-export function buildQuizGenerationPrompt(
-  topic: string,
-  grade: string = "Fase D (SMP Kelas 7-9)",
-  category: string = "Muatan Lokal Bali",
-  questionCount: number = 5
-) {
-  const systemPrompt = BALI_PEDAGOGICAL_SYSTEM_PROMPT;
-
-  const prompt = `Hasilkan kuis evaluasi formatif bermutu tinggi dengan spesifikasi berikut:
-- Topik: ${topic}
-- Jenjang: ${grade}
-- Kategori Kurikulum: ${category}
-- Jumlah Soal: ${questionCount} butir
-
-MANDAT PENULISAN SOAL:
-1. Setiap soal WAJIB memiliki tepat 4 opsi jawaban (A, B, C, D).
-2. Tentukan satu opsi benar (isCorrect: true).
-3. Tiga opsi lainnya (isCorrect: false) HARUS merupakan distraktor cerdas berbasis miskonsepsi nyata siswa.
-4. Pada setiap opsi, cantumkan 'distractorRationale':
-   - Untuk opsi benar: Jelaskan mengapa opsi ini tepat secara tata bahasa atau konsep.
-   - Untuk opsi salah: Jelaskan jebakan berpikir spesifik siswa yang menyebabkan mereka memilih opsi salah ini (misalnya tertukar Alus Singgih vs Alus Sor, salah pasang aksara tengenan, atau keliru ranah Tri Hita Karana).
-5. Sertakan 'conceptTag' spesifik untuk pemetaan diagnostik (misal: "Anggah-ungguhing Basa: Alus Singgih", "Pasang Aksara: Pangangge Tengenan", "Tri Hita Karana: Palemahan").
-6. Berikan penjelasan pedagogis ('explanation') yang mengajarkan cara mudah mengingat konsep tersebut.
-
-FORMAT OUTPUT WAJIB JSON:
-{
-  "title": "Judul Kuis Menarik",
-  "description": "Deskripsi pedagogis singkat tujuan pembelajaran",
-  "targetGrade": "${grade}",
-  "category": "${category}",
-  "culturalTheme": "Nilai kearifan lokal yang relevan",
-  "questions": [
-    {
-      "question": "Kalimat soal berbasis studi kasus atau konteks percakapan/teks...",
-      "options": [
-        {
-          "label": "A",
-          "text": "Teks opsi A",
-          "isCorrect": true,
-          "distractorRationale": "Kunci benar: Menggunakan kruna Alus Singgih yang tepat untuk menghormati guru..."
-        },
-        {
-          "label": "B",
-          "text": "Teks opsi B",
-          "isCorrect": false,
-          "distractorRationale": "Pengecoh: Siswa sering tertukar menggunakan kruna Alus Sor yang seharusnya untuk merendahkan diri sendiri..."
-        },
-        {
-          "label": "C",
-          "text": "Teks opsi C",
-          "isCorrect": false,
-          "distractorRationale": "Pengecoh: Menggunakan kruna Andap yang kurang sopan untuk konteks formal di sekolah..."
-        },
-        {
-          "label": "D",
-          "text": "Teks opsi D",
-          "isCorrect": false,
-          "distractorRationale": "Pengecoh: Menggunakan kruna Kasar yang dilarang dalam etika berbicara..."
-        }
-      ],
-      "correctAnswer": "A",
-      "explanation": "Penjelasan komprehensif konsep aturan...",
-      "conceptTag": "Anggah-ungguhing Basa: Alus Singgih vs Alus Sor",
-      "culturalContext": "Etika santun berbicara kepada guru di lingkungan sekolah di Bali"
-    }
-  ]
-}`;
-
-  return { systemPrompt, prompt };
-}
-
-/**
- * Micro-Explanation Prompt Builder (Instant Mistake Feedback)
- */
-export function buildMicroExplanationPrompt(
-  question: string,
-  selectedOption: string,
-  correctOption: string,
-  options?: Array<{ label: string; text: string }>,
-  conceptTag?: string
-) {
-  const optionsText = options
-    ? options.map((opt) => `${opt.label}: ${opt.text}`).join("\n")
-    : "";
-
-  const systemPrompt = `Anda adalah mentor belajar AI yang ramah, hangat, dan suportif bagi siswa di Bali. Tugas Anda adalah memberikan umpan balik mikro (micro-learning feedback) saat siswa salah menjawab soal kuis.
-
-KRITERIA:
-1. 'feedback': Maksimal 1-2 kalimat pendek yang suportif, menguatkan, dan langsung menunjukkan kekeliruan konsep tanpa menyalahkan.
-2. 'misconceptionIdentified': 1 frasa inti miskonsepsi yang dialami siswa.
-3. 'quickTip': 1 trik praktis atau jembatan keledai untuk mengingat jawaban yang benar di masa depan.
-4. Output WAJIB JSON murni.`;
-
-  const prompt = `Seorang siswa baru saja menjawab SALAH pada soal berikut:
-Soal: "${question}"
-${optionsText ? `Pilihan Jawaban:\n${optionsText}\n` : ""}
-Pilihan yang dipilih siswa: ${selectedOption}
-Jawaban yang seharusnya benar: ${correctOption}
-${conceptTag ? `Konsep: ${conceptTag}` : ""}
-
-Berikan umpan balik mikro yang edukatif dan menyemangati.
-
-FORMAT OUTPUT WAJIB JSON:
-{
-  "feedback": "1-2 kalimat suportif menjelaskan mengapa pilihan tersebut kurang tepat dan apa yang sebenarnya terjadi.",
-  "misconceptionIdentified": "Miskonsepsi inti siswa (misal: Tertukar antara kruna Alus Singgih dan Alus Sor)",
-  "quickTip": "Tips ringkas mengingat (misal: Ingat 'Singgih' untuk meninggikan orang lain, 'Sor' untuk merendahkan diri sendiri!)"
-}`;
-
-  return { systemPrompt, prompt };
-}
-
-/**
- * Class Diagnostic & Adaptive Remedial Prompt Builder
- */
-export function buildClassDiagnosticPrompt(
-  topic: string,
-  summary: {
-    totalStudents: number;
-    averageScore: number;
-    questionBreakdown: Array<{
-      questionText: string;
-      conceptTag: string;
-      errorRate: number;
-      mostCommonWrongOption: string;
-    }>;
-  }
-) {
-  const systemPrompt = BALI_PEDAGOGICAL_SYSTEM_PROMPT;
-
-  const prompt = `Analisis hasil asesmen formatif satu kelas berikut untuk membantu guru mengambil tindakan terarah (Closed-Loop Learning):
-
-Topik Kuis: ${topic}
-Jumlah Siswa: ${summary.totalStudents}
-Rata-rata Ketuntasan: ${summary.averageScore}%
-
-Data Rekapitulasi Kesalahan per Butir Soal:
-${summary.questionBreakdown
-  .map(
-    (q, i) =>
-      `${i + 1}. Konsep: [${q.conceptTag}] | Error Rate: ${q.errorRate}% | Soal: "${q.questionText}" | Pengecoh Paling Banyak Dipilih: ${q.mostCommonWrongOption}`
-  )
-  .join("\n")}
-
-TUGAS ANDA:
-1. Hitung dan simpulkan 'classMasteryRate' dan 'summaryText' pedagogis bagi guru.
-2. Buat 'clusterAnalysis' yang mengelompokkan siswa berdasarkan pola kesalahan miskonsepsi.
-3. Berikan 'recommendedReteaching' berisi strategi pedagogis praktis yang bisa langsung dilakukan guru di kelas dalam 10 menit ke depan.
-4. Rancang tepat 3 butir soal remedial adaptif ('adaptiveRemedialQuestions') dengan tingkat scaffolding bertahap (mudah -> sedang -> kontekstual) khusus menyasar konsep dengan error rate tertinggi. Setiap soal remedial WAJIB memiliki 4 opsi (A, B, C, D) dan distractorRationale lengkap.
-
-FORMAT OUTPUT WAJIB JSON:
-{
-  "topic": "${topic}",
-  "classMasteryRate": ${summary.averageScore},
-  "summaryText": "Rangkuman diagnostik untuk guru...",
-  "clusterAnalysis": [
-    {
-      "concept": "Nama konsep miskonsepsi",
-      "errorRate": 45,
-      "primaryMisconception": "Penjelasan mengapa kelompok siswa salah...",
-      "affectedStudentsCount": 12
-    }
-  ],
-  "recommendedReteaching": {
-    "focusConcept": "Konsep prioritas untuk diajarkan ulang",
-    "pedagogicalStrategy": "Metode pembelajaran diferensiasi yang disarankan",
-    "quickActionableStep": "Aktivitas 10 menit di kelas (misal: simulasi percakapan siswa-guru)"
-  },
-  "adaptiveRemedialQuestions": [
-    {
-      "question": "Soal remedial 1 (Tingkat Pemahaman Dasar)...",
-      "options": [
-        { "label": "A", "text": "...", "isCorrect": true, "distractorRationale": "..." },
-        { "label": "B", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "C", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "D", "text": "...", "isCorrect": false, "distractorRationale": "..." }
-      ],
-      "correctAnswer": "A",
-      "explanation": "Penjelasan...",
-      "conceptTag": "Konsep...",
-      "culturalContext": "Konteks..."
-    },
-    {
-      "question": "Soal remedial 2 (Tingkat Penerapan)...",
-      "options": [
-        { "label": "A", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "B", "text": "...", "isCorrect": true, "distractorRationale": "..." },
-        { "label": "C", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "D", "text": "...", "isCorrect": false, "distractorRationale": "..." }
-      ],
-      "correctAnswer": "B",
-      "explanation": "Penjelasan...",
-      "conceptTag": "Konsep...",
-      "culturalContext": "Konteks..."
-    },
-    {
-      "question": "Soal remedial 3 (Tingkat Analisis HOTS)...",
-      "options": [
-        { "label": "A", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "B", "text": "...", "isCorrect": false, "distractorRationale": "..." },
-        { "label": "C", "text": "...", "isCorrect": true, "distractorRationale": "..." },
-        { "label": "D", "text": "...", "isCorrect": false, "distractorRationale": "..." }
-      ],
-      "correctAnswer": "C",
-      "explanation": "Penjelasan...",
-      "conceptTag": "Konsep...",
-      "culturalContext": "Konteks..."
-    }
-  ]
-}`;
-
-  return { systemPrompt, prompt };
-}
 
 export const SlideItemSchema = z.object({
   slideNumber: z.number(),
@@ -321,146 +43,272 @@ export const SlideItemSchema = z.object({
   visualConcept: z.string(),
 });
 
-export const MindMapNodeSchema: z.ZodType<{
+export interface MindMapNode {
   id: string;
   label: string;
   description: string;
   category?: string;
-  children?: any[];
-}> = z.lazy(() =>
+  children?: MindMapNode[];
+}
+
+export const MindMapNodeSchema: z.ZodType<MindMapNode> = z.lazy(() =>
   z.object({
-    id: z.string(),
-    label: z.string(),
-    description: z.string(),
+    id: z.string().optional().default(() => crypto.randomUUID()),
+    label: z.string().min(1),
+    description: z.string().min(1),
     category: z.string().optional(),
     children: z.array(MindMapNodeSchema).optional(),
   })
 );
 
+export const ReportSectionSchema = z.object({
+  heading: z.string(),
+  content: z.string(),
+  keyPoints: z.array(z.string()).optional().default([]),
+});
+
 export const PedagogicalReportSchema = z.object({
   executiveSummary: z.string(),
-  coreCompetencies: z.array(z.string()),
-  prerequisiteKnowledge: z.array(z.string()),
-  difficultyHotspots: z.array(z.string()),
-  recommendedAction: z.string(),
+  coreCompetencies: z.array(z.string()).optional().default([]),
+  prerequisiteKnowledge: z.array(z.string()).optional().default([]),
+  difficultyHotspots: z.array(z.string()).optional().default([]),
+  recommendedAction: z.string().optional().default(""),
+  sections: z.array(ReportSectionSchema).optional().default([]),
 });
 
 export const DataTableSchema = z.object({
-  columns: z.array(z.string()),
-  rows: z.array(z.record(z.string(), z.union([z.string(), z.number()]))),
+  title: z.string().optional().default(""),
+  description: z.string().optional().default(""),
+  columns: z.array(z.string()).min(1),
+  rows: z.array(
+    z.record(
+      z.string(),
+      z
+        .union([z.string(), z.number(), z.boolean(), z.null()])
+        .transform((v) => (v === null ? "" : typeof v === "boolean" ? String(v) : v))
+    )
+  ),
 });
 
 export const InfographicSchema = z.object({
   title: z.string(),
-  subtitle: z.string(),
+  subtitle: z.string().optional().default(""),
   centralConcept: z.string(),
   pillars: z.array(
     z.object({
       title: z.string(),
       keyPoints: z.array(z.string()),
-      quoteOrMnemonic: z.string(),
+      quoteOrMnemonic: z.string().optional().default(""),
     })
   ),
 });
 
 export const StudentPovInsightSchema = z.object({
   studentMentalModel: z.string(),
-  commonPointsOfConfusion: z.array(z.string()),
-  empatheticExplanation: z.string(),
-  relatableAnalogy: z.string(),
+  commonPointsOfConfusion: z.array(z.string()).optional().default([]),
+  empatheticExplanation: z.string().optional().default(""),
+  relatableAnalogy: z.string().optional().default(""),
 });
 
+export const FlashcardItemSchema = z.object({
+  id: z.string().optional().default(""),
+  front: z.string().min(3),
+  back: z.string().min(3),
+  tag: z.string().optional().default("Konsep"),
+  hint: z.string().optional(),
+});
+
+export type StudioCraftableArtifact =
+  | "flashcards"
+  | "quiz"
+  | "summary"
+  | "mindmap"
+  | "infographic"
+  | "table"
+  | "report";
+
 export const DocumentAnalysisSchema = z.object({
-  title: z.string(),
-  subjectArea: z.string(),
-  gradeLevel: z.string(),
-  summary: z.object({
-    overview: z.string().min(20),
-    keyTakeaways: z.array(z.string()).min(3),
-    culturalGlossary: z.array(
-      z.object({
-        term: z.string(),
-        meaning: z.string(),
-        category: z.string(),
-      })
-    ),
-  }),
-  flashcards: z.array(
-    z.object({
-      id: z.string(),
-      front: z.string(),
-      back: z.string(),
-      tag: z.string(),
-      hint: z.string().optional(),
+  title: z.string().min(2),
+  subjectArea: z.string().optional().default("Materi pembelajaran"),
+  gradeLevel: z.string().optional().default("Umum"),
+  summary: z
+    .object({
+      overview: z.string().optional().default(""),
+      keyTakeaways: z.array(z.string()).optional().default([]),
+      culturalGlossary: z
+        .array(
+          z.object({
+            term: z.string(),
+            meaning: z.string(),
+            category: z.string().optional().default("Istilah"),
+          })
+        )
+        .optional()
+        .default([]),
+      expansions: z
+        .array(
+          z.object({
+            question: z.string(),
+            answer: z.string(),
+          })
+        )
+        .optional()
+        .default([]),
     })
-  ).min(4),
-  quiz: z.array(QuestionSchema).min(3),
+    .optional()
+    .default({ overview: "", keyTakeaways: [], culturalGlossary: [], expansions: [] }),
+  flashcards: z.array(FlashcardItemSchema).optional().default([]),
+  quiz: z.array(QuestionSchema).optional().default([]),
   difficultyQuizzes: z
     .object({
       easy: z.array(QuestionSchema).optional(),
       medium: z.array(QuestionSchema).optional(),
       hard: z.array(QuestionSchema).optional(),
     })
-    .optional(),
-  slideDeck: z.array(SlideItemSchema).optional(),
+    .optional()
+    .catch(undefined),
+  slideDeck: z.array(SlideItemSchema).optional().catch(undefined),
   mindMap: MindMapNodeSchema.optional(),
   report: PedagogicalReportSchema.optional(),
   dataTable: DataTableSchema.optional(),
   infographic: InfographicSchema.optional(),
-  studentPov: StudentPovInsightSchema.optional(),
+  studentPov: StudentPovInsightSchema.optional().catch(undefined),
+  transcription: z.string().optional(),
 });
 
+export type FlashcardItem = z.infer<typeof FlashcardItemSchema>;
 export type SlideItem = z.infer<typeof SlideItemSchema>;
-export type MindMapNode = {
-  id: string;
-  label: string;
-  description: string;
-  category?: string;
-  children?: MindMapNode[];
-};
 export type PedagogicalReport = z.infer<typeof PedagogicalReportSchema>;
 export type DataTableData = z.infer<typeof DataTableSchema>;
 export type InfographicData = z.infer<typeof InfographicSchema>;
 export type StudentPovInsight = z.infer<typeof StudentPovInsightSchema>;
 export type DocumentAnalysis = z.infer<typeof DocumentAnalysisSchema>;
 
+/**
+ * Focused NotebookLM-caliber prompt for Studio material synthesis.
+ * Generates only the requested artifact(s) so users can craft specific artifacts on demand.
+ */
 export function buildDocumentAnalysisPrompt(
   extractedContent: string,
   mediaType: "pdf" | "image" | "text" = "text",
-  userContext?: string
+  userContext?: string,
+  artifacts: StudioCraftableArtifact[] = ["flashcards", "quiz", "summary"]
 ): { systemPrompt: string; prompt: string } {
-  const systemPrompt = `${BALI_PEDAGOGICAL_SYSTEM_PROMPT}
+  const wantFlashcards = artifacts.includes("flashcards");
+  const wantQuiz = artifacts.includes("quiz");
+  const wantSummary = artifacts.includes("summary");
+  const wantMindmap = artifacts.includes("mindmap");
+  const wantInfographic = artifacts.includes("infographic");
+  const wantTable = artifacts.includes("table");
+  const wantReport = artifacts.includes("report");
 
-TUGAS ANDA (EXILE PEDAGOGICAL ARTIFACT STUDIO):
-Anda menerima dokumen modul pembelajaran Kurikulum Merdeka atau foto lembar kerja / LKS / buku teks (media: ${mediaType}).
-Lakukan ekstraksi konten, penalaran mendalam (dedikasi waktu bernalar kritis), dan transformasikan materi ini menjadi ARTIFAK STUDIO LENGKAP:
-1. RINGKASAN INTISARI (Summary): Paragraf terstruktur, poin-poin esensial, dan glosarium istilah/kosakata lokal.
-2. FLASHCARD INTERAKTIF: Kartu tanya-jawab cepat untuk memorisasi mandiri siswa (kosakata, konsep, definisi).
-3. SOAL KUIS ADAPTIF BERDASARKAN TINGKAT KESULITAN (Easy, Medium, Hard):
-   - 'quiz': 4-5 butir soal pilihan ganda 4 opsi (A,B,C,D) berstandar HOTS dengan kunci penjelasan dan distractor rationale.
-   - 'difficultyQuizzes': Soal terklasifikasi ke level 'easy' (pemahaman dasar), 'medium' (penerapan), 'hard' (penalaran HOTS & analisis miskonsepsi).
-4. SLIDE DECK: 3-5 slide ringkas dengan presenterNotes dan konsep visual untuk pengajar menjelaskan di kelas.
-5. MIND MAP: Struktur pohon konsep hierarkis (root, cabang topik, anak konsep).
-6. REPORT: Analisis pedagogis komprehensif (prasyarat, kompetensi, area miskonsepsi).
-7. DATA TABLE: Rekap tabular kompetensi, indikator, bobot penilaian.
-8. INFOGRAPHIC: Rangkuman visual ringkas dengan pilar konsep utama dan jembatan keledai.
-9. STUDENT POV (Sudut Pandang Siswa):
-   - 'studentMentalModel': Bagaimana siswa melihat dan memahami materi ini pertama kali.
-   - 'commonPointsOfConfusion': Hal-hal yang paling sering membuat siswa bingung atau ragu.
-   - 'empatheticExplanation': Penjelasan santai, ramah, dan empatik menggunakan bahasa siswa.
-   - 'relatableAnalogy': Analogi kehidupan sehari-hari yang mudah dibayangkan siswa.
+  const instructions: string[] = [];
+  const jsonShapeFields: string[] = [
+    '  "title": string,',
+    '  "subjectArea": string,',
+    '  "gradeLevel": string',
+  ];
 
-OUTPUT HARUS BERUPA VALID JSON FORMAT STRICT SESUAI SCHEMA DocumentAnalysisSchema.`;
+  if (wantSummary) {
+    instructions.push(`Standar intisari (summary):
+- "overview": 2 paragraf ringkas yang merangkum gagasan utama, alur mekanisme/argumen, dan kesimpulan bahan.
+- "keyTakeaways": 4-6 poin spesifik yang memuat fakta/prinsip konkret dari bahan.
+- "culturalGlossary": 4-8 istilah penting dari bahan beserta arti singkat ("meaning") dan kategorinya ("category").`);
+    jsonShapeFields.push(
+      `  "summary": {\n    "overview": string,\n    "keyTakeaways": [string],\n    "culturalGlossary": [{"term": string, "meaning": string, "category": string}]\n  }`
+    );
+  }
 
-  const prompt = `EKSTRAK DAN ANALISIS DOKUMEN SECARA KOMPREHENSIF:
-${userContext ? `Catatan/Konteks Guru: ${userContext}\n` : ""}
---- ISI DOKUMEN / HASIL PEMINDAIAN ---
+  if (wantFlashcards) {
+    instructions.push(`Standar kualitas kartu belajar (flashcards) setara NotebookLM:
+- Buat 8-12 kartu yang menguji pemahaman mendalam dari berbagai sudut, bukan sekadar "Apa definisi X?" berulang-ulang:
+  1. Mekanisme / proses ("Bagaimana X bekerja hingga menghasilkan Y?")
+  2. Perbandingan / pembeda ("Apa perbedaan fungsi antara X dan Y?")
+  3. Sebab-akibat / alasan ("Mengapa X terjadi ketika kondisi Y berubah?")
+  4. Contoh / penerapan ("Dalam kasus X pada bahan, prinsip apa yang berlaku?")
+  5. Istilah kunci ("Apa peran spesifik X dalam keseluruhan proses?")
+- "front": satu kalimat pertanyaan yang tajam, spesifik, dan langsung memicu ingatan aktif.
+- "back": kalimat pertama langsung menjawab inti pertanyaan, diikuti 1-2 kalimat penjelasan mekanisme, alasan, atau detail penting dari bahan.
+- "tag": sub-topik spesifik 2-3 kata.
+- "hint": petunjuk berpikir 1 kalimat singkat yang membantu mengingat tanpa membocorkan jawaban.`);
+    jsonShapeFields.push(
+      '  "flashcards": [{"id": "c1", "front": string, "back": string, "tag": string, "hint": string}]'
+    );
+  }
+
+  if (wantQuiz) {
+    instructions.push(`Standar kuis (quiz):
+- Buat 6 soal pilihan ganda (4 opsi label "A", "B", "C", "D"; tepat satu "isCorrect": true; "correctAnswer" sesuai label yang benar).
+- Sebarkan letak jawaban benar secara merata antara A, B, C, dan D.
+- Pilihan yang salah harus masuk akal dan sebanding panjangnya, namun jelas salah menurut bahan.
+- "explanation": 1-2 kalimat yang menjelaskan mengapa jawaban tersebut benar menurut bahan.
+- "conceptTag": 2-4 kata topik soal.`);
+    jsonShapeFields.push(
+      '  "quiz": [{"question": string, "options": [{"label": "A"|"B"|"C"|"D", "text": string, "isCorrect": boolean}], "correctAnswer": "A"|"B"|"C"|"D", "explanation": string, "conceptTag": string}]'
+    );
+  }
+
+  if (wantMindmap) {
+    instructions.push(`Standar peta konsep (mindMap) setara NotebookLM:
+- Susun pohon konsep hierarkis 3 tingkat (akar utama -> 4-6 cabang utama -> 2-4 sub-cabang per cabang utama).
+- Setiap simpul wajib memiliki "id" unik (mis. "root", "b1", "b1-1"), "label" singkat & jelas (2-5 kata), "category" (mis. "Struktur", "Kosakata", "Pola kalimat"), dan "description" (1 kalimat ringkas yang menjelaskan konsep/contoh konkret dari bahan).`);
+    jsonShapeFields.push(
+      '  "mindMap": {"id": "root", "label": string, "description": string, "children": [{"id": "b1", "label": string, "category": string, "description": string, "children": [{"id": "b1-1", "label": string, "description": string}]}]}'
+    );
+  }
+
+  if (wantInfographic) {
+    instructions.push(`Standar infografik (infographic) setara NotebookLM:
+- "title": judul ringkas visual poster.
+- "subtitle": 1 kalimat konteks atau tujuan pembelajaran bahan.
+- "centralConcept": 1 kalimat kesimpulan utama yang merangkum inti seluruh bahan ajar.
+- "pillars": 4-6 pilar visual utama dari bahan; masing-masing memiliki "title" (judul pilar), "keyPoints" (3-4 poin konkret/contoh dari bahan), dan "quoteOrMnemonic" (rumus, pola kalimat, atau jembatan keledai singkat yang mudah diingat).`);
+    jsonShapeFields.push(
+      '  "infographic": {"title": string, "subtitle": string, "centralConcept": string, "pillars": [{"title": string, "keyPoints": [string], "quoteOrMnemonic": string}]}'
+    );
+  }
+
+  if (wantTable) {
+    instructions.push(`Standar tabel data (dataTable) setara NotebookLM:
+- Ekstrak perbandingan, klasifikasi, kosakata, pola kalimat, atau matriks fakta penting dari bahan menjadi tabel terstruktur.
+- "title": judul tabel yang spesifik.
+- "description": 1 kalimat penjelasan isi tabel.
+- "columns": 3-5 nama kolom yang konsisten.
+- "rows": 6-12 baris objek JSON di mana setiap key persis sama dengan nama di "columns".`);
+    jsonShapeFields.push(
+      '  "dataTable": {"title": string, "description": string, "columns": [string], "rows": [{"Kolom1": string, "Kolom2": string}]}'
+    );
+  }
+
+  if (wantReport) {
+    instructions.push(`Standar laporan briefing (report) setara NotebookLM Briefing Doc:
+- "executiveSummary": 2 paragraf ringkasan eksekutif yang membedah ruang lingkup, struktur konsep, dan tujuan bahan ajar.
+- "coreCompetencies": 4-5 kemampuan spesifik yang dikuasai setelah mempelajari bahan ini.
+- "prerequisiteKnowledge": 3-4 pengetahuan dasar yang perlu dimiliki sebelum masuk ke materi inti.
+- "difficultyHotspots": 3-4 bagian tersulit atau pola yang paling sering membingungkan beserta cara mengatasinya.
+- "recommendedAction": langkah belajar atau latihan bertahap yang disarankan dari bahan.
+- "sections": 3-4 bagian pendalaman topik ("heading", "content" 1 paragraf analisis, dan "keyPoints" 2-3 contoh/fakta spesifik dari bahan).`);
+    jsonShapeFields.push(
+      '  "report": {"executiveSummary": string, "coreCompetencies": [string], "prerequisiteKnowledge": [string], "difficultyHotspots": [string], "recommendedAction": string, "sections": [{"heading": string, "content": string, "keyPoints": [string]}]}'
+    );
+  }
+
+  const systemPrompt = `Kamu menyusun artifak belajar dari bahan ajar (${mediaType}) dengan ketajaman setara Google NotebookLM.
+
+Aturan utama:
+- Semua fakta, istilah, angka, dan hubungan sebab-akibat harus berasal dari bahan yang diberikan. Jangan mengarang fakta di luar bahan.
+- Gunakan bahasa yang sama dengan bahan ajar (atau Bahasa Indonesia yang jelas bila bahan dwibahasa). Tulis lugas, bernas, dan alami—tanpa jargon kaku, tanpa kata "miskonsepsi" atau "pengecoh", dan tanpa kalimat basa-basi.
+
+${instructions.join("\n\n")}
+
+Balas HANYA satu objek JSON valid dengan struktur:
+{
+${jsonShapeFields.join(",\n")}
+}`;
+
+  const prompt = `${userContext ? `Catatan pengajar: ${userContext}\n\n` : ""}=== BAHAN AJAR ===
 ${extractedContent}
---- AKHIR DOKUMEN ---
-
-Instruksi Output: Hasilkan satu objek JSON valid tanpa markdown penjelasan di luar JSON.
-Sertakan bidang: title, subjectArea, gradeLevel, summary, flashcards, quiz, difficultyQuizzes, slideDeck, mindMap, report, dataTable, infographic, studentPov.`;
+=== AKHIR BAHAN AJAR ===`;
 
   return { systemPrompt, prompt };
 }
-

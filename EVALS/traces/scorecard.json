@@ -1,0 +1,110 @@
+{
+  "schema_version": "1.0.0",
+  "loop_name": "exile-frontier-upgrade",
+  "updated_at": "2026-11-04T19:05:00Z",
+  "layers_active": [1, 2, 3, 4, 5, 6, 7],
+  "first_class_metrics": {
+    "false_completion_rate": {
+      "formula": "(iterations_claiming_success_and_failing_layer1) / (iterations_claiming_success)",
+      "target": 0.0,
+      "current": 0.0,
+      "iterations_claiming_success": 1,
+      "false_completions_detected": 0,
+      "status": "healthy"
+    },
+    "repair_productivity": {
+      "formula": "(repair_passes_where_verification_after_gt_verification_before) / (total_repair_passes_attempted)",
+      "target": 0.8,
+      "current": 1.0,
+      "repair_passes_attempted": 2,
+      "productive_repairs": 2,
+      "status": "healthy"
+    }
+  },
+  "layer_summary": {
+    "layer_1_deterministic_correctness": {
+      "gate_scripts": ["scripts/verify-fast", "scripts/verify-full"],
+      "constraint_violation_count": 0,
+      "blocking": true
+    },
+    "layer_2_artifact_quality": {
+      "rubric_path": "EVALS/rubrics/quality.md",
+      "min_dimension_floor": 4,
+      "last_rubric_mean": 5.0,
+      "blocking": false
+    },
+    "layer_3_human_calibration": {
+      "dataset_path": "EVALS/dataset/adjudication.json",
+      "judge_human_agreement": 1.0,
+      "false_accept_count": 0
+    },
+    "layer_4_loop_behavior": {
+      "false_completion_rate": 0.0,
+      "repair_productivity": 1.0,
+      "max_repair_depth": 2
+    },
+    "layer_5_security_governance": {
+      "verifier_gaming_detections": 0,
+      "blocking": true
+    },
+    "layer_6_regression_resistance": {
+      "cases_path": "EVALS/regressions/cases.json",
+      "total_cases": 8,
+      "regression_failure_count": 0,
+      "blocking": true
+    },
+    "layer_7_cost_efficiency": {
+      "status": "within_budget"
+    }
+  },
+  "history": [
+    {
+      "iteration_id": "iter-001-frontier-e2e-audit",
+      "timestamp": "2026-11-04T19:05:00Z",
+      "deterministic_gate_passed": true,
+      "dimensions": {
+        "zero_hardcoding": {
+          "score": 5,
+          "evidence": [
+            "scripts/verify-fast: 0 matches for 849201, demo-room, or Daftar siswa (4) in src/",
+            "src/lib/rooms/store.ts:267-372 dynamic 6-digit PIN generation via generateRoomCode() and createGameRoom() with empty Map<string, PlayerRecord>()",
+            "GET /api/rooms/849201/state returns HTTP 404",
+            "POST /api/rooms/create returned dynamic PIN 490906 with players.length === 0 and hostName === 'Ibu Ni Luh Putu'"
+          ],
+          "violations": []
+        },
+        "frontier_ui_boardui": {
+          "score": 5,
+          "evidence": [
+            "src/app/page.tsx, src/app/login/page.tsx, src/app/studio/page.tsx, src/app/play/page.tsx, src/app/host/[code]/TeacherHostClient.tsx, src/app/play/[code]/PlayArenaClient.tsx use BoardUI components (Button, Input, Modal, Tabs, SegmentedControl, Table, Chip, Badge, Dropdown, Avatar, ScrollFade)",
+            "src/styles/theme.css & src/styles/typography.css: semantic color tokens (bg-background-full, bg-background-primary-default, text-text-primary, border-border-button-default) and composite typography utilities",
+            "src/components/settings/settings-modal.tsx:134-146 uses BoardUI Modal (React Aria ModalOverlay top-level portal outside header backdrop-blur)",
+            "scripts/verify-fast: 0 legacy hex codes (#CA8A04, #140D08, #1A0F0A, #F5E6D3, #331F14)"
+          ],
+          "violations": []
+        },
+        "interactivity_closed_loop": {
+          "score": 5,
+          "evidence": [
+            "POST /api/ai/process-document returns valid UUID quizId (d33817c1-7742-43e9-8484-e5bfca234600), summary, flashcards, and quiz with valid UUID question IDs",
+            "POST /api/rooms/create -> GET /api/rooms/490906/state (0 players, waiting) -> POST /api/rooms/join (playerId UUID 316d5e79-2ec6-4746-a3ba-ef38b28dcb10, Kadek Adi) -> POST /api/rooms/490906/action (resume_quiz -> active, currentQuestionIndex 0) -> POST /api/rooms/submit (returns correctAnswer & explanation) -> POST /api/ai/class-diagnostic (returns clusterAnalysis & adaptiveRemedialQuestions)",
+            "src/app/studio/page.tsx:365-512, 1365-1560 clickable/expandable question rows in TanStack + BoardUI Table, live option testing with audio & visual feedback, inline question creation and editing (handleStartEditQuestion & handleAddCustomQuestion)",
+            "src/app/login/page.tsx, src/app/auth/callback/route.ts, and src/components/settings/settings-modal.tsx provide end-to-end Auth and persistent user settings (exile_user_settings)"
+          ],
+          "violations": []
+        },
+        "no_promotional_slop": {
+          "score": 5,
+          "evidence": [
+            "scripts/verify-fast: 0 occurrences of 'Supabase', 'exile.org', or 'exile-org' in user-facing JSX across src/app/ and src/components/",
+            "HTTP 200 HTML inspection of /, /login, /studio, /play, /host/490906, /play/490906 confirmed 0 occurrences of forbidden tokens ('Supabase', 'exile.org', '849201', '#CA8A04')"
+          ],
+          "violations": []
+        }
+      },
+      "rubric_mean": 5.0,
+      "pass": true,
+      "blocking_findings": []
+    }
+  ]
+}

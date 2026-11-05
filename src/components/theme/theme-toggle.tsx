@@ -1,50 +1,38 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { RiSunLine, RiMoonLine } from "@remixicon/react";
 import { IconButton } from "@/components/base/buttons/icon-button";
 import { cx } from "@/utils/cx";
 
+/** VoiceBox / VoiceBox Black: flips ink and paper. */
 export function ThemeToggle({ className = "" }: { className?: string }) {
-  const { theme, setTheme, resolvedTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  const { resolvedTheme, setTheme } = useTheme();
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
 
   if (!mounted) {
     return (
       <div
-        className={cx(
-          "size-9 rounded-2lg border border-border-button-default bg-background-secondary-default animate-pulse",
-          className,
-        )}
+        className={cx("size-9 border-2 border-line2", className)}
         aria-hidden="true"
       />
     );
   }
 
-  const toggleTheme = () => {
-    if (theme === "dark" || resolvedTheme === "dark") {
-      setTheme("light");
-    } else {
-      setTheme("dark");
-    }
-  };
-
   const isDark = resolvedTheme === "dark";
-  const label = isDark ? "Beralih ke mode terang" : "Beralih ke mode gelap";
 
   return (
     <IconButton
-      icon={isDark ? RiSunLine : RiMoonLine}
-      size="medium"
-      onClick={toggleTheme}
-      aria-label={label}
-      title={label}
+      aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
+      title={isDark ? "Light" : "Dark"}
       className={className}
+      icon={isDark ? RiSunLine : RiMoonLine}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
     />
   );
 }

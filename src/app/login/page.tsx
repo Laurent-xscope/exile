@@ -23,9 +23,11 @@ import { SettingsButton } from "@/components/settings/settings-modal";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
 import { useAuth } from "@/lib/auth/use-auth";
+import { useTranslation } from "@/lib/i18n/use-translation";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { t, lang } = useTranslation();
   const {
     user,
     loading: authLoading,
@@ -47,6 +49,8 @@ export default function LoginPage() {
       const params = new URLSearchParams(window.location.search);
       const nextParam = params.get("next");
       if (nextParam && nextParam.startsWith("/")) {
+        // The query string is only available after hydration.
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setNextPath(nextParam);
       }
     }
@@ -108,7 +112,7 @@ export default function LoginPage() {
           size="small"
           leadingIcon={RiArrowLeftLine}
         >
-          Kembali ke Beranda
+          {t.login.backHome}
         </ButtonLink>
 
         <div className="flex items-center gap-2">
@@ -130,10 +134,10 @@ export default function LoginPage() {
           </div>
           <div className="space-y-1">
             <h1 className="text-title-2-semibold text-text-primary">
-              Otentikasi Pengajar Exile
+              {t.login.title}
             </h1>
             <p className="text-body-regular text-text-secondary">
-              Studio penyusunan modul dan ruang kontrol kelas hanya dapat diakses oleh pengajar yang telah masuk.
+              {t.login.subtitle}
             </p>
           </div>
         </div>
@@ -151,10 +155,10 @@ export default function LoginPage() {
             className="w-full"
           >
             <SegmentedControlItem id="signin" className="flex-1 justify-center">
-              Masuk Akun
+              {t.login.modeSignin}
             </SegmentedControlItem>
             <SegmentedControlItem id="signup" className="flex-1 justify-center">
-              Daftar Pengajar Baru
+              {t.login.modeSignup}
             </SegmentedControlItem>
           </SegmentedControl>
 
@@ -162,8 +166,8 @@ export default function LoginPage() {
             {mode === "signup" && (
               <Input
                 type="text"
-                label="Nama Lengkap & Gelar Pengajar"
-                placeholder="Contoh: Ni Luh Putu Sari, S.Pd.B."
+                label={t.login.fullNameLabel}
+                placeholder={t.login.fullNamePlaceholder}
                 leadingIcon={RiUser3Line}
                 value={fullName}
                 onChange={setFullName}
@@ -173,8 +177,8 @@ export default function LoginPage() {
 
             <Input
               type="email"
-              label="Alamat Email Pengajar"
-              placeholder="guru@exile.web.id"
+              label={t.login.emailLabel}
+              placeholder={t.login.emailPlaceholder}
               leadingIcon={RiMailLine}
               value={email}
               onChange={setEmail}
@@ -184,8 +188,8 @@ export default function LoginPage() {
 
             <Input
               type="password"
-              label="Kata Sandi"
-              placeholder="Minimal 6 karakter"
+              label={t.login.passwordLabel}
+              placeholder={t.login.passwordPlaceholder}
               leadingIcon={RiLockPasswordLine}
               value={password}
               onChange={setPassword}
@@ -204,20 +208,20 @@ export default function LoginPage() {
               {submitting ? (
                 <span className="inline-flex items-center gap-2">
                   <Spinner size="sm" aria-hidden className="text-text-white" />
-                  <span>Memverifikasi Sesi...</span>
+                  <span>{t.login.processing}</span>
                 </span>
               ) : mode === "signin" ? (
-                "Masuk ke Studio Pengajar"
+                t.login.signinBtn
               ) : (
-                "Buat Akun & Buka Studio"
+                t.login.signupBtn
               )}
             </Button>
           </form>
 
           <div className="relative flex items-center py-1">
             <div className="grow border-t border-separator-border" />
-            <span className="mx-3 shrink-0 text-caption-1-medium text-text-tertiary uppercase">
-              atau
+            <span className="mx-3 shrink-0 text-caption-1-medium text-text-tertiary">
+              {lang === "en" ? "Or" : "Atau"}
             </span>
             <div className="grow border-t border-separator-border" />
           </div>
@@ -252,7 +256,7 @@ export default function LoginPage() {
                 />
               </svg>
             )}
-            <span>Lanjutkan dengan Google</span>
+            <span>{t.login.googleBtn}</span>
           </Button>
         </div>
       </motion.div>

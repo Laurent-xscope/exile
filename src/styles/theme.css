@@ -19,30 +19,24 @@
   --color-slate-200:   #ebeff5;
   --color-neutral-100: #f7f7f7;
   --color-neutral-200: #ebebeb;
-  --color-neutral-925: #121212;
+  --color-neutral-925: #141312;
   --color-blue-400:    #3392ff;
 
-  /* ----- Accent ramp ---------------------------------------------------------
-   * The CTA hue. Interactive/selection surfaces (primary button gradient,
-   * ghost + link buttons, checkbox, radio, switch, slider, tabs, sidebar
-   * selected, focus ring, date-range selection) reference accent-* instead of
-   * a raw hue, so the whole system re-tints by overriding these eleven
-   * variables at runtime (see components/application/theme/accent.ts) or in
-   * a customer project after importing this file. Defaults to the blue
-   * primitives above. Content/data blues (charts, status chips, calendar
-   * events, info notifications) deliberately keep referencing blue-*.
+  /* ----- Accent ramp (Tridatu Terracotta Crimson & Warm Ember) ----------------
+   * Interactive/selection surfaces reference accent-* instead of cold corporate
+   * blue. Provides authentic warmth without visual fatigue.
    * --------------------------------------------------------------------------*/
-  --color-accent-50:  var(--color-blue-50);
-  --color-accent-100: var(--color-blue-100);
-  --color-accent-200: var(--color-blue-200);
-  --color-accent-300: var(--color-blue-300);
-  --color-accent-400: var(--color-blue-400);
-  --color-accent-500: var(--color-blue-500);
-  --color-accent-600: var(--color-blue-600);
-  --color-accent-700: var(--color-blue-700);
-  --color-accent-800: var(--color-blue-800);
-  --color-accent-900: var(--color-blue-900);
-  --color-accent-950: var(--color-blue-950);
+  --color-accent-50:  #fdf5f4;
+  --color-accent-100: #fbeae8;
+  --color-accent-200: #f8d7d4;
+  --color-accent-300: #f2b8b1;
+  --color-accent-400: #e98b80;
+  --color-accent-500: #dc5647;
+  --color-accent-600: #c94030;
+  --color-accent-700: #a83123;
+  --color-accent-800: #8b2c21;
+  --color-accent-900: #742921;
+  --color-accent-950: #3f110c;
 
   /* ----- Typography ----------------------------------------------------------
    * Font sizes, weights, line-heights, and tracking all match Tailwind v4

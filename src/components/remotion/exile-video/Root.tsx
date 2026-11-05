@@ -1,6 +1,5 @@
 import React from "react";
 import { Composition } from "remotion";
-import { ExileVideo } from "./ExileVideo";
 import {
   DEFAULT_PROPS,
   FPS,
@@ -9,6 +8,7 @@ import {
   WIDTH,
   exileVideoSchema,
 } from "./constants";
+import { ExileVideo } from "./ExileVideo";
 
 /** Single composition registered for Remotion Studio / `remotion render`. */
 export const RemotionRoot: React.FC = () => (

@@ -1,5 +1,5 @@
 # Dokumen Riset Kurikulum Merdeka & Muatan Lokal Budaya Bali
-## Basis Pengetahuan & Desain Pedagogis untuk exile.org (Bali DigiFest 2026)
+## Basis Pengetahuan & Desain Pedagogis untuk Exile (Bali DigiFest 2026)
 
 ---
 
@@ -12,7 +12,7 @@ Berdasarkan Panduan Resmi Peserta, rubrik penilaian memberikan porsi terbesar pa
 2. **Product Functionality & Reliability (20% - 25% di final)**
 3. **Problem Relevance & Impact (15% - 20% di tahap 1)**
 
-`exile.org` memosisikan diri bukan sekadar pembuat kuis otomatis (*quiz wrapper*), melainkan **mesin diagnostik siklus tertutup (*closed-loop learning engine*)** yang memecahkan krisis asesmen muatan lokal di Bali:
+`Exile` memosisikan diri bukan sekadar pembuat kuis otomatis (*quiz wrapper*), melainkan **mesin diagnostik siklus tertutup (*closed-loop learning engine*)** yang memecahkan krisis asesmen muatan lokal di Bali:
 * **Tantangan Nyata di Sekolah**: Guru bahasa Bali dan guru kelas di Bali kerap kesulitan merancang soal bertingkat (*Anggah-ungguhing Basa*) yang dilengkapi analisis miskonsepsi mengapa siswa memilih jawaban salah.
 * **Peran Nyata AI**: AI menganalisis pola kesalahan kelas, mengelompokkan siswa berdasarkan jenis miskonsepsi (misal: gagal membedakan *Kruna Alus Singgih* dan *Alus Sor*), dan secara otomatis menyusun 3 soal remedial terpersonalisasi.
 
@@ -84,11 +84,11 @@ Masyarakat Bali mengenal stratifikasi bahasa berdasarkan rasa hormat (*kesantuna
 
 ---
 
-## 4. Skema Integrasi dengan AI Engine exile.org
+## 4. Skema Integrasi dengan AI Engine Exile
 
 1. **Pre-Seeded Knowledge Retrieval**:
    * File `src/data/curriculum-bali.json` dibaca secara server-side oleh `src/lib/ai/prompts.ts` dan `src/lib/ai/gateway.ts`.
 2. **Few-Shot Prompt Grounding**:
-   * Saat guru meminta pembuatan kuis topik *"Anggah-ungguhing Basa"*, engine menyuntikkan matriks konversi kata dan aturan miskonsepsi agar soal yang digenerate oleh Gemini bebas dari halusinasi tata krama.
+   * Saat guru meminta pembuatan kuis topik *"Anggah-ungguhing Basa"*, engine menyuntikkan matriks konversi kata dan aturan miskonsepsi agar soal yang digenerate oleh AI bebas dari halusinasi tata krama.
 3. **Realtime Error Diagnostic**:
    * Ketika siswa salah memilih opsi B (*Alus Sor* bukannya *Alus Singgih*), endpoint `/api/ai/explain-error` langsung memetakan `misconception_tag` dan memberikan bimbingan 1 kalimat tanpa jeda.

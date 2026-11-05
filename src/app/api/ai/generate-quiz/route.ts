@@ -1,93 +1,53 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { callAI } from "@/lib/ai/gateway";
-import { buildQuizGenerationPrompt, QuizSchema } from "@/lib/ai/prompts";
+import { generateQuizFromText } from "@/lib/ai/quiz-gen";
+import { AIUnavailableError } from "@/lib/ai/llm";
 import { storeQuiz } from "@/lib/rooms/store";
+import { checkRateLimit } from "@/lib/security/rate-limiter";
 
-const GenerateQuizRequestSchema = z.object({
-  topic: z.string().min(2, "Topic must be at least 2 characters"),
-  grade: z.string().optional().default("Fase D (SMP Kelas 7-9)"),
-  category: z.string().optional().default("Muatan Lokal Bali"),
-  questionCount: z.coerce.number().int().min(1).max(10).optional().default(5),
+const BodySchema = z.object({
+  topic: z.string().min(2),
+  grade: z.string().optional(),
+  contextText: z.string().optional(),
+  questionCount: z.coerce.number().int().min(1).max(20).optional().default(5),
 });
 
 export async function POST(req: Request) {
+  const rateLimit = await checkRateLimit(req, 10, 60_000);
+  if (!rateLimit.allowed && rateLimit.errorResponse) return rateLimit.errorResponse;
+
+  const parsed = BodySchema.safeParse(await req.json().catch(() => null));
+  if (!parsed.success) {
+    return NextResponse.json({ error: "Permintaan tidak valid" }, { status: 400 });
+  }
+  const { topic, grade, contextText, questionCount } = parsed.data;
+
   try {
-    const rawBody = await req.json().catch(() => ({}));
-    const parsed = GenerateQuizRequestSchema.safeParse(rawBody);
+    const sourcePrompt = contextText && contextText.trim().length > 20
+      ? `Topik fokus: ${topic}${grade ? `\nTingkat: ${grade}` : ""}\n\nBahan rujukan:\n${contextText.trim().slice(0, 12000)}`
+      : `Topik: ${topic}${grade ? `\nTingkat: ${grade}` : ""}\nSusun soal pilihan ganda yang akurat dan relevan tentang topik ini.`;
 
-    if (!parsed.success) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Invalid request payload",
-          details: parsed.error.issues,
-        },
-        { status: 400 }
-      );
-    }
-
-    const { topic, grade, category, questionCount } = parsed.data;
-
-    const { systemPrompt, prompt } = buildQuizGenerationPrompt(
-      topic,
-      grade,
-      category,
-      questionCount
-    );
-
-    const quiz = await callAI(prompt, QuizSchema, {
-      systemPrompt,
-      temperature: 0.7,
+    const quiz = await generateQuizFromText({
+      text: sourcePrompt,
+      questionCount,
     });
-
     const stored = await storeQuiz({
       id: crypto.randomUUID(),
       title: quiz.title,
-      description: quiz.description,
+      description: "",
       targetGrade: grade,
-      category,
-      culturalTheme: quiz.culturalTheme,
       questions: quiz.questions,
     });
-
     return NextResponse.json({
       success: true,
       quizId: stored.id,
-      quiz: {
-        ...quiz,
-        questions: stored.questions,
-      },
+      quiz: { title: quiz.title, questions: stored.questions },
     });
-  } catch (err: unknown) {
-    console.error("[generate-quiz error]", err);
-    // As mandated: resilient behavior, return graceful fallback
-    const { systemPrompt, prompt } = buildQuizGenerationPrompt(
-      "Asesmen Muatan Lokal Bali: Basa Alus & Aksara",
-      "Fase D (SMP Kelas 7-9)",
-      "Muatan Lokal Bali",
-      5
+  } catch (err) {
+    const status = err instanceof AIUnavailableError ? 502 : 500;
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : "Gagal membuat kuis." },
+      { status }
     );
-    const fallbackQuiz = await callAI(prompt, QuizSchema, { systemPrompt });
-
-    const stored = await storeQuiz({
-      id: crypto.randomUUID(),
-      title: fallbackQuiz.title,
-      description: fallbackQuiz.description,
-      targetGrade: "Fase D (SMP Kelas 7-9)",
-      category: "Muatan Lokal Bali",
-      culturalTheme: fallbackQuiz.culturalTheme,
-      questions: fallbackQuiz.questions,
-    });
-
-    return NextResponse.json({
-      success: true,
-      quizId: stored.id,
-      quiz: {
-        ...fallbackQuiz,
-        questions: stored.questions,
-      },
-      fallbackActivated: true,
-    });
   }
 }

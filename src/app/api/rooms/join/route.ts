@@ -1,14 +1,25 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { joinGameRoom } from "@/lib/rooms/store";
+import {
+  joinGameRoom,
+  PlayerIdentityConflictError,
+} from "@/lib/rooms/store";
+import { checkRateLimit } from "@/lib/security/rate-limiter";
+import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 
 const JoinRoomSchema = z.object({
-  roomCode: z.string().min(4, "Room code PIN is required"),
+  roomCode: z.string().min(1, "Room code PIN is required"),
   nickname: z.string().min(1, "Nickname is required").max(30, "Nickname too long"),
   avatar: z.string().optional().default("garuda"),
+  playerToken: z.string().optional(),
 });
 
 export async function POST(req: Request) {
+  const rateLimit = await checkRateLimit(req, 120, 60_000);
+  if (!rateLimit.allowed && rateLimit.errorResponse) {
+    return rateLimit.errorResponse;
+  }
+
   try {
     const rawBody = await req.json().catch(() => ({}));
     const parsed = JoinRoomSchema.safeParse(rawBody);
@@ -24,19 +35,28 @@ export async function POST(req: Request) {
       );
     }
 
-    const { roomCode, nickname, avatar } = parsed.data;
+    const { roomCode, nickname, avatar, playerToken } = parsed.data;
+    const normalizedCode = normalizeRoomCode(roomCode);
+
+    if (!isValidRoomCode(normalizedCode)) {
+      return NextResponse.json(
+        { success: false, error: "PIN ruangan harus tepat 6 digit." },
+        { status: 400 }
+      );
+    }
 
     const result = await joinGameRoom({
-      roomCode: roomCode.trim(),
+      roomCode: normalizedCode,
       nickname: nickname.trim(),
       avatar: avatar.trim(),
+      playerToken,
     });
 
     if (!result) {
       return NextResponse.json(
         {
           success: false,
-          error: `Room PIN "${roomCode}" tidak ditemukan atau permainan telah selesai. Pastikan PIN yang dimasukkan sudah sesuai.`,
+          error: `Room PIN "${normalizedCode}" tidak ditemukan atau permainan telah selesai. Pastikan PIN yang dimasukkan sudah sesuai.`,
         },
         { status: 404 }
       );
@@ -45,6 +65,8 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       playerId: result.player.id,
+      playerToken: result.player.token,
+      playerStatus: result.player.status,
       nickname: result.player.nickname,
       avatar: result.player.avatar,
       score: result.player.score,
@@ -57,6 +79,12 @@ export async function POST(req: Request) {
       },
     });
   } catch (err: unknown) {
+    if (err instanceof PlayerIdentityConflictError) {
+      return NextResponse.json(
+        { success: false, error: err.message },
+        { status: 409 }
+      );
+    }
     console.error("[rooms/join error]", err);
     return NextResponse.json(
       {

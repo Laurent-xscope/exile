@@ -5,10 +5,8 @@ import {
   RiBarChartGroupedLine,
   RiTableLine,
   RiSparklingLine,
-  RiArrowRightUpLine,
   RiCheckLine,
   RiAlertLine,
-  RiInformationLine,
   RiTimeLine,
   RiUserVoiceLine,
 } from "@remixicon/react";
@@ -69,7 +67,13 @@ const METRICS_DATA: CompetencyData[] = [
   },
 ];
 
-export function DiagnosticMetricsDashboard({ className = "" }: { className?: string }) {
+export function DiagnosticMetricsDashboard({
+  className = "",
+  showViewToggle = true,
+}: {
+  className?: string;
+  showViewToggle?: boolean;
+}) {
   const [viewMode, setViewMode] = useState<"graph" | "table">("graph");
   const [selectedCompId, setSelectedCompId] = useState<string>("COMP-01");
 
@@ -86,57 +90,59 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-separator-border">
         <div className="space-y-1">
           <div className="flex items-center gap-2">
-            <span className="text-caption-2-semibold tracking-wider uppercase text-text-tertiary">
-              Live Evaluation Telemetry
+            <span className="text-caption-2-semibold tracking-wider text-text-tertiary">
+              Telemetri evaluasi langsung
             </span>
             <Chip variant="caption" color="blue">
-              Real-time
+              Langsung
             </Chip>
           </div>
           <h3 className="text-title-3-semibold sm:text-title-2-semibold text-text-primary tracking-tight">
-            Metrik Penguasaan & Diagnosis Miskonsepsi Siswa
+            Metrik penguasaan siswa
           </h3>
           <p className="text-body-2-regular text-text-secondary max-w-2xl">
-            Hasil agregasi formatif otomatis dari ruang kuis kelas. Menunjukkan tingkat pemahaman konsep dan target remedial adaptif.
+            Hasil agregasi formatif otomatis dari ruang kuis kelas.
           </p>
         </div>
 
         {/* Minimalist Segmented Pill Toggle */}
-        <div className="inline-flex items-center p-1 rounded-xl bg-background-secondary-default border border-border-button-default shrink-0 self-start sm:self-auto">
-          <button
-            type="button"
-            onClick={() => setViewMode("graph")}
-            className={cx(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-caption-1-medium transition-all cursor-pointer",
-              viewMode === "graph"
-                ? "bg-background-primary-default text-text-primary shadow-xs font-semibold"
-                : "text-text-secondary hover:text-text-primary"
-            )}
-          >
-            <RiBarChartGroupedLine className="size-3.5" />
-            <span>Grafik Distribusi</span>
-          </button>
-          <button
-            type="button"
-            onClick={() => setViewMode("table")}
-            className={cx(
-              "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-caption-1-medium transition-all cursor-pointer",
-              viewMode === "table"
-                ? "bg-background-primary-default text-text-primary shadow-xs font-semibold"
-                : "text-text-secondary hover:text-text-primary"
-            )}
-          >
-            <RiTableLine className="size-3.5" />
-            <span>Tabel Data Rinci</span>
-          </button>
-        </div>
+        {showViewToggle && (
+          <div className="inline-flex items-center p-1 rounded-xl bg-background-secondary-default border border-border-button-default shrink-0 self-start sm:self-auto">
+            <button
+              type="button"
+              onClick={() => setViewMode("graph")}
+              className={cx(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-caption-1-medium transition-all cursor-pointer",
+                viewMode === "graph"
+                  ? "bg-background-primary-default text-text-primary shadow-xs font-semibold"
+                  : "text-text-secondary hover:text-text-primary"
+              )}
+            >
+              <RiBarChartGroupedLine className="size-3.5" />
+              <span>Grafik distribusi</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setViewMode("table")}
+              className={cx(
+                "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-caption-1-medium transition-all cursor-pointer",
+                viewMode === "table"
+                  ? "bg-background-primary-default text-text-primary shadow-xs font-semibold"
+                  : "text-text-secondary hover:text-text-primary"
+              )}
+            >
+              <RiTableLine className="size-3.5" />
+              <span>Tabel data rinci</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* KPI Cards Row (Shadcn Card Aesthetics) */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
         <div className="p-4 rounded-2xl border border-border-button-default bg-background-secondary-default/50 space-y-1">
           <div className="flex items-center justify-between text-text-tertiary">
-            <span className="text-caption-2-medium">Rata-rata Penguasaan</span>
+            <span className="text-caption-2-medium">Rata-rata penguasaan</span>
             <RiSparklingLine className="size-4 text-accent-700" />
           </div>
           <div className="text-title-2-bold font-mono text-text-primary">78.7%</div>
@@ -147,7 +153,7 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
 
         <div className="p-4 rounded-2xl border border-border-button-default bg-background-secondary-default/50 space-y-1">
           <div className="flex items-center justify-between text-text-tertiary">
-            <span className="text-caption-2-medium">Total Sampel Jawaban</span>
+            <span className="text-caption-2-medium">Total sampel jawaban</span>
             <RiUserVoiceLine className="size-4 text-text-tertiary" />
           </div>
           <div className="text-title-2-bold font-mono text-text-primary">556</div>
@@ -158,23 +164,23 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
 
         <div className="p-4 rounded-2xl border border-border-button-default bg-background-secondary-default/50 space-y-1">
           <div className="flex items-center justify-between text-text-tertiary">
-            <span className="text-caption-2-medium">Miskonsepsi Terdeteksi</span>
+            <span className="text-caption-2-medium">Topik perlu ulasan</span>
             <RiAlertLine className="size-4 text-amber-500" />
           </div>
-          <div className="text-title-2-bold font-mono text-text-primary">4 Klaster</div>
+          <div className="text-title-2-bold font-mono text-text-primary">4 klaster</div>
           <span className="text-caption-2-regular text-text-secondary block">
-            Dianalisis instan oleh AI
+            Dirangkum dari hasil kuis
           </span>
         </div>
 
         <div className="p-4 rounded-2xl border border-border-button-default bg-background-secondary-default/50 space-y-1">
           <div className="flex items-center justify-between text-text-tertiary">
-            <span className="text-caption-2-medium">Rata-rata Respon Soal</span>
+            <span className="text-caption-2-medium">Rata-rata respon soal</span>
             <RiTimeLine className="size-4 text-text-tertiary" />
           </div>
           <div className="text-title-2-bold font-mono text-text-primary">14.2s</div>
           <span className="text-caption-2-regular text-text-secondary block">
-            Batas batas timer: 20s
+            Batas timer: 20s
           </span>
         </div>
       </div>
@@ -185,8 +191,8 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
           {/* Minimalist Bar Graph Column */}
           <div className="lg:col-span-7 space-y-4">
             <div className="flex items-center justify-between text-caption-1-medium text-text-secondary">
-              <span>Kompetensi Materi Pelajaran</span>
-              <span>Tingkat Pemahaman</span>
+              <span>Kompetensi materi pelajaran</span>
+              <span>Tingkat pemahaman</span>
             </div>
 
             <div className="space-y-3">
@@ -248,8 +254,8 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
           <div className="lg:col-span-5 rounded-2xl border border-border-button-default bg-background-secondary-default p-5 space-y-4">
             <div className="flex items-center justify-between pb-3 border-b border-separator-border">
               <div className="space-y-0.5">
-                <span className="text-caption-2-medium text-text-tertiary uppercase tracking-wider block">
-                  Diagnosis Terpilih
+                <span className="text-caption-2-medium text-text-tertiary tracking-wider block">
+                  Topik terpilih
                 </span>
                 <h4 className="text-title-3-semibold text-text-primary">
                   {activeComp.topic}
@@ -264,7 +270,7 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-caption-1-semibold text-amber-600 dark:text-amber-400">
                   <RiAlertLine className="size-4 shrink-0" />
-                  <span>Pola Miskonsepsi Utama:</span>
+                  <span>Catatan jawaban siswa:</span>
                 </div>
                 <p className="text-body-2-regular text-text-secondary leading-relaxed pl-5">
                   {activeComp.primaryMisconception}
@@ -274,7 +280,7 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
               <div className="space-y-1">
                 <div className="flex items-center gap-1.5 text-caption-1-semibold text-blue-600 dark:text-blue-400">
                   <RiCheckLine className="size-4 shrink-0" />
-                  <span>Rekomendasi Tindak Lanjut:</span>
+                  <span>Rekomendasi tindak lanjut:</span>
                 </div>
                 <p className="text-body-2-regular text-text-secondary leading-relaxed pl-5">
                   {activeComp.remedialTarget}
@@ -283,8 +289,8 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
 
               <div className="pt-2">
                 <div className="p-3 rounded-xl bg-background-primary-default border border-border-button-default flex items-center justify-between text-caption-1-medium">
-                  <span className="text-text-secondary">Status Kurikulum Merdeka</span>
-                  <span className="text-text-primary font-semibold">Fase D (SMP)</span>
+                  <span className="text-text-secondary">Status kurikulum merdeka</span>
+                  <span className="text-text-primary font-semibold">Fase d (smp)</span>
                 </div>
               </div>
             </div>
@@ -297,10 +303,10 @@ export function DiagnosticMetricsDashboard({ className = "" }: { className?: str
             <table className="w-full text-start text-caption-1-regular">
               <thead className="bg-background-primary-default/80 border-b border-separator-border text-text-secondary">
                 <tr>
-                  <th className="py-3 px-4 text-start font-medium">Topik Kompetensi</th>
+                  <th className="py-3 px-4 text-start font-medium">Topik kompetensi</th>
                   <th className="py-3 px-4 text-start font-medium">Siswa</th>
-                  <th className="py-3 px-4 text-start font-medium">Tingkat Penguasaan</th>
-                  <th className="py-3 px-4 text-start font-medium">Miskonsepsi Dominan</th>
+                  <th className="py-3 px-4 text-start font-medium">Tingkat penguasaan</th>
+                  <th className="py-3 px-4 text-start font-medium">Catatan jawaban</th>
                   <th className="py-3 px-4 text-end font-medium">Tren</th>
                 </tr>
               </thead>

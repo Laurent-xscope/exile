@@ -1,57 +1,50 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import {
   RiBookOpenLine,
   RiTrophyLine,
   RiGroupLine,
   RiFileCopyLine,
+  RiArrowLeftLine,
   RiArrowRightLine,
   RiCheckLine,
   RiCloseLine,
   RiCheckDoubleLine,
   RiBarChartBoxLine,
-  RiFileTextLine,
+  RiArrowDownSLine,
   RiLightbulbLine,
   RiPlayCircleLine,
-  RiSparklingLine,
+  RiCopilotFill,
   RiSendPlaneLine,
   RiUserSharedLine,
-  RiRestartLine,
   RiToggleLine,
   RiCheckboxCircleLine,
   RiTimeLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
-import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/lib/auth/use-auth";
+import { getHostToken } from "@/lib/rooms/host-token";
+import { useTranslation } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { LanguageToggle } from "@/components/theme/language-toggle";
-import { SettingsButton } from "@/components/settings/settings-modal";
 import { Button } from "@/components/base/buttons/button";
-import { IconLinkButton } from "@/components/base/buttons/icon-button";
 import { Chip } from "@/components/base/badges/chip";
 import { Badge } from "@/components/base/badges/badge";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { ProgressTrack } from "@/components/base/progress/progress";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/base/tabs/tabs";
-import {
-  Modal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-} from "@/components/base/modal/modal";
 import { Spinner } from "@/components/base/spinner/spinner";
 import {
   ScrollFade,
   useScrollFade,
 } from "@/components/foundations/scroll-fade/scroll-fade";
-import { ExileLogo } from "@/components/brand/exile-logo";
+import { QuizUpload } from "@/components/rooms/quiz-upload";
+import { FormattedMessage } from "@/components/chat/formatted-message";
 import { cx } from "@/utils/cx";
 
 interface QuestionOption {
@@ -79,6 +72,14 @@ interface LeaderboardEntry {
   avatar: string;
   score: number;
   streak: number;
+  breakdown: {
+    base: number;
+    timer: number;
+    streak: number;
+    total: number;
+    correctAnswers: number;
+    submissions: number;
+  };
 }
 
 interface PlayerItem {
@@ -120,39 +121,6 @@ interface TeacherRoomState {
   approvedPlayers?: PlayerItem[];
 }
 
-interface ClusterItem {
-  concept: string;
-  errorRate: number;
-  primaryMisconception: string;
-  affectedStudentsCount: number;
-}
-
-interface RemedialQuestion {
-  question: string;
-  options: Array<{
-    label: string;
-    text: string;
-    isCorrect: boolean;
-    distractorRationale?: string;
-  }>;
-  explanation: string;
-  conceptTag?: string;
-  culturalContext?: string;
-}
-
-interface DiagnosticResult {
-  topic: string;
-  classMasteryRate: number;
-  summaryText: string;
-  clusterAnalysis: ClusterItem[];
-  recommendedReteaching: {
-    focusConcept: string;
-    pedagogicalStrategy: string;
-    quickActionableStep: string;
-  };
-  adaptiveRemedialQuestions: RemedialQuestion[];
-}
-
 function getInitials(name: string): string {
   const parts = name.trim().split(/\s+/);
   if (parts.length >= 2) {
@@ -164,22 +132,26 @@ function getInitials(name: string): string {
 export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
+  const { lang } = useTranslation();
+  const isEn = lang === "en";
 
   const [state, setState] = useState<TeacherRoomState | null>(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
   const [gameFinished, setGameFinished] = useState(false);
+  const [replacingMaterial, setReplacingMaterial] = useState(false);
 
-  // Diagnostic modal
-  const [showDiagnosticModal, setShowDiagnosticModal] = useState(false);
-  const [diagnosticLoading, setDiagnosticLoading] = useState(false);
-  const [diagnosticData, setDiagnosticData] = useState<DiagnosticResult | null>(null);
-  const [selectedRemedialOption, setSelectedRemedialOption] = useState<Record<number, string>>({});
-  const [creatingRemedialRoom, setCreatingRemedialRoom] = useState(false);
+  const hostToken = useSyncExternalStore(
+    () => () => {},
+    () => getHostToken(roomCode),
+    () => null
+  );
 
   // Active Tab
   const [activeTab, setActiveTab] = useState<"question" | "leaderboard" | "players" | "copilot">("question");
+  const [expandedLeaderboardPlayer, setExpandedLeaderboardPlayer] = useState<string | null>(null);
+  const [selectedHostAnswers, setSelectedHostAnswers] = useState<Record<number, string>>({});
 
   // Host Copilot
   const [copilotMessages, setCopilotMessages] = useState<
@@ -188,7 +160,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     {
       role: "assistant",
       content:
-        "Halo Guru! Saya Exile Host Copilot. Saya membaca seluruh data di ruang kelas ini: daftar siswa, materi, dan pola respon mereka. Anda dapat meminta saya memilih siswa untuk presentasi secara objektif atau mengevaluasi capaian materi.",
+        "Saya bisa membaca daftar siswa, skor, dan soal di ruang ini. Tanyakan apa saja.",
     },
   ]);
   const [copilotInput, setCopilotInput] = useState("");
@@ -198,16 +170,24 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const playersFade = useScrollFade();
 
   useEffect(() => {
-    if (!authLoading && !user) {
+    if (!authLoading && !user && !hostToken) {
       router.replace(`/login?next=${encodeURIComponent(`/host/${roomCode}`)}`);
     }
-  }, [authLoading, user, roomCode, router]);
+  }, [authLoading, user, hostToken, roomCode, router]);
+
+  const hostHeaders = () => {
+    const token = getHostToken(roomCode);
+    return {
+      "Content-Type": "application/json",
+      ...(token ? { "x-host-token": token } : {}),
+    };
+  };
 
   const fetchRoomState = async () => {
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hostHeaders(),
         body: JSON.stringify({ action: "get_teacher_state" }),
       });
       const data = await res.json();
@@ -227,51 +207,14 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   };
 
   useEffect(() => {
+    if (!hostToken) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial poll before the interval starts
     fetchRoomState();
     const interval = setInterval(fetchRoomState, 2500);
-
-    let channel: ReturnType<typeof supabase.channel> | null = null;
-    try {
-      const isPlaceholder =
-        process.env.NEXT_PUBLIC_SUPABASE_URL?.includes("placeholder") ||
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.includes("placeholder");
-
-      if (!isPlaceholder) {
-        channel = supabase
-          .channel(`teacher-host-${roomCode}`)
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "submissions",
-              filter: `room_code=eq.${roomCode}`,
-            },
-            () => fetchRoomState()
-          )
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              schema: "public",
-              table: "players",
-              filter: `room_code=eq.${roomCode}`,
-            },
-            () => fetchRoomState()
-          )
-          .subscribe();
-      }
-    } catch (realtimeErr) {
-      console.warn("[TeacherHost] Realtime subscription skipped:", realtimeErr);
-    }
-
-    return () => {
-      clearInterval(interval);
-      if (channel) {
-        supabase.removeChannel(channel);
-      }
-    };
-  }, [roomCode]);
+    return () => clearInterval(interval);
+    // Polling is the real-time mechanism; host token is read from storage per call.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomCode, hostToken]);
 
   const handleAction = async (action: string) => {
     soundEffects.playClick();
@@ -287,7 +230,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hostHeaders(),
         body: JSON.stringify({ action }),
       });
       const data = await res.json();
@@ -317,7 +260,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hostHeaders(),
         body: JSON.stringify({ action: "approve_player", playerId }),
       });
       const data = await res.json();
@@ -338,10 +281,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hostHeaders(),
         body: JSON.stringify({ action: "reject_player", playerId }),
       });
-      const data = await res.json();
+      await res.json();
       if (res.ok) {
         toast.info("Akses siswa ditolak");
         await fetchRoomState();
@@ -356,7 +299,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hostHeaders(),
         body: JSON.stringify({ action: "approve_all_players" }),
       });
       const data = await res.json();
@@ -374,7 +317,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hostHeaders(),
         body: JSON.stringify({
           action: "toggle_auto_approve",
           autoApprove: !(state?.autoApproveStudents ?? true),
@@ -406,7 +349,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     try {
       const res = await fetch("/api/ai/host-copilot", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: hostHeaders(),
         body: JSON.stringify({
           roomCode,
           messages: nextMessages,
@@ -426,85 +369,6 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     }
   };
 
-  const handleRunDiagnostic = async () => {
-    setDiagnosticLoading(true);
-    setShowDiagnosticModal(true);
-
-    try {
-      const res = await fetch("/api/ai/class-diagnostic", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          roomCode,
-          quizId: state?.quizId,
-          topic: "Evaluasi Formatif Materi Kelas",
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Gagal memproses diagnostik");
-
-      setDiagnosticData(data.diagnostic);
-      if (Array.isArray(data.diagnostic?.adaptiveRemedialQuestions)) {
-        const defaults: Record<number, string> = {};
-        data.diagnostic.adaptiveRemedialQuestions.forEach(
-          (rq: RemedialQuestion, idx: number) => {
-            const correctOpt = rq.options.find((o) => o.isCorrect);
-            defaults[idx] = correctOpt?.label || rq.options[0]?.label || "A";
-          }
-        );
-        setSelectedRemedialOption(defaults);
-      }
-      toast.success("Laporan diagnostik kelas siap");
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal menyusun diagnostik";
-      toast.error(msg);
-    } finally {
-      setDiagnosticLoading(false);
-    }
-  };
-
-  const handleCreateRemedialRoom = async () => {
-    if (!diagnosticData?.adaptiveRemedialQuestions?.length) return;
-    soundEffects.playClick();
-    setCreatingRemedialRoom(true);
-
-    try {
-      const res = await fetch("/api/rooms/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          quizId: state?.quizId,
-          hostName: state?.hostName || "Pengajar Exile",
-          questions: diagnosticData.adaptiveRemedialQuestions.map((rq, idx) => ({
-            id: `remedial-${Date.now()}-${idx + 1}`,
-            questionOrder: idx + 1,
-            question: rq.question,
-            options: rq.options,
-            correctAnswer: rq.options.find((o) => o.isCorrect)?.label || "A",
-            explanation: rq.explanation,
-            conceptTag: rq.conceptTag || diagnosticData.topic,
-            culturalContext: rq.culturalContext || "Remedial Terarah",
-          })),
-        }),
-      });
-
-      const data = await res.json();
-      if (!res.ok || !data.roomCode) {
-        throw new Error(data.error || "Gagal membuat ruang remedial");
-      }
-
-      setShowDiagnosticModal(false);
-      toast.success(`Ruang remedial dibuat (PIN: ${data.roomCode})`);
-      router.push(`/host/${data.roomCode}`);
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal membuat ruang remedial";
-      toast.error(msg);
-    } finally {
-      setCreatingRemedialRoom(false);
-    }
-  };
-
   const copyPin = () => {
     navigator.clipboard.writeText(roomCode);
     soundEffects.playClick();
@@ -513,12 +377,31 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
   const copyShareLink = () => {
     if (typeof window !== "undefined") {
-      const url = `${window.location.origin}/play?code=${roomCode}`;
+      const url = `${window.location.origin}/play/${roomCode}`;
       navigator.clipboard.writeText(url);
       soundEffects.playClick();
       toast.success("Tautan gabung cepat disalin!");
     }
   };
+
+  if (!hostToken) {
+    return (
+      <div className="min-h-screen bg-background-secondary-default flex items-center justify-center p-6">
+        <div className="max-w-md rounded-3xl border border-border-button-default bg-background-primary-default p-8 text-center">
+          <h1 className="text-title-3-semibold text-text-primary">Akses pengajar diperlukan</h1>
+          <p className="mt-2 text-body-regular text-text-secondary">
+            Token pengajar untuk ruangan ini tidak ditemukan di perangkat Anda. Buat ruangan baru dari Studio atau buka tautan host asli.
+          </p>
+          <Link
+            href="/studio"
+            className="mt-6 inline-flex rounded-xl bg-accent-700 px-4 py-2 text-body-medium text-white"
+          >
+            Buka Studio
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -534,6 +417,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const approvedPlayersList = state?.approvedPlayers || state?.players || [];
   const pendingPlayersList = state?.pendingPlayers || [];
   const totalApproved = approvedPlayersList.length;
+  const hasQuestions = (state?.totalQuestions ?? 0) > 0;
   const totalPending = pendingPlayersList.length;
   const progressPercent =
     totalApproved > 0
@@ -549,44 +433,32 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
           <div className="flex items-center gap-3 min-w-0">
             <Link
               href="/"
-              className="flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1"
-              aria-label="Kembali ke Beranda"
+              className="flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors"
+              aria-label={isEn ? "Back to Home" : "Kembali ke Beranda"}
             >
-              <ExileLogo size={32} showText={false} />
+              <RiArrowLeftLine className="size-5" />
             </Link>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
-                <h1 className="text-headline-semibold text-text-primary tracking-tight">
-                  Ruang Kontrol Guru
-                </h1>
-
-                {/* Feedback status badge: Teal for Active/Finished, Amber for Waiting */}
-                {state?.status === "waiting" ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/20">
-                    <RiTimeLine className="size-3.5" aria-hidden />
-                    <span>Lobi Menunggu</span>
-                  </span>
-                ) : state?.status === "finished" ? (
+                {/* Status badge shown once the quiz is running or finished */}
+                {state?.status === "waiting" ? null : state?.status === "finished" ? (
                   <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-[#9CA3AF]/10 text-[#9CA3AF] border border-[#9CA3AF]/20">
                     <RiCheckboxCircleLine className="size-3.5" aria-hidden />
-                    <span>Kuis Selesai</span>
+                    <span>{isEn ? "Quiz finished" : "Kuis selesai"}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                     <span className="relative flex size-2">
-                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-[#0F766E] opacity-50" />
-                      <span className="relative inline-flex rounded-full size-2 bg-[#0F766E]" />
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-accent-700 opacity-50" />
+                      <span className="relative inline-flex rounded-full size-2 bg-accent-700" />
                     </span>
                     <RiCheckLine className="size-3.5" aria-hidden />
-                    <span>Kuis Aktif</span>
+                    <span>{isEn ? "Quiz active" : "Kuis aktif"}</span>
                   </span>
                 )}
               </div>
 
-              <p className="text-caption-1-regular text-text-secondary truncate">
-                Pengajar: {state?.hostName || "Pengajar Exile"} • Evaluasi Formatif Interaktif
-              </p>
             </div>
           </div>
 
@@ -595,20 +467,20 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               type="button"
               onClick={copyShareLink}
               className="cursor-pointer hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-background-primary-default hover:bg-background-primary-hover border border-border-button-default text-caption-1-medium text-text-primary shadow-card transition"
-              title="Salin tautan langsung untuk siswa"
+              title={isEn ? "Copy direct invitation link for students" : "Salin tautan langsung untuk siswa"}
             >
-              <RiUserSharedLine className="size-4 text-[#0F766E]" aria-hidden />
-              <span>Bagikan Link</span>
+              <RiUserSharedLine className="size-4 text-accent-700" aria-hidden />
+              <span>{isEn ? "Share link" : "Bagikan link"}</span>
             </button>
 
             <button
               type="button"
               onClick={copyPin}
               className="cursor-pointer flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-background-primary-default hover:bg-background-primary-hover border border-border-button-default shadow-card transition outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
-              title="Salin PIN Ruangan"
+              title={isEn ? "Copy room pin" : "Salin pin ruangan"}
             >
               <div className="text-start">
-                <span className="text-[10px] text-text-secondary block leading-none">PIN Ruang</span>
+                <span className="text-[10px] text-text-secondary block leading-none">{isEn ? "Room pin" : "Pin ruang"}</span>
                 <bdi className="font-mono text-body-bold text-text-primary">{roomCode}</bdi>
               </div>
               <RiFileCopyLine className="size-4 text-foreground-icon-secondary shrink-0" aria-hidden />
@@ -617,17 +489,38 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-background-primary-default border border-border-button-default shadow-card">
               <RiGroupLine className="size-4 text-foreground-icon-secondary" aria-hidden />
               <span className="text-caption-1-medium text-text-primary tabular-nums">
-                {totalApproved} siswa
+                {totalApproved} {isEn ? "students" : "siswa"}
               </span>
             </div>
+
+            <ThemeToggle />
           </div>
         </div>
       </header>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 flex flex-col gap-5">
+          {state?.status === "waiting" && !quizStarted && (!hasQuestions || replacingMaterial) && (
+            <div className="space-y-3">
+              <QuizUpload
+                roomCode={roomCode}
+                hostToken={hostToken}
+                isEn={isEn}
+                onCreated={async () => {
+                  setReplacingMaterial(false);
+                  await fetchRoomState();
+                }}
+              />
+              {replacingMaterial && (
+                <Button variant="ghost" size="small" onClick={() => setReplacingMaterial(false)}>
+                  {isEn ? "Cancel" : "Batal"}
+                </Button>
+              )}
+            </div>
+          )}
+
           {/* Lobi card before start */}
-          {state?.status === "waiting" && !quizStarted && (
+          {state?.status === "waiting" && !quizStarted && hasQuestions && !replacingMaterial && (
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
@@ -640,27 +533,34 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     <span className="relative inline-flex rounded-full size-2.5 bg-[#D97706]" />
                   </span>
                   <span className="text-body-semibold text-text-primary">
-                    Lobi Ruangan Menunggu Siswa
+                    {isEn ? "Classroom lobby waiting for students" : "Lobi ruangan menunggu siswa"}
                   </span>
-                  <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
-                    {totalApproved} siswa siap
+                  <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                    {totalApproved} {isEn ? "students ready" : "siswa siap"}
                   </span>
                 </div>
                 <p className="text-caption-1-regular text-text-secondary">
-                  Bagikan PIN <bdi className="font-mono font-semibold text-text-primary">{roomCode}</bdi> kepada siswa. Klik Mulai Kuis untuk membuka Pertanyaan 1.
+                  {isEn
+                    ? `Share pin ${roomCode} with students. Click start quiz to begin question 1.`
+                    : `Bagikan pin ${roomCode} kepada siswa. Klik mulai kuis untuk membuka pertanyaan 1.`}
                 </p>
               </div>
 
+              <div className="flex shrink-0 items-center gap-2">
+              <Button variant="secondary" size="small" onClick={() => setReplacingMaterial(true)} disabled={actionLoading}>
+                {isEn ? "Change material" : "Ganti materi"}
+              </Button>
               {/* Start Quiz button: locks and disappears permanently when clicked */}
               <Button
                 variant="primary"
                 leadingIcon={RiPlayCircleLine}
                 onClick={() => handleAction("resume_quiz")}
-                disabled={actionLoading || quizStarted}
+                disabled={actionLoading || quizStarted || !hasQuestions}
                 className="shrink-0"
               >
-                Mulai Kuis Sekarang (Soal 1)
+                {isEn ? "Start quiz now (q1)" : "Mulai kuis sekarang (soal 1)"}
               </Button>
+              </div>
             </motion.div>
           )}
 
@@ -672,15 +572,15 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               className="p-4 rounded-3xl bg-[#D97706]/10 border border-[#D97706]/30 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-[#D97706]/20 text-[#D97706] flex items-center justify-center shrink-0">
+                <div className="size-9 rounded-xl bg-[#D97706]/20 text-text-error-primary flex items-center justify-center shrink-0">
                   <RiTimeLine className="size-5" aria-hidden />
                 </div>
                 <div>
                   <h4 className="text-body-semibold text-text-primary">
-                    {totalPending} Siswa Menunggu Persetujuan
+                    {totalPending} siswa menunggu persetujuan
                   </h4>
                   <p className="text-caption-1-regular text-text-secondary">
-                    Periksa nama siswa di tab Daftar Siswa atau klik setujui semua untuk memasukkan mereka sekaligus.
+                    Periksa nama siswa di tab daftar siswa atau klik setujui semua untuk memasukkan mereka sekaligus.
                   </p>
                 </div>
               </div>
@@ -692,7 +592,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   leadingIcon={RiCheckDoubleLine}
                   onClick={handleApproveAllPlayers}
                 >
-                  Setujui Semua ({totalPending})
+                  Setujui semua ({totalPending})
                 </Button>
               </div>
             </motion.div>
@@ -704,18 +604,18 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               setActiveTab(String(key) as "question" | "leaderboard" | "players" | "copilot")
             }
           >
-            <TabList aria-label="Navigasi Ruang Guru">
+            <TabList aria-label="Navigasi ruang guru">
               <Tab id="question" icon={RiBookOpenLine}>
-                Pertanyaan Aktif
+                Pertanyaan aktif
               </Tab>
               <Tab id="leaderboard" icon={RiTrophyLine} count={state?.leaderboard?.length ?? 0}>
-                Papan Skor
+                Papan skor
               </Tab>
               <Tab id="players" icon={RiGroupLine} count={totalApproved}>
-                Daftar Siswa {totalPending > 0 ? `(${totalPending} tertunda)` : ""}
+                Daftar siswa {totalPending > 0 ? `(${totalPending} tertunda)` : ""}
               </Tab>
-              <Tab id="copilot" icon={RiSparklingLine}>
-                Host Copilot
+              <Tab id="copilot" icon={RiCopilotFill}>
+                Copilot ruang
               </Tab>
             </TabList>
 
@@ -733,7 +633,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         {state?.totalQuestions || 5}
                       </Chip>
                       {currentQ.conceptTag && (
-                        <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
+                        <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                           {currentQ.conceptTag}
                         </span>
                       )}
@@ -760,15 +660,28 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         (stats?.submissionsCount || 0) > 0
                           ? Math.round((voteCount / denom) * 100)
                           : 0;
+                      const qOrder = currentQ.questionOrder || 1;
+                      const selectedOnHost = selectedHostAnswers[qOrder] === option.label;
+                      const hasChosenOnHost = Boolean(selectedHostAnswers[qOrder]);
 
                       return (
-                        <div
+                        <button
                           key={option.label}
+                          type="button"
+                          onClick={() => {
+                            soundEffects.playClick();
+                            setSelectedHostAnswers((prev) => ({
+                              ...prev,
+                              [qOrder]: option.label,
+                            }));
+                          }}
                           className={cx(
-                            "p-4 rounded-2xl border transition relative overflow-hidden space-y-2",
-                            option.isCorrect
-                              ? "bg-[#0F766E]/5 border-[#0F766E]/30"
-                              : "bg-background-secondary-default border-border-button-default"
+                            "p-4 rounded-2xl border transition relative overflow-hidden space-y-2 text-left cursor-pointer",
+                            selectedOnHost
+                              ? option.isCorrect
+                                ? "bg-accent-700/10 border-accent-700/50"
+                                : "bg-background-secondary-default border-border-error-default"
+                              : "bg-background-secondary-default border-border-button-default hover:border-border-button-hover"
                           )}
                         >
                           <div className="flex items-start justify-between gap-2 relative z-10">
@@ -776,8 +689,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                               <span
                                 className={cx(
                                   "size-6 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0",
-                                  option.isCorrect
-                                    ? "bg-[#0F766E] text-white"
+                                  selectedOnHost
+                                    ? option.isCorrect
+                                      ? "bg-accent-700 text-white"
+                                      : "bg-background-tertiary-default text-text-error-primary"
                                     : "bg-background-tertiary-default text-text-primary"
                                 )}
                               >
@@ -791,36 +706,27 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             <span
                               className={cx(
                                 "inline-flex items-center px-2 py-0.5 rounded-md text-caption-2-medium tabular-nums shrink-0",
-                                option.isCorrect
-                                  ? "bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20"
+                                hasChosenOnHost && selectedOnHost && option.isCorrect
+                                  ? "bg-accent-700/10 text-accent-700 border border-accent-700/20"
                                   : "bg-background-tertiary-default text-text-secondary"
                               )}
                             >
                               {voteCount} ({votePercent}%)
                             </span>
                           </div>
-
-                          {option.distractorRationale && (
-                            <p className="text-caption-1-regular text-text-secondary border-t border-separator-border pt-2">
-                              <strong className="text-caption-1-semibold text-text-primary">
-                                {option.isCorrect ? "Kunci jawaban: " : "Analisis pengecoh: "}
-                              </strong>
-                              {option.distractorRationale}
-                            </p>
-                          )}
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
 
-                  {currentQ.explanation && (
+                  {selectedHostAnswers[currentQ.questionOrder || 1] && currentQ.explanation && (
                     <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-1.5">
                       <span className="text-caption-1-semibold text-text-primary flex items-center gap-1.5">
                         <RiLightbulbLine
-                          className="size-4 text-[#D97706] shrink-0"
+                          className="size-4 text-text-error-primary shrink-0"
                           aria-hidden
                         />
-                        Intisari Penjelasan Pedagogis
+                        Penjelasan
                       </span>
                       <p className="text-body-regular text-text-secondary">
                         {currentQ.explanation}
@@ -833,7 +739,9 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   <p className="text-body-regular text-text-secondary">
                     {state?.status === "finished"
                       ? "Sesi kuis telah diselesaikan. Anda dapat membuka Laporan Kelas di panel kanan."
-                      : "Belum ada soal yang aktif. Klik Mulai Kuis untuk mengaktifkan soal pertama."}
+                      : hasQuestions
+                        ? "Belum ada soal yang aktif. Klik Mulai Kuis untuk mengaktifkan soal pertama."
+                        : "Belum ada soal. Unggah materi untuk membuat kuis."}
                   </p>
                 </div>
               )}
@@ -847,7 +755,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               >
                 <div className="flex items-center justify-between">
                   <h2 className="text-headline-semibold text-text-primary">
-                    Peringkat Nilai Siswa
+                    Peringkat nilai siswa
                   </h2>
                   <Chip variant="caption" color="soft">
                     {state?.leaderboard?.length ?? 0} peserta
@@ -860,35 +768,107 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       onScroll={leaderboardFade.onScroll}
                       className="space-y-2 max-h-96 overflow-y-auto pe-1"
                     >
-                      {state.leaderboard.map((player) => (
-                        <div
-                          key={player.id}
-                          className="flex items-center justify-between p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default"
-                        >
-                          <div className="flex items-center gap-3 min-w-0">
-                            <Badge color={player.rank === 1 ? "primary" : "neutral"}>
-                              #{player.rank}
-                            </Badge>
-                            <Avatar
-                              size="sm"
-                              color={player.rank === 1 ? "lime" : "neutral"}
-                              initials={getInitials(player.nickname)}
-                            />
-                            <div className="min-w-0">
-                              <span className="text-body-medium text-text-primary block truncate">
-                                {player.nickname}
-                              </span>
-                              <span className="text-caption-1-regular text-text-secondary">
-                                Ikon: {player.avatar}
-                              </span>
-                            </div>
-                          </div>
+                      {state.leaderboard.map((player) => {
+                        const expanded = expandedLeaderboardPlayer === player.id;
+                        const breakdown = player.breakdown;
+                        const parts = [
+                          {
+                            label: isEn ? "Question base" : "Dasar soal",
+                            value: breakdown?.base ?? 0,
+                          },
+                          {
+                            label: isEn ? "Speed bonus" : "Bonus kecepatan",
+                            value: breakdown?.timer ?? 0,
+                          },
+                          {
+                            label: "Streak",
+                            value: breakdown?.streak ?? 0,
+                          },
+                        ];
 
-                          <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums bg-background-primary-default border border-border-button-default">
-                            {player.score.toLocaleString()} poin
-                          </span>
-                        </div>
-                      ))}
+                        return (
+                          <div
+                            key={player.id}
+                            className="overflow-hidden rounded-2xl border border-border-button-default bg-background-secondary-default"
+                          >
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundEffects.playClick();
+                                setExpandedLeaderboardPlayer(expanded ? null : player.id);
+                              }}
+                              aria-expanded={expanded}
+                              aria-controls={`leaderboard-breakdown-${player.id}`}
+                              className="flex w-full cursor-pointer items-center justify-between gap-3 p-3.5 text-start outline-none transition-colors hover:bg-background-secondary-hover focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+                            >
+                              <div className="flex min-w-0 items-center gap-3">
+                                <Badge color={player.rank === 1 ? "primary" : "neutral"}>
+                                  #{player.rank}
+                                </Badge>
+                                <Avatar
+                                  size="sm"
+                                  color={player.rank === 1 ? "lime" : "neutral"}
+                                  initials={getInitials(player.nickname)}
+                                />
+                                <div className="min-w-0">
+                                  <span className="block truncate text-body-medium text-text-primary">
+                                    {player.nickname}
+                                  </span>
+                                  <span className="text-caption-1-regular text-text-secondary">
+                                    Ikon: {player.avatar}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <span className="flex shrink-0 items-center gap-2">
+                                <span className="inline-flex items-center rounded-lg border border-border-button-default bg-background-primary-default px-2.5 py-1 text-caption-1-medium tabular-nums">
+                                  {player.score.toLocaleString()} poin
+                                </span>
+                                <RiArrowDownSLine
+                                  aria-hidden
+                                  className={cx(
+                                    "size-4 text-text-tertiary transition-transform",
+                                    expanded && "rotate-180"
+                                  )}
+                                />
+                              </span>
+                            </button>
+
+                            {expanded && (
+                              <div
+                                id={`leaderboard-breakdown-${player.id}`}
+                                className="border-t border-separator-border px-3.5 pb-3.5 pt-3"
+                              >
+                                <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                  <span className="text-caption-2-semibold tracking-wide text-text-tertiary">
+                                    {isEn ? "Score breakdown" : "Rincian skor"}
+                                  </span>
+                                  <span className="text-caption-2-regular text-text-secondary">
+                                    {breakdown?.correctAnswers ?? 0}/
+                                    {breakdown?.submissions ?? 0}{" "}
+                                    {isEn ? "correct" : "benar"}
+                                  </span>
+                                </div>
+                                <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
+                                  {parts.map((part) => (
+                                    <div
+                                      key={part.label}
+                                      className="rounded-xl border border-border-button-default bg-background-primary-default px-3 py-2"
+                                    >
+                                      <span className="block text-caption-2-regular text-text-tertiary">
+                                        {part.label}
+                                      </span>
+                                      <span className="mt-0.5 block font-mono text-caption-1-semibold tabular-nums text-text-primary">
+                                        +{part.value.toLocaleString()}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                     <ScrollFade
                       progress={leaderboardFade.progress}
@@ -913,7 +893,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                   <div className="space-y-0.5">
                     <span className="text-body-semibold text-text-primary block">
-                      Kontrol Penerimaan Siswa
+                      Kontrol penerimaan siswa
                     </span>
                     <p className="text-caption-1-regular text-text-secondary">
                       {isAutoApprove
@@ -928,12 +908,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     className={cx(
                       "cursor-pointer px-3.5 py-1.5 rounded-xl border text-caption-1-medium flex items-center gap-2 transition outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring shrink-0",
                       isAutoApprove
-                        ? "bg-[#0F766E]/10 text-[#0F766E] border-[#0F766E]/30"
-                        : "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/30"
+                        ? "bg-accent-700/10 text-accent-700 border-accent-700/30"
+                        : "bg-[#D97706]/10 text-text-error-primary border-[#D97706]/30"
                     )}
                   >
                     <RiToggleLine className="size-4" aria-hidden />
-                    <span>{isAutoApprove ? "Mode: Masuk Otomatis" : "Mode: Verifikasi Manual"}</span>
+                    <span>{isAutoApprove ? "Mode: masuk otomatis" : "Mode: verifikasi manual"}</span>
                   </button>
                 </div>
 
@@ -943,9 +923,9 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <span className="text-body-semibold text-text-primary">
-                          Menunggu Persetujuan
+                          Menunggu persetujuan
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/20">
+                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
                           {totalPending} siswa
                         </span>
                       </div>
@@ -955,7 +935,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         leadingIcon={RiCheckDoubleLine}
                         onClick={handleApproveAllPlayers}
                       >
-                        Setujui Semua
+                        Setujui semua
                       </Button>
                     </div>
 
@@ -981,7 +961,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             <button
                               type="button"
                               onClick={() => handleRejectPlayer(p.id)}
-                              className="cursor-pointer size-8 rounded-lg flex items-center justify-center bg-background-primary-default border border-border-button-default text-[#9CA3AF] hover:text-[#D97706] transition"
+                              className="cursor-pointer size-8 rounded-lg flex items-center justify-center bg-background-primary-default border border-border-button-default text-[#9CA3AF] hover:text-text-error-primary transition"
                               title="Tolak siswa"
                             >
                               <RiCloseLine className="size-4" />
@@ -989,7 +969,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             <button
                               type="button"
                               onClick={() => handleApprovePlayer(p.id)}
-                              className="cursor-pointer px-3 py-1 rounded-lg bg-[#0F766E] text-white text-caption-2-medium flex items-center gap-1 hover:bg-[#0F766E]/90 transition shadow-2xs"
+                              className="cursor-pointer px-3 py-1 rounded-lg bg-accent-700 text-white text-caption-2-medium flex items-center gap-1 hover:bg-accent-700/90 transition shadow-2xs"
                               title="Setujui siswa"
                             >
                               <RiCheckLine className="size-3.5" />
@@ -1006,9 +986,9 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <h3 className="text-body-semibold text-text-primary">
-                      Siswa Terhubung & Disetujui
+                      Siswa terhubung & disetujui
                     </h3>
-                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20">
+                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                       {totalApproved} siswa
                     </span>
                   </div>
@@ -1025,7 +1005,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             className="p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default flex items-center justify-between gap-2"
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="size-2 rounded-full bg-[#0F766E]" />
+                              <span className="size-2 rounded-full bg-accent-700" />
                               <Avatar size="xs" color="blue" initials={getInitials(p.nickname)} />
                               <span className="text-body-medium text-text-primary truncate">
                                 {p.nickname}
@@ -1044,7 +1024,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     </div>
                   ) : (
                     <p className="text-body-regular text-text-secondary py-6 text-center">
-                      Belum ada siswa yang masuk. Bagikan PIN{" "}
+                      Belum ada siswa yang masuk. Bagikan pin{" "}
                       <bdi className="font-mono font-semibold text-text-primary">{roomCode}</bdi>{" "}
                       ke siswa.
                     </p>
@@ -1061,12 +1041,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               >
                 <div className="flex items-center justify-between pb-3 border-b border-separator-border">
                   <div className="flex items-center gap-2.5">
-                    <div className="size-9 rounded-xl bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20 flex items-center justify-center">
-                      <RiSparklingLine className="size-5" />
+                    <div className="size-9 rounded-xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center">
+                      <RiCopilotFill className="size-5" />
                     </div>
                     <div>
                       <h3 className="text-body-semibold text-text-primary">
-                        Exile Host Copilot
+                        Copilot ruang
                       </h3>
                       <p className="text-caption-1-regular text-text-secondary">
                         Membaca materi kuis, daftar siswa ({totalApproved} orang), dan hasil respon kelas
@@ -1082,24 +1062,24 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     onClick={() => handleAskCopilot("Siapa siswa yang cocok untuk presentasi materi saat ini?")}
                     className="cursor-pointer px-3 py-1.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-1-medium text-text-primary flex items-center gap-1.5 transition"
                   >
-                    <RiUserSharedLine className="size-3.5 text-[#0F766E]" />
-                    <span>Pilih Siswa Presentasi Acak</span>
+                    <RiUserSharedLine className="size-3.5 text-accent-700" />
+                    <span>Pilih siswa presentasi acak</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleAskCopilot("Bagaimana ringkasan performa dan pemahaman materi kelas saat ini?")}
                     className="cursor-pointer px-3 py-1.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-1-medium text-text-primary flex items-center gap-1.5 transition"
                   >
-                    <RiBarChartBoxLine className="size-3.5 text-[#D97706]" />
-                    <span>Evaluasi Performa Kelas</span>
+                    <RiBarChartBoxLine className="size-3.5 text-text-error-primary" />
+                    <span>Evaluasi performa kelas</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => handleAskCopilot("Berikan 2 pertanyaan pemantik lisan untuk mendiskusikan soal ini.")}
                     className="cursor-pointer px-3 py-1.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-1-medium text-text-primary flex items-center gap-1.5 transition"
                   >
-                    <RiLightbulbLine className="size-3.5 text-[#0F766E]" />
-                    <span>Pertanyaan Pemantik Diskusi</span>
+                    <RiLightbulbLine className="size-3.5 text-accent-700" />
+                    <span>Pertanyaan pemantik diskusi</span>
                   </button>
                 </div>
 
@@ -1112,19 +1092,19 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         "p-3.5 rounded-2xl text-body-2-regular max-w-[85%] whitespace-pre-wrap leading-relaxed",
                         msg.role === "user"
                           ? "ms-auto bg-background-primary-default border border-border-button-default text-text-primary"
-                          : "me-auto bg-background-primary-default border border-[#0F766E]/20 text-text-primary shadow-2xs"
+                          : "me-auto bg-background-primary-default border border-accent-700/20 text-text-primary shadow-2xs"
                       )}
                     >
                       {msg.role === "assistant" && (
-                        <span className="text-[11px] font-semibold text-[#0F766E] uppercase block mb-1">
-                          Exile Copilot
+                        <span className="text-[11px] font-semibold text-accent-700 block mb-1">
+                          Exile copilot
                         </span>
                       )}
-                      {msg.content}
+                      <FormattedMessage content={msg.content} />
                     </div>
                   ))}
                   {copilotLoading && (
-                    <div className="p-3 rounded-2xl me-auto bg-background-primary-default border border-[#0F766E]/20 flex items-center gap-2 text-caption-1-medium text-text-secondary">
+                    <div className="p-3 rounded-2xl me-auto bg-background-primary-default border border-accent-700/20 flex items-center gap-2 text-caption-1-medium text-text-secondary">
                       <Spinner size="xs" />
                       <span>Copilot sedang menganalisis kelas...</span>
                     </div>
@@ -1143,7 +1123,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     type="text"
                     value={copilotInput}
                     onChange={(e) => setCopilotInput(e.target.value)}
-                    placeholder="Tanyakan ke Copilot (misal: 'Pilihkan 1 siswa untuk menjelaskan...')"
+                    placeholder="Tanyakan ke copilot (misal: 'Pilihkan 1 siswa untuk menjelaskan...')"
                     className="flex-1 px-4 py-2.5 rounded-xl bg-background-secondary-default border border-border-button-default text-body-regular text-text-primary placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus-ring transition"
                   />
                   <Button
@@ -1163,8 +1143,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
         {/* Right column: Action Controls & Diagnostic */}
         <div className="lg:col-span-4 space-y-5">
           <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-4">
-            <h3 className="text-caption-1-semibold text-text-secondary uppercase">
-              Kontrol Ruang Kelas
+            <h3 className="text-caption-1-semibold text-text-secondary">
+              Kontrol ruang kelas
             </h3>
 
             <div className="flex flex-col gap-2.5">
@@ -1174,10 +1154,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   variant="primary"
                   leadingIcon={RiPlayCircleLine}
                   onClick={() => handleAction("resume_quiz")}
-                  disabled={actionLoading || quizStarted}
+                  disabled={actionLoading || quizStarted || !hasQuestions}
                   className="w-full"
                 >
-                  Mulai Kuis Sekarang (Soal 1)
+                  Mulai kuis sekarang (soal 1)
                 </Button>
               )}
 
@@ -1189,7 +1169,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   disabled={actionLoading}
                   className="w-full"
                 >
-                  Kembali ke Soal Aktif
+                  Kembali ke soal aktif
                 </Button>
               )}
 
@@ -1199,20 +1179,20 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     variant={state?.status === "waiting" ? "secondary" : "primary"}
                     leadingIcon={RiArrowRightLine}
                     onClick={() => handleAction("advance_question")}
-                    disabled={actionLoading}
+                    disabled={actionLoading || !hasQuestions}
                     className="w-full"
                   >
-                    Lanjut ke Pertanyaan Berikutnya
+                    Lanjut ke pertanyaan berikutnya
                   </Button>
 
                   <Button
                     variant="secondary"
                     leadingIcon={RiTrophyLine}
                     onClick={() => handleAction("show_leaderboard")}
-                    disabled={actionLoading}
+                    disabled={actionLoading || !hasQuestions}
                     className="w-full"
                   >
-                    Tampilkan Papan Skor di Layar
+                    Tampilkan papan skor di layar
                   </Button>
                 </>
               )}
@@ -1223,55 +1203,17 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   variant="ghost"
                   leadingIcon={RiCheckLine}
                   onClick={() => handleAction("finish_game")}
-                  disabled={actionLoading || gameFinished}
+                  disabled={actionLoading || gameFinished || !hasQuestions}
                   className="w-full text-text-secondary hover:text-text-primary"
                 >
-                  Selesaikan Sesi Kuis
+                  Selesaikan sesi kuis
                 </Button>
               ) : (
                 <div className="p-3 rounded-xl bg-background-secondary-default border border-border-button-default text-center text-caption-1-medium text-text-secondary">
-                  Sesi Kuis Telah Diselesaikan
+                  Sesi kuis telah diselesaikan
                 </div>
               )}
             </div>
-          </div>
-
-          {/* Diagnostic Card: Universal class diagnostic */}
-          <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-4">
-            <div className="flex items-center gap-3">
-              <div className="size-9 rounded-xl bg-[#0F766E]/10 text-[#0F766E] border border-[#0F766E]/20 flex items-center justify-center shrink-0">
-                <RiBarChartBoxLine className="size-5" aria-hidden />
-              </div>
-              <div>
-                <h3 className="text-body-semibold text-text-primary">
-                  Laporan Kelas & Diagnostik
-                </h3>
-                <p className="text-caption-1-regular text-text-secondary">
-                  Evaluasi Miskonsepsi & Intervensi
-                </p>
-              </div>
-            </div>
-
-            <p className="text-body-2-regular text-text-secondary">
-              Kaji kekeliruan jawaban siswa sekelas untuk menemukan pola materi yang belum dipahami serta susun butir remedial terarah.
-            </p>
-
-            <Button
-              variant="primary"
-              leadingIcon={diagnosticLoading ? undefined : RiBarChartBoxLine}
-              onClick={handleRunDiagnostic}
-              disabled={diagnosticLoading}
-              className="w-full"
-            >
-              {diagnosticLoading ? (
-                <span className="inline-flex items-center gap-2">
-                  <Spinner size="xs" className="text-text-white" aria-hidden />
-                  <span>Menganalisis jawaban murid...</span>
-                </span>
-              ) : (
-                "Buka Laporan Kelas & Diagnostik"
-              )}
-            </Button>
           </div>
 
           <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-2">
@@ -1280,7 +1222,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             </span>
             <ul className="space-y-1.5 list-disc list-inside text-caption-1-regular text-text-secondary">
               <li>
-                Siswa dapat langsung masuk melalui tautan undangan atau memasukkan PIN{" "}
+                Siswa dapat langsung masuk melalui tautan undangan atau memasukkan pin{" "}
                 <bdi className="font-mono font-semibold text-text-primary">{roomCode}</bdi> di{" "}
                 <Link href="/play" className="underline font-medium text-text-primary">
                   /play
@@ -1288,240 +1230,16 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 .
               </li>
               <li>
-                Bila verifikasi manual aktif, setujui siswa di tab Daftar Siswa agar mereka dapat berpartisipasi.
+                Bila verifikasi manual aktif, setujui siswa di tab daftar siswa agar mereka dapat berpartisipasi.
               </li>
               <li>
-                Gunakan tab Host Copilot untuk menunjuk siswa presentasi secara acak atau menganalisis pemahaman kelas.
+                Gunakan tab copilot ruang untuk menunjuk siswa presentasi secara acak atau menganalisis pemahaman kelas.
               </li>
             </ul>
           </div>
         </div>
       </div>
 
-      {/* Modal Laporan Kelas & Diagnostik */}
-      <Modal
-        isOpen={showDiagnosticModal}
-        onOpenChange={setShowDiagnosticModal}
-        size="xl"
-      >
-        <ModalHeader
-          title="Laporan Kelas & Diagnostik Miskonsepsi"
-          description={
-            diagnosticData?.topic ||
-            "Evaluasi Penguasaan Kompetensi & Rekomendasi Remedial Adaptif"
-          }
-          icon={RiBarChartBoxLine}
-        />
-
-        <ModalBody className="space-y-5 py-2">
-          {diagnosticLoading ? (
-            <div className="py-12 flex flex-col items-center justify-center text-center gap-3">
-              <Spinner size="lg" aria-label="Menganalisis klaster miskonsepsi siswa" />
-              <p className="text-body-regular text-text-secondary">
-                Menganalisis respon dan capaian siswa sekelas...
-              </p>
-            </div>
-          ) : diagnosticData ? (
-            <div className="space-y-5">
-              <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2.5">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <span className="text-body-semibold text-text-primary">
-                    Rangkuman Diagnostik Kelas
-                  </span>
-                  <span
-                    className={cx(
-                      "px-2.5 py-1 rounded-full text-caption-2-medium border",
-                      diagnosticData.classMasteryRate >= 70
-                        ? "bg-[#0F766E]/10 text-[#0F766E] border-[#0F766E]/20"
-                        : "bg-[#D97706]/10 text-[#D97706] border-[#D97706]/20"
-                    )}
-                  >
-                    Penguasaan Materi: {diagnosticData.classMasteryRate}%
-                  </span>
-                </div>
-                <p className="text-body-regular text-text-secondary">
-                  {diagnosticData.summaryText}
-                </p>
-              </div>
-
-              {diagnosticData.clusterAnalysis?.length > 0 && (
-                <div className="space-y-2.5">
-                  <h4 className="text-caption-1-semibold text-text-secondary uppercase">
-                    Pola Materi yang Perlu Penguatan
-                  </h4>
-                  <div className="space-y-2.5">
-                    {diagnosticData.clusterAnalysis.map((cluster, idx) => (
-                      <div
-                        key={idx}
-                        className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-1.5"
-                      >
-                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                          <span className="text-body-semibold text-text-primary">
-                            {cluster.concept}
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-[#D97706] border border-[#D97706]/20">
-                            Perlu Perhatian: {cluster.errorRate}% ({cluster.affectedStudentsCount} siswa)
-                          </span>
-                        </div>
-                        <p className="text-body-2-regular text-text-secondary">
-                          {cluster.primaryMisconception}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {diagnosticData.recommendedReteaching && (
-                <div className="p-4 rounded-2xl bg-[#0F766E]/5 border border-[#0F766E]/20 space-y-2">
-                  <span className="text-caption-1-semibold text-[#0F766E] uppercase block">
-                    Rekomendasi Langkah Ajar Ulang
-                  </span>
-                  <p className="text-body-semibold text-text-primary">
-                    {diagnosticData.recommendedReteaching.focusConcept}
-                  </p>
-                  <p className="text-body-2-regular text-text-secondary">
-                    {diagnosticData.recommendedReteaching.pedagogicalStrategy}
-                  </p>
-                  <div className="pt-1">
-                    <span className="inline-flex items-center px-3 py-1 rounded-xl text-caption-1-medium bg-[#0F766E]/10 text-[#0F766E]">
-                      Langkah cepat 10 menit:{" "}
-                      {diagnosticData.recommendedReteaching.quickActionableStep}
-                    </span>
-                  </div>
-                </div>
-              )}
-
-              {diagnosticData.adaptiveRemedialQuestions?.length > 0 && (
-                <div className="space-y-3 pt-1">
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <h4 className="text-body-semibold text-text-primary flex items-center gap-1.5">
-                      <RiFileTextLine className="size-4 text-[#0F766E]" aria-hidden />
-                      Soal Remedial Adaptif
-                    </h4>
-                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-secondary">
-                      {diagnosticData.adaptiveRemedialQuestions.length} butir soal
-                    </span>
-                  </div>
-
-                  <div className="space-y-3">
-                    {diagnosticData.adaptiveRemedialQuestions.map((rq, idx) => {
-                      const activeOptLabel =
-                        selectedRemedialOption[idx] ||
-                        rq.options.find((o) => o.isCorrect)?.label ||
-                        rq.options[0]?.label ||
-                        "A";
-                      const inspectedOption = rq.options.find(
-                        (o) => o.label === activeOptLabel
-                      );
-
-                      return (
-                        <div
-                          key={idx}
-                          className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-3"
-                        >
-                          <div className="flex items-center justify-between gap-2 flex-wrap">
-                            <span className="text-body-semibold text-text-primary">
-                              Soal Remedial #{idx + 1}
-                            </span>
-                            {rq.conceptTag && (
-                              <Chip variant="caption" color="soft">
-                                {rq.conceptTag}
-                              </Chip>
-                            )}
-                          </div>
-
-                          <p className="text-body-medium text-text-primary">
-                            {rq.question}
-                          </p>
-
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {rq.options.map((opt) => {
-                              const isSelected = activeOptLabel === opt.label;
-                              return (
-                                <button
-                                  key={opt.label}
-                                  type="button"
-                                  onClick={() =>
-                                    setSelectedRemedialOption((prev) => ({
-                                      ...prev,
-                                      [idx]: opt.label,
-                                    }))
-                                  }
-                                  className={cx(
-                                    "p-2.5 rounded-xl border text-start transition flex items-center justify-between gap-2 cursor-pointer",
-                                    "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
-                                    isSelected
-                                      ? opt.isCorrect
-                                        ? "bg-[#0F766E]/10 border-[#0F766E]/40"
-                                        : "bg-[#D97706]/10 border-[#D97706]/40"
-                                      : "bg-background-primary-default hover:bg-background-primary-hover border-border-button-default"
-                                  )}
-                                >
-                                  <div className="flex items-center gap-2 min-w-0">
-                                    <span
-                                      className={cx(
-                                        "size-6 rounded-md flex items-center justify-center text-caption-1-semibold shrink-0",
-                                        opt.isCorrect
-                                          ? "bg-[#0F766E] text-white"
-                                          : "bg-background-tertiary-default text-text-primary"
-                                      )}
-                                    >
-                                      {opt.label}
-                                    </span>
-                                    <span className="text-body-2-medium text-text-primary truncate">
-                                      {opt.text}
-                                    </span>
-                                  </div>
-                                  {opt.isCorrect && (
-                                    <span className="px-2 py-0.5 rounded text-[11px] font-medium bg-[#0F766E]/15 text-[#0F766E]">
-                                      Kunci
-                                    </span>
-                                  )}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          <div className="p-3 rounded-xl bg-background-primary-default border border-border-button-default space-y-1">
-                            <span className="text-caption-1-semibold text-text-primary block">
-                              {inspectedOption?.isCorrect
-                                ? `Rasional Kunci Jawaban (${inspectedOption.label}):`
-                                : `Rasional Pengecoh (${inspectedOption?.label || activeOptLabel}):`}
-                            </span>
-                            <p className="text-caption-1-regular text-text-secondary">
-                              {inspectedOption?.distractorRationale || rq.explanation}
-                            </p>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : null}
-        </ModalBody>
-
-        <ModalFooter>
-          <Button variant="secondary" onClick={() => setShowDiagnosticModal(false)}>
-            Tutup
-          </Button>
-          {diagnosticData?.adaptiveRemedialQuestions &&
-            diagnosticData.adaptiveRemedialQuestions.length > 0 && (
-              <Button
-                variant="primary"
-                leadingIcon={RiPlayCircleLine}
-                onClick={handleCreateRemedialRoom}
-                disabled={creatingRemedialRoom}
-              >
-                {creatingRemedialRoom
-                  ? "Membuat Ruang Remedial..."
-                  : "Buka Ruang Remedial dari Soal Ini"}
-              </Button>
-            )}
-        </ModalFooter>
-      </Modal>
     </main>
   );
 }

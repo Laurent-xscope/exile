@@ -113,7 +113,7 @@ export function Select<T extends object>({
           <AriaButton
             ref={triggerRef}
             className={cx(
-              "flex w-full cursor-pointer items-center justify-between rounded-2lg",
+              "flex w-full cursor-pointer items-center justify-between rounded-xl",
               "border border-border-button-default bg-background-primary-default shadow-xs",
               "text-text-primary",
               "transition-[background-color,border-color,box-shadow,padding,font-size] duration-200 ease",

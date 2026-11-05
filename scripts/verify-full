@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+echo "==> [Layer 1 Full] Running Complete Deterministic Verification Gate..."
+cd "$(dirname "$0")/.."
+
+# 1. Run Fast Gate first
+./scripts/verify-fast
+
+# 2. Production Build Check
+echo "--> Compiling optimized production build (Turbopack + Partial Prerender)..."
+bun run build
+
+echo "==> [PASS] Full Deterministic Verification Gate Passed Cleanly!"

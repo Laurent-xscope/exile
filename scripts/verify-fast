@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+set -eo pipefail
+
+echo "==> [Layer 1] Running Fast Deterministic Verification..."
+
+# 1. Typecheck
+echo "--> Checking TypeScript types (tsc --noEmit)..."
+cd "$(dirname "$0")/.."
+bun run next typegen || npx next typegen || true
+bun x tsc --noEmit
+
+# 2. Lint and unit tests
+echo "--> Linting src/..."
+bun x eslint src --max-warnings=0
+
+echo "--> Running unit tests..."
+bun test src
+
+# 3. Anti-Hardcode, Brand Hygiene & Regression Gate
+echo "--> Scanning for forbidden legacy branding, hardcoded PINs/counts, legacy hexes, & promotional UI slop..."
+
+FAIL=0
+
+# Check 1: 'exile.org' or 'exile-org' in src/app or src/components
+if grep -rniE "exile\.org|exile-org" src/app/ src/components/ 2>/dev/null; then
+  echo "FAIL [REG-005]: Found legacy 'exile.org' or 'exile-org' references in src/app or src/components. Brand must be strictly 'Exile'."
+  FAIL=1
+fi
+
+# Check 2: '849201' ANYWHERE in src/ (including src/lib/rooms/store.ts)
+if grep -rn "849201" src/ 2>/dev/null; then
+  echo "FAIL [REG-001]: Found hardcoded PIN '849201' in src/. Zero hardcoded PINs or demo rooms are permitted."
+  FAIL=1
+fi
+
+# Check 3: 'Supabase' in user-facing JSX text in src/app/ or src/components/
+if grep -rn --include="*.tsx" --include="*.jsx" "Supabase" src/app/ src/components/ 2>/dev/null \
+  | grep -vE "^[^:]+:[0-9]+:[[:space:]]*(//|/\*|\*|import |export |const .*=[[:space:]]*(create|get|use)|console\.)"; then
+  echo "FAIL [REG-006]: Found 'Supabase' in user-facing JSX/TSX in src/app/ or src/components/."
+  FAIL=1
+fi
+
+# Check 4: Legacy brown hex codes (#140D08, #1A0F0A, #F5E6D3, #331F14) ANYWHERE in src/
+# (#CA8A04 is now the VoiceBox Warning semantic color and is allowed.)
+if grep -rniE "#140D08|#1A0F0A|#F5E6D3|#331F14" src/ 2>/dev/null; then
+  echo "FAIL [REG-004]: Found forbidden legacy brown hex codes (#140D08, #1A0F0A, #F5E6D3, #331F14) in src/."
+  FAIL=1
+fi
+
+# Check 5: 'Daftar siswa (4)' or static player counts in src/
+if grep -rniE "Daftar siswa \([0-9]+\)|\b4 siswa\b" src/ 2>/dev/null; then
+  echo "FAIL [REG-002]: Found hardcoded 'Daftar siswa (4)' or static player count in src/. Player count must be dynamic."
+  FAIL=1
+fi
+
+# Check 6: Anti-slop UI check — no purple/pink default badges, RiSparklingLine, or decorative emoji in src/app/
+if grep -rnE 'color="purple"|color="pink"|RiSparklingLine|💡|🚀|🔥|✨' src/app/ 2>/dev/null; then
+  echo "FAIL [ANTISLOP-UI]: Found forbidden purple/pink badge default, RiSparklingLine, or decorative emoji in src/app/."
+  FAIL=1
+fi
+
+if [ $FAIL -ne 0 ]; then
+  echo "==> [FAIL] Fast verification detected deterministic constraint violations!"
+  exit 1
+fi
+
+echo "==> [PASS] Fast Deterministic Verification Passed Cleanly!"

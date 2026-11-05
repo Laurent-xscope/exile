@@ -134,21 +134,21 @@ export interface InputBaseProps extends Omit<AriaInputProps, "size" | "className
 const inputStyles = sortCx({
   field: [
     "relative flex w-full items-center",
-    "rounded-2lg",
-    "bg-background-tertiary-default text-foreground-icon-tertiary",
-    "ring-2 ring-inset ring-transparent",
-    "transition-[background-color,box-shadow,color] duration-[var(--input-transition-ms)] ease",
+    "rounded-xl",
+    "bg-paper text-muted",
+    "ring-2 ring-inset ring-line2",
+    "transition-[background-color,box-shadow,color] duration-100 ease",
   ].join(" "),
 
   fieldSize: {
-    medium: "p-2",                // 8px all sides → h auto = 36
-    small:  "h-8 px-1.5 py-2",    // 32 / 6 / 8
+    medium: "min-h-11 px-3.5 py-2",   // 44px field, 14px side padding
+    small:  "h-9 px-3 py-1.5",
   },
 
   // When a leadingAddon is present (Phone basic): tighten left padding.
   fieldWithAddonSize: {
-    medium: "h-9 ps-1 pe-2 py-2", // 36 / 4 / 8 / 8
-    small:  "h-8 ps-1 pe-1.5 py-2",
+    medium: "h-11 ps-2 pe-3.5 py-2",
+    small:  "h-9 ps-2 pe-3 py-1.5",
   },
 
   content: "flex w-full items-center gap-2 min-w-0",
@@ -156,7 +156,7 @@ const inputStyles = sortCx({
 
   input: [
     "min-w-0 flex-1 bg-transparent border-0 outline-none p-0 m-0",
-    "font-sans text-body-regular text-text-primary",
+    "font-sans text-[14px] leading-6 text-ink",
     "placeholder:text-text-tertiary",
     "focus:placeholder:text-text-primary",
     "disabled:text-input-disabled-text disabled:placeholder:text-input-disabled-text",
@@ -188,13 +188,13 @@ export function inputFieldClassName(
     inputStyles.field,
     hasAddon ? inputStyles.fieldWithAddonSize[size] : inputStyles.fieldSize[size],
     // Hover: idle, no focus, no disabled, no invalid
-    isHovered && !isFocusWithin && !isDisabled && !isInvalid && "ring-border-button-hover",
+    isHovered && !isFocusWithin && !isDisabled && !isInvalid && "ring-faint",
     // Focus wins over hover
-    isFocusWithin && !isDisabled && !isInvalid && "ring-border-button-active",
+    isFocusWithin && !isDisabled && !isInvalid && "ring-ink shadow-[0_0_0_2px_var(--vb-paper),0_0_0_4px_var(--vb-ink)]",
     // Disabled
-    isDisabled && "bg-input-disabled-background text-input-disabled-foreground",
+    isDisabled && "bg-surface opacity-50",
     // Invalid
-    isInvalid && "bg-background-tertiary-error text-foreground-icon-error",
+    isInvalid && "ring-[#EF4444] text-[#EF4444]",
   );
 }
 

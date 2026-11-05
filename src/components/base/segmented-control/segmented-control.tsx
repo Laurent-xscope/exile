@@ -92,7 +92,7 @@ export function SegmentedControl({ className, children, variant = "solid", ref, 
       {...props}
       className={(state) =>
         cx(
-          "relative inline-flex items-start gap-0.5 rounded-2lg",
+          "relative inline-flex items-start gap-1 rounded-xl",
           variant === "solid" && "bg-segmented-control-background p-1",
           typeof className === "function" ? className(state) : className,
         )
@@ -101,7 +101,7 @@ export function SegmentedControl({ className, children, variant = "solid", ref, 
       {variant === "solid" && thumb && (
         <span
           aria-hidden
-          className="pointer-events-none absolute left-0 top-0 rounded-md bg-segmented-control-selected-background shadow-2xs transition-[transform,width,height] duration-200 ease"
+          className="pointer-events-none absolute left-0 top-0 rounded-lg bg-segmented-control-selected-background shadow-2xs transition-[transform,width,height] duration-200 ease"
           style={{
             transform: `translate(${thumb.left}px, ${thumb.top}px)`,
             width: thumb.width,
@@ -131,11 +131,11 @@ export function SegmentedControlItem({
       {...props}
       className={(state) =>
         cx(
-          "relative z-10 inline-flex cursor-pointer items-center justify-center rounded-md px-2.5 py-1 text-center whitespace-nowrap",
+          "relative z-10 inline-flex cursor-pointer items-center justify-center rounded-lg px-2.5 py-1 text-center whitespace-nowrap",
           "transition-colors duration-200 ease",
           "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
           state.isSelected
-            ? "text-body-medium text-text-primary"
+            ? "text-body-medium text-[#0a0a0a] font-semibold"
             : "text-body-regular text-text-secondary hover:text-text-primary",
           state.isDisabled && "cursor-not-allowed opacity-50",
           typeof className === "function" ? className(state) : className,
