@@ -5,6 +5,10 @@ import type { User, Session } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 
+const GOOGLE_OAUTH_CLIENT_ID =
+  process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+  "130049618716-hul2uq4ftk2d7efp7usr46efuecj3fvb.apps.googleusercontent.com";
+
 export interface AuthState {
   user: User | null;
   session: Session | null;
@@ -31,13 +35,58 @@ export function useAuth(): AuthState {
   useEffect(() => {
     let mounted = true;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const initAuth = async () => {
+      if (typeof window !== "undefined" && window.location.hash.includes("id_token=")) {
+        const hashParams = new URLSearchParams(window.location.hash.slice(1));
+        const idToken = hashParams.get("id_token");
+        const statePath = hashParams.get("state");
+        const rawNonce = sessionStorage.getItem("exile_google_oauth_nonce") || undefined;
+        sessionStorage.removeItem("exile_google_oauth_nonce");
+        window.history.replaceState(
+          null,
+          "",
+          window.location.pathname + window.location.search
+        );
+
+        if (idToken) {
+          const { data, error } = await supabase.auth.signInWithIdToken({
+            provider: "google",
+            token: idToken,
+            nonce: rawNonce,
+          });
+          if (!error && data.session) {
+            if (mounted) {
+              setSession(data.session);
+              setUser(data.user);
+              setLoading(false);
+            }
+            toast.success("Berhasil masuk dengan Google.");
+            const savedNext =
+              statePath ||
+              sessionStorage.getItem("exile_google_oauth_next") ||
+              "/studio";
+            sessionStorage.removeItem("exile_google_oauth_next");
+            if (savedNext.startsWith("/") && !savedNext.startsWith("//")) {
+              window.location.replace(savedNext);
+            }
+            return;
+          } else if (error) {
+            toast.error(error.message || "Gagal memverifikasi token Google.");
+          }
+        }
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       if (mounted) {
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
       }
-    });
+    };
+
+    void initAuth();
 
     const {
       data: { subscription },
@@ -58,6 +107,47 @@ export function useAuth(): AuthState {
   const signInWithGoogle = useCallback(async (redirectTo?: string) => {
     try {
       const origin = typeof window !== "undefined" ? window.location.origin : "";
+      let nextPath = "/studio";
+      if (redirectTo) {
+        try {
+          const parsed = new URL(redirectTo, origin || "https://www.exile.web.id");
+          const nextParam = parsed.searchParams.get("next");
+          if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
+            nextPath = nextParam;
+          }
+        } catch {
+          // keep default /studio
+        }
+      }
+
+      if (typeof window !== "undefined" && GOOGLE_OAUTH_CLIENT_ID) {
+        const rawNonce = `${crypto.randomUUID()}-${crypto.randomUUID()}`;
+        const encoder = new TextEncoder();
+        const hashBuffer = await crypto.subtle.digest(
+          "SHA-256",
+          encoder.encode(rawNonce)
+        );
+        const hashedNonce = Array.from(new Uint8Array(hashBuffer))
+          .map((b) => b.toString(16).padStart(2, "0"))
+          .join("");
+
+        sessionStorage.setItem("exile_google_oauth_nonce", rawNonce);
+        sessionStorage.setItem("exile_google_oauth_next", nextPath);
+
+        const callbackUri = `${origin}/auth/callback`;
+        const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+        authUrl.searchParams.set("client_id", GOOGLE_OAUTH_CLIENT_ID);
+        authUrl.searchParams.set("redirect_uri", callbackUri);
+        authUrl.searchParams.set("response_type", "id_token");
+        authUrl.searchParams.set("scope", "openid email profile");
+        authUrl.searchParams.set("nonce", hashedNonce);
+        authUrl.searchParams.set("prompt", "select_account");
+        authUrl.searchParams.set("state", nextPath);
+
+        window.location.assign(authUrl.toString());
+        return;
+      }
+
       const targetUrl = redirectTo || `${origin}/auth/callback`;
 
       const { error } = await supabase.auth.signInWithOAuth({

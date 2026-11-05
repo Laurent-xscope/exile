@@ -25,7 +25,30 @@ export async function GET(request: Request) {
   }
 
   if (!code) {
-    return NextResponse.redirect(`${origin}/login?error=missing_code`);
+    const html = `<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <title>Menyelesaikan masuk dengan Google…</title>
+</head>
+<body style="margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:system-ui,sans-serif;background:#111;color:#f5f5f5;">
+  <p>Menyambungkan akun Google ke Exile…</p>
+  <script>
+    (function () {
+      var hash = window.location.hash || "";
+      if (hash.indexOf("id_token=") !== -1) {
+        window.location.replace("/login" + window.location.search + hash);
+      } else {
+        window.location.replace("/login?error=missing_code");
+      }
+    })();
+  </script>
+</body>
+</html>`;
+    return new Response(html, {
+      status: 200,
+      headers: { "Content-Type": "text/html; charset=utf-8" },
+    });
   }
 
   const cookieStore = await cookies();
