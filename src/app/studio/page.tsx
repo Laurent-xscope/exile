@@ -1,6 +1,13 @@
 "use client";
 
-import React, { useState, useMemo, useRef, useEffect } from "react";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useEffect,
+  type ChangeEvent,
+  type FormEvent,
+} from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { toast } from "sonner";
@@ -117,6 +124,7 @@ function ExplanationPanel({
   question,
   selectedLabel,
   isEn,
+  showDistractorBreakdown = true,
   contextLabel,
   compact = false,
 }: {
@@ -199,7 +207,7 @@ function ExplanationPanel({
             <p className="text-caption-1-medium text-text-primary">
               {selectedOption.label}. {selectedOption.text}
             </p>
-            {selectedOption.distractorRationale && (
+            {showDistractorBreakdown && selectedOption.distractorRationale && (
               <p className="mt-1 text-caption-2-regular leading-relaxed text-text-secondary">
                 {selectedOption.distractorRationale}
               </p>
@@ -844,7 +852,6 @@ export default function StudioPage() {
   const [docText, setDocText] = useState<string>("");
   const [processing, setProcessing] = useState<boolean>(false);
   const [reasoningElapsedSec, setReasoningElapsedSec] = useState<number>(0);
-  const [, setProcessingStep] = useState<string>("");
   const [processedDoc, setProcessedDoc] = useState<
     (DocumentAnalysis & { quizId?: string }) | null
   >(null);
@@ -1100,7 +1107,7 @@ export default function StudioPage() {
     );
   }, [processedDoc, quizDifficulty]);
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1243,7 +1250,7 @@ export default function StudioPage() {
     }
   };
 
-  const handleCopilotImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCopilotImageSelect = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -1284,29 +1291,9 @@ export default function StudioPage() {
     const timerInterval = setInterval(() => {
       setReasoningElapsedSec(Math.floor((Date.now() - startTime) / 1000));
     }, 1000);
-    setProcessingStep(
-      isEn
-        ? "Inspecting document and curriculum parameters..."
-        : "Memeriksa masukan dokumen materi..."
-    );
     soundEffects.playClick();
 
     try {
-      setTimeout(() => {
-        setProcessingStep(
-          isEn
-            ? "Synthesizing core conceptual hierarchy..."
-            : "Menganalisis konsep dan struktur materi..."
-        );
-      }, 700);
-
-      setTimeout(() => {
-        setProcessingStep(
-          isEn
-            ? "Authoring NotebookLM-grade interactive artifacts..."
-            : "Menghasilkan artifak ajar interaktif berstandar NotebookLM..."
-        );
-      }, 1600);
 
       const res = await fetch("/api/ai/process-document", {
         method: "POST",
@@ -1406,7 +1393,6 @@ export default function StudioPage() {
     } finally {
       clearInterval(timerInterval);
       setProcessing(false);
-      setProcessingStep("");
     }
   };
 
@@ -1591,7 +1577,7 @@ export default function StudioPage() {
     });
   };
 
-  const handleSendChatMessage = async (e?: React.FormEvent) => {
+  const handleSendChatMessage = async (e?: FormEvent) => {
     if (e) e.preventDefault();
     if ((!chatInput.trim() && !copilotAttachedImage) || chatLoading) return;
 
@@ -2118,7 +2104,7 @@ export default function StudioPage() {
                       fileInputRef.current.files = dt.files;
                       handleFileChange({
                         target: fileInputRef.current,
-                      } as React.ChangeEvent<HTMLInputElement>);
+                      } as ChangeEvent<HTMLInputElement>);
                     }
                   }}
                   className={cx(
@@ -3634,6 +3620,7 @@ export default function StudioPage() {
                                       question={q}
                                       selectedLabel={selectedLabel}
                                       isEn={isEn}
+                                      showDistractorBreakdown={showDistractorRationale}
                                       contextLabel={sourceLabel}
                                     />
                                   </motion.div>
@@ -4670,6 +4657,7 @@ export default function StudioPage() {
                                       question={question}
                                       selectedLabel={pickedLabel}
                                       isEn={isEn}
+                                      showDistractorBreakdown={showDistractorRationale}
                                       contextLabel={aiQuizTopic.trim() || sourceLabel}
                                       compact
                                     />

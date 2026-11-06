@@ -120,9 +120,7 @@ export async function fetchRemoteStudioHistory(): Promise<StudioHistoryEntry[]> 
     const merged = mergeHistoryEntries(localEntries, remoteEntries);
     try {
       window.localStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
-    } catch {
-      // LocalStorage errors ignored
-    }
+    } catch {}
     return merged;
   } catch (err) {
     console.warn("Error fetching remote studio history:", err);

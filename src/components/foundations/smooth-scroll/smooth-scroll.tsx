@@ -262,9 +262,7 @@ export function useSmoothScroll() {
         }
         try {
           element.focus({ preventScroll: true });
-        } catch {
-          // Fallback for browsers without preventScroll
-        }
+        } catch {}
       };
 
       if (effectiveBehavior === "auto") {
@@ -350,9 +348,7 @@ export function SmoothScrollProvider({
         }
         try {
           element.focus({ preventScroll: true });
-        } catch {
-          // Fallback
-        }
+        } catch {}
       };
 
       if (effectiveBehavior === "auto") {

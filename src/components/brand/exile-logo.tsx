@@ -20,7 +20,7 @@ export function ExileLogo({
       >
         <Image
           src="/logo.png"
-          alt="Exile Logo"
+          alt="Exile logo"
           width={size}
           height={size}
           className="object-cover w-full h-full"

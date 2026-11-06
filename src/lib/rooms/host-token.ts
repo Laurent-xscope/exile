@@ -34,9 +34,7 @@ export function markStudentTabForRoom(roomCode: string): void {
   try {
     window.sessionStorage.setItem(roleKey(roomCode), "student");
     window.sessionStorage.removeItem(storageKey(roomCode));
-  } catch {
-    // Ignore storage failures.
-  }
+  } catch {}
 }
 
 export function getHostToken(roomCode: string): string | null {
@@ -59,8 +57,6 @@ export function clearHostToken(roomCode: string): void {
   try {
     window.localStorage.removeItem(storageKey(roomCode));
     window.sessionStorage.removeItem(storageKey(roomCode));
-  } catch {
-    // Ignore storage failures.
-  }
+  } catch {}
 }
 

@@ -33,16 +33,16 @@ export interface LabelProps extends AriaLabelProps {
 
 export function Label({
   isRequired = false,
-  isInvalid: _isInvalid,
+  isInvalid,
   tooltip,
   className,
   children,
   ...props
 }: LabelProps) {
-  void _isInvalid;
   return (
     <AriaLabel
       data-label="true"
+      data-invalid={isInvalid || undefined}
       {...props}
       className={cx(
         "flex cursor-default items-center gap-0.5",

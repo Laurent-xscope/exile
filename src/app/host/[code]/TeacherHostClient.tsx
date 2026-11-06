@@ -33,9 +33,7 @@ import { useAuth } from "@/lib/auth/use-auth";
 import {
   clearHostToken,
   getHostToken,
-  isStudentTabForRoom,
 } from "@/lib/rooms/host-token";
-import { getPlayerToken } from "@/lib/rooms/player-token";
 import type { QuizDifficultyLevel } from "@/lib/quiz/options";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";
@@ -201,9 +199,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     if (authLoading) return;
     // Check localStorage hostToken to avoid false-positive student tab lockout
     const hasValidHostToken = Boolean(hostToken || getHostToken(roomCode));
-    const studentTab = isStudentTabForRoom(roomCode);
-    const hasPlayerTokenOnly = Boolean(getPlayerToken(roomCode)) && !hasValidHostToken;
-    if (!hasValidHostToken || (studentTab && !hasValidHostToken) || hasPlayerTokenOnly) {
+    if (!hasValidHostToken) {
       toast.error(
         isEn
           ? "Access denied: students cannot open the teacher host control room."

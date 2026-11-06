@@ -115,9 +115,7 @@ export function useAuth(): AuthState {
           if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
             nextPath = nextParam;
           }
-        } catch {
-          // keep default /studio
-        }
+        } catch {}
       }
 
       if (typeof window !== "undefined" && GOOGLE_OAUTH_CLIENT_ID) {

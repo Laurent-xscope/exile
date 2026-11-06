@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   RiArrowRightLine,
   RiHashtag,
@@ -71,7 +71,7 @@ export function JoinRoomForm({
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [initialNickname, initialAvatar]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
     const cleanCode = normalizeRoomCode(code);
     const cleanNickname = nickname.trim();
@@ -79,8 +79,8 @@ export function JoinRoomForm({
     if (!isValidRoomCode(cleanCode)) {
       setError(
         isEn
-          ? "Enter the 6-digit room Pin from your teacher."
-          : "Masukkan Pin ruangan 6 digit dari pengajar."
+          ? "Enter the 6-digit room pin from your teacher."
+          : "Masukkan pin ruangan 6 digit dari pengajar."
       );
       return;
     }
@@ -112,8 +112,8 @@ export function JoinRoomForm({
         throw new Error(
           data.error ||
             (isEn
-              ? "That room could not be joined. Check the Pin and try again."
-              : "Ruangan tidak dapat dimasuki. Periksa Pin lalu coba lagi.")
+              ? "That room could not be joined. Check the pin and try again."
+              : "Ruangan tidak dapat dimasuki. Periksa pin lalu coba lagi.")
         );
       }
 

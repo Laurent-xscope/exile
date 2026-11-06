@@ -35,7 +35,7 @@ const CHIP_WARNING = "bg-amber-50 text-amber-700 border-amber-600";
 const CHIP_ERROR = "bg-rose-50 text-text-error-primary border-border-error-default";
 const CHIP_NEUTRAL = "bg-transparent text-text-secondary border-border-button-default";
 
-export const CHIP_COLORS: Record<ChipColor, string> = {
+const CHIP_COLORS: Record<ChipColor, string> = {
   orange: CHIP_ERROR,
   lime: CHIP_SUCCESS,
   rose: CHIP_ERROR,
