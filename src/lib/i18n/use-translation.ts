@@ -102,7 +102,7 @@ export const DICTIONARY = {
     trailer: {
       tag: "Demonstrasi interaktif",
       title: "Exile",
-      subtitle: "Alur pembelajaran tertutup dalam 60 detik",
+      subtitle: "A debut: exile.web.id",
       description: "Saksikan bagaimana modul teks atau foto dokumen bertransformasi menjadi kuis interaktif dan analisis penguatan siswa secara instan.",
     },
     studio: {
@@ -299,7 +299,7 @@ export const DICTIONARY = {
     trailer: {
       tag: "Interactive showcase",
       title: "Exile",
-      subtitle: "60-second closed-loop learning flow",
+      subtitle: "A debut: exile.web.id",
       description: "Discover how raw lesson notes or document snapshots instantly convert into live quizzes and automated student reinforcement.",
     },
     studio: {

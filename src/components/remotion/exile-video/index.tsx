@@ -14,10 +14,10 @@ export default function ExileProductDemo() {
     <div className="w-full bg-background-primary-default border border-border-button-default rounded-3xl p-5 md:p-6 shadow-card space-y-4">
       <div className="space-y-1">
         <h3 className="text-title-2-semibold text-text-primary tracking-tight">
-          {t?.trailer?.title || "A Debut: exile.web.id"}
+          {t?.trailer?.title || "Exile"}
         </h3>
         <p className="text-body-2-regular text-text-secondary">
-          {t?.trailer?.subtitle || "Alur Pembelajaran Tertutup dalam 60 Detik"}
+          {t?.trailer?.subtitle || "A debut: exile.web.id"}
         </p>
       </div>
       <div className="relative w-full rounded-2xl overflow-hidden border border-border-button-default bg-black aspect-[16/9]">
