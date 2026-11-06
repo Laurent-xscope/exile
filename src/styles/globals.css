@@ -96,8 +96,7 @@ html {
   color-scheme: light;
   background-color: var(--color-background-full);
   scroll-behavior: smooth;
-  scroll-padding-top: var(--header-height, 5rem);
-  overscroll-behavior-y: none;
+  scroll-padding-top: var(--header-height, 4.5rem);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -115,15 +114,9 @@ html {
   scroll-behavior: auto;
 }
 
-/* Internal anchor targets scroll margin */
-:target {
-  scroll-margin-top: 5rem;
-}
-
-#demo-remotion,
-#uji-cepat,
-#tentang {
-  scroll-margin-top: 5rem;
+/* Programmatic focus outline suppression for non-keyboard focus */
+[tabindex="-1"]:not(:focus-visible) {
+  outline: none;
 }
 
 /* Subtle atmospheric backdrop lighting (Tridatu volcanic ember + warm amber glow) */
@@ -1169,6 +1162,12 @@ input[type="search"]::-webkit-search-cancel-button {
 }
 
 @supports (animation-timeline: view()) {
+  .scroll-driven-reveal,
+  .scroll-driven-fade,
+  .scroll-driven-scale {
+    transition: none !important;
+  }
+
   .scroll-driven-reveal {
     animation: scroll-fade-up linear both;
     animation-timeline: view();

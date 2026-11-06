@@ -20,15 +20,6 @@ export function saveHostToken(roomCode: string, token: string): void {
   }
 }
 
-export function isStudentTabForRoom(roomCode: string): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.sessionStorage.getItem(roleKey(roomCode)) === "student";
-  } catch {
-    return false;
-  }
-}
-
 export function markStudentTabForRoom(roomCode: string): void {
   if (typeof window === "undefined") return;
   try {

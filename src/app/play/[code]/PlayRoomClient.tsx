@@ -118,8 +118,8 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
         if (data.status === "finished") {
           setEntryError(
             isEn
-              ? "This quiz session has ended. Ask your teacher for a new room Pin."
-              : "Sesi kuis ini sudah berakhir. Minta Pin baru kepada pengajar."
+              ? "This quiz session has ended. Ask your teacher for a new room pin."
+              : "Sesi kuis ini sudah berakhir. Minta pin baru kepada pengajar."
           );
           setPhase("error");
           return;
@@ -295,7 +295,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
             leadingIcon={RiArrowLeftLine}
             className="mt-6 w-full justify-center"
           >
-            {isEn ? "Try another Pin" : "Coba Pin lain"}
+            {isEn ? "Try another pin" : "Coba pin lain"}
           </ButtonLink>
         </motion.div>
       ) : (

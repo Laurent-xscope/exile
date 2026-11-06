@@ -1,10 +1,7 @@
 import { z } from "zod";
 import { QuestionSchema } from "@/types/assessment";
 export {
-  OptionSchema,
   QuestionSchema,
-  QuizSchema,
-  type Option,
   type Question,
   type Quiz,
 } from "@/types/assessment";

@@ -3,7 +3,9 @@ import {
   calculateScrollDuration,
   calculateScrollProgress,
   calculateScrollTarget,
+  cancelActiveScroll,
   easeOutQuart,
+  focusTargetElement,
   getEffectiveScrollBehavior,
   isInsideModal,
   isInternalAnchorLink,
@@ -16,6 +18,9 @@ describe("smooth scroll helpers", () => {
     expect(calculateScrollTarget(300, 500, 72)).toBe(728);
     expect(calculateScrollTarget(0, 0, 72)).toBe(0);
     expect(calculateScrollTarget(100, 100, 0)).toBe(200);
+    // Floating point round
+    expect(calculateScrollTarget(100.4, 100, 72)).toBe(128);
+    expect(calculateScrollTarget(100.8, 100, 72)).toBe(129);
   });
 
   it("calculates scroll progress correctly clamped between 0 and 1", () => {
@@ -59,6 +64,7 @@ describe("smooth scroll helpers", () => {
     expect(calculateScrollDuration(100)).toBeLessThanOrEqual(680);
     expect(calculateScrollDuration(5000)).toBe(680);
     expect(calculateScrollDuration(-800)).toBeGreaterThanOrEqual(320);
+    expect(calculateScrollDuration(-10000)).toBe(680);
   });
 
   it("identifies internal anchor links correctly", () => {
@@ -75,7 +81,47 @@ describe("smooth scroll helpers", () => {
     expect(isInternalAnchorLink("https://example.com/#anchor")).toBe(false);
   });
 
-  it("handles modal inspection safely", () => {
+  it("handles modal inspection safely and accurately", () => {
     expect(isInsideModal(null)).toBe(false);
+
+    const normalElement = {
+      closest: (sel: string) => (sel.includes("dialog") ? null : null),
+    } as unknown as HTMLElement;
+    expect(isInsideModal(normalElement)).toBe(false);
+
+    const dialogElement = {
+      closest: (sel: string) => (sel.includes('[role="dialog"]') ? {} : null),
+    } as unknown as HTMLElement;
+    expect(isInsideModal(dialogElement)).toBe(true);
+
+    const overlayElement = {
+      closest: (sel: string) => (sel.includes("[data-overlay-container]") ? {} : null),
+    } as unknown as HTMLElement;
+    expect(isInsideModal(overlayElement)).toBe(true);
+  });
+
+  it("handles cancelActiveScroll safely when no animation is active", () => {
+    expect(() => cancelActiveScroll()).not.toThrow();
+  });
+
+  it("sets tabindex and focuses target element safely", () => {
+    let focusCalled = false;
+    let setAttrCalled = false;
+    const mockEl = {
+      hasAttribute: (_attr: string) => false,
+      setAttribute: (attr: string, val: string) => {
+        if (attr === "tabindex" && val === "-1") setAttrCalled = true;
+      },
+      focus: (_opts?: FocusOptions) => {
+        focusCalled = true;
+      },
+    } as unknown as HTMLElement;
+
+    focusTargetElement(mockEl);
+    expect(setAttrCalled).toBe(true);
+    expect(focusCalled).toBe(true);
+
+    // Null safety
+    expect(() => focusTargetElement(null)).not.toThrow();
   });
 });

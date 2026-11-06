@@ -14,6 +14,10 @@ export {
   calculateScrollDuration,
   isInsideModal,
   isInternalAnchorLink,
+  focusTargetElement,
+  cancelActiveScroll,
+  findAnchorElement,
+  getActiveAnimationStatus,
   animateScroll,
 } from "./smooth-scroll";
 export type {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, type FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -28,6 +28,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 export default function LoginPage() {
   const router = useRouter();
   const { t, lang } = useTranslation();
+  const isEn = lang === "en";
   const {
     user,
     loading: authLoading,
@@ -47,7 +48,7 @@ export default function LoginPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const nextParam = params.get("next");
-    if (nextParam && nextParam.startsWith("/")) {
+    if (nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")) {
       // The query string is only available after hydration.
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setNextPath(nextParam);
@@ -60,14 +61,22 @@ export default function LoginPage() {
     }
   }, [authLoading, user, nextPath, router]);
 
-  const handlePasswordSubmit = async (e: React.FormEvent) => {
+  const handlePasswordSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!email || !email.includes("@")) {
-      toast.error("Masukkan alamat email yang valid.");
+      toast.error(
+        isEn
+          ? "Enter a valid email address."
+          : "Masukkan alamat email yang valid."
+      );
       return;
     }
     if (!password || password.length < 6) {
-      toast.error("Kata sandi minimal 6 karakter.");
+      toast.error(
+        isEn
+          ? "Password must be at least 6 characters."
+          : "Kata sandi minimal 6 karakter."
+      );
       return;
     }
 
@@ -76,14 +85,22 @@ export default function LoginPage() {
       const res = await signInWithPassword(email, password);
       setSubmitting(false);
       if (res.success) {
-        toast.success("Berhasil masuk ke studio pengajar.");
+        toast.success(
+          isEn
+            ? "Signed in to educator studio."
+            : "Berhasil masuk ke studio pengajar."
+        );
         router.replace(nextPath);
       }
     } else {
       const res = await signUpWithPassword(email, password, fullName);
       setSubmitting(false);
       if (res.success) {
-        toast.success("Akun pengajar berhasil dibuat dan masuk.");
+        toast.success(
+          isEn
+            ? "Educator account created and signed in."
+            : "Akun pengajar berhasil dibuat dan masuk."
+        );
         router.replace(nextPath);
       }
     }
@@ -141,7 +158,7 @@ export default function LoginPage() {
 
         <div className="mt-5 space-y-4">
           <SegmentedControl
-            aria-label="Mode otentikasi"
+            aria-label={isEn ? "Authentication mode" : "Mode otentikasi"}
             selectedKeys={new Set([mode])}
             onSelectionChange={(keys) => {
               const selected = Array.from(keys)[0];

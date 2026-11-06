@@ -13,6 +13,7 @@ import {
   type ButtonHTMLAttributes,
   type MouseEvent,
   type ReactNode,
+  type RefObject,
 } from "react";
 import { RiArrowUpLine } from "@remixicon/react";
 import { cx } from "@/utils/cx";
@@ -29,6 +30,20 @@ export interface SmoothScrollContextValue {
 }
 
 const SmoothScrollContext = createContext<SmoothScrollContextValue | null>(null);
+
+let activeAnimationCancel: (() => void) | null = null;
+let savedHtmlScrollBehavior: string | null = null;
+
+export function getActiveAnimationStatus(): boolean {
+  return activeAnimationCancel !== null;
+}
+
+export function cancelActiveScroll(): void {
+  if (activeAnimationCancel !== null) {
+    activeAnimationCancel();
+    activeAnimationCancel = null;
+  }
+}
 
 export function subscribePrefersReducedMotion(notify: () => void): () => void {
   if (typeof window === "undefined" || !window.matchMedia) return () => {};
@@ -50,20 +65,14 @@ export function usePrefersReducedMotion(): boolean {
   );
 }
 
-/**
- * Calculates the destination scroll position compensating for fixed/sticky masthead headers.
- */
 export function calculateScrollTarget(
   targetTop: number,
   currentScrollY: number,
   offset = 72
 ): number {
-  return Math.max(0, targetTop + currentScrollY - offset);
+  return Math.max(0, Math.round(targetTop + currentScrollY - offset));
 }
 
-/**
- * Calculates scroll progress clamped between 0 and 1.
- */
 export function calculateScrollProgress(
   scrollTop: number,
   scrollHeight: number,
@@ -74,9 +83,6 @@ export function calculateScrollProgress(
   return Math.min(1, Math.max(0, scrollTop / scrollable));
 }
 
-/**
- * Resolves effective scroll behavior respecting prefers-reduced-motion.
- */
 export function getEffectiveScrollBehavior(
   requested: "smooth" | "auto" = "smooth",
   prefersReduced = false
@@ -85,26 +91,17 @@ export function getEffectiveScrollBehavior(
   return requested;
 }
 
-/**
- * Quartic ease-out curve for buttery deceleration.
- */
 export function easeOutQuart(x: number): number {
   const clamped = Math.max(0, Math.min(1, x));
   return 1 - Math.pow(1 - clamped, 4);
 }
 
-/**
- * Computes an optimal scroll duration proportional to distance (bounded between 320ms and 680ms).
- */
 export function calculateScrollDuration(distance: number): number {
   const abs = Math.abs(distance);
   if (abs === 0) return 0;
   return Math.min(680, Math.max(320, Math.round(Math.sqrt(abs) * 15)));
 }
 
-/**
- * Checks if an element is inside an active modal, dialog, or focus-trapped overlay.
- */
 export function isInsideModal(element: HTMLElement | null): boolean {
   if (!element) return false;
   return Boolean(
@@ -116,9 +113,6 @@ export function isInsideModal(element: HTMLElement | null): boolean {
   );
 }
 
-/**
- * Determines whether an href is an internal anchor targeting an element on the current page.
- */
 export function isInternalAnchorLink(href: string, currentPathname = "/"): boolean {
   if (!href) return false;
   if (href.startsWith("#") && href.length > 1) return true;
@@ -141,11 +135,43 @@ export function isInternalAnchorLink(href: string, currentPathname = "/"): boole
   return false;
 }
 
-/**
- * Performs a lightweight, buttery smooth animated scroll using requestAnimationFrame.
- * Has near-zero JS overhead (only active during scroll duration) and zero GPU layer overhead.
- * Instantly cancels if user touches, wheels, or presses a navigation key.
- */
+export function focusTargetElement(element: HTMLElement | null): void {
+  if (!element) return;
+  if (!element.hasAttribute("tabindex")) {
+    element.setAttribute("tabindex", "-1");
+  }
+  try {
+    element.focus({ preventScroll: true });
+  } catch {
+    // Fallback for older browsers
+  }
+}
+
+export function findAnchorElement(target: string | HTMLElement): HTMLElement | null {
+  if (typeof target !== "string") return target;
+
+  let raw = target;
+  if (raw.includes("#")) {
+    raw = raw.slice(raw.indexOf("#") + 1);
+  }
+
+  if (!raw) return null;
+
+  let id = raw;
+  try {
+    id = decodeURIComponent(raw);
+  } catch {
+    id = raw;
+  }
+
+  const byId = document.getElementById(id);
+  if (byId) return byId;
+
+  const escapedId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(id) : id.replace(/"/g, '\\"');
+  const byName = document.querySelector<HTMLElement>(`[name="${escapedId}"]`);
+  return byName;
+}
+
 export function animateScroll(
   destinationY: number,
   duration: number,
@@ -156,18 +182,29 @@ export function animateScroll(
     return () => {};
   }
 
-  const startY = window.scrollY || document.documentElement.scrollTop;
-  const distance = destinationY - startY;
-
-  if (Math.abs(distance) < 2 || duration <= 0) {
-    window.scrollTo(0, destinationY);
-    onComplete?.();
-    return () => {};
+  if (activeAnimationCancel !== null) {
+    activeAnimationCancel();
+    activeAnimationCancel = null;
   }
 
   const html = document.documentElement;
-  const prevScrollBehavior = html.style.scrollBehavior;
+  if (savedHtmlScrollBehavior === null) {
+    savedHtmlScrollBehavior = html.style.scrollBehavior;
+  }
   html.style.scrollBehavior = "auto";
+
+  const startY = window.scrollY || html.scrollTop;
+  const maxScrollY = Math.max(0, html.scrollHeight - window.innerHeight);
+  const clampedDestination = Math.min(Math.max(0, destinationY), maxScrollY);
+  const distance = clampedDestination - startY;
+
+  if (Math.abs(distance) < 2 || duration <= 0) {
+    window.scrollTo(0, clampedDestination);
+    html.style.scrollBehavior = savedHtmlScrollBehavior ?? "";
+    savedHtmlScrollBehavior = null;
+    onComplete?.();
+    return () => {};
+  }
 
   let rafId: number | null = null;
   let isCancelled = false;
@@ -187,7 +224,11 @@ export function animateScroll(
       rafId = null;
     }
     cleanupListeners();
-    html.style.scrollBehavior = prevScrollBehavior;
+    if (activeAnimationCancel === cancel) {
+      activeAnimationCancel = null;
+      html.style.scrollBehavior = savedHtmlScrollBehavior ?? "";
+      savedHtmlScrollBehavior = null;
+    }
   };
 
   const handleKey = (e: KeyboardEvent) => {
@@ -203,6 +244,8 @@ export function animateScroll(
       cancel();
     }
   };
+
+  activeAnimationCancel = cancel;
 
   window.addEventListener("wheel", cancel, { passive: true });
   window.addEventListener("touchstart", cancel, { passive: true });
@@ -222,7 +265,11 @@ export function animateScroll(
       rafId = requestAnimationFrame(step);
     } else {
       cleanupListeners();
-      html.style.scrollBehavior = prevScrollBehavior;
+      if (activeAnimationCancel === cancel) {
+        activeAnimationCancel = null;
+        html.style.scrollBehavior = savedHtmlScrollBehavior ?? "";
+        savedHtmlScrollBehavior = null;
+      }
       onComplete?.();
     }
   };
@@ -231,9 +278,59 @@ export function animateScroll(
   return cancel;
 }
 
-/**
- * Hook providing smooth scroll operations with accessibility and header offset support.
- */
+function performScrollToTarget(
+  target: string | HTMLElement,
+  options: SmoothScrollOptions,
+  prefersReduced: boolean,
+  defaultOffset = 72
+) {
+  if (typeof window === "undefined") return;
+
+  const { offset = defaultOffset, behavior = "smooth" } = options;
+  const element = findAnchorElement(target);
+  if (!element) return;
+
+  const rect = element.getBoundingClientRect();
+  const destination = calculateScrollTarget(rect.top, window.scrollY, offset);
+  const effectiveBehavior = getEffectiveScrollBehavior(behavior, prefersReduced);
+
+  if (effectiveBehavior === "auto") {
+    window.scrollTo({
+      top: destination,
+      behavior: "auto",
+    });
+    focusTargetElement(element);
+    return;
+  }
+
+  const distance = destination - window.scrollY;
+  const duration = calculateScrollDuration(distance);
+
+  animateScroll(destination, duration, () => {
+    focusTargetElement(element);
+  });
+}
+
+function performScrollToTop(
+  options: SmoothScrollOptions,
+  prefersReduced: boolean
+) {
+  if (typeof window === "undefined") return;
+  const { behavior = "smooth" } = options;
+  const effectiveBehavior = getEffectiveScrollBehavior(behavior, prefersReduced);
+
+  if (effectiveBehavior === "auto") {
+    window.scrollTo({
+      top: 0,
+      behavior: "auto",
+    });
+    return;
+  }
+
+  const duration = calculateScrollDuration(window.scrollY);
+  animateScroll(0, duration);
+}
+
 export function useSmoothScroll() {
   const context = useContext(SmoothScrollContext);
   const localPrefersReduced = usePrefersReducedMotion();
@@ -242,64 +339,14 @@ export function useSmoothScroll() {
 
   const scrollToTarget = useCallback(
     (target: string | HTMLElement, options: SmoothScrollOptions = {}) => {
-      if (typeof window === "undefined") return;
-
-      const { offset = 72, behavior = "smooth" } = options;
-      const element =
-        typeof target === "string"
-          ? document.getElementById(target.replace(/^#/, ""))
-          : target;
-
-      if (!element) return;
-
-      const rect = element.getBoundingClientRect();
-      const destination = calculateScrollTarget(rect.top, window.scrollY, offset);
-      const effectiveBehavior = getEffectiveScrollBehavior(behavior, prefersReduced);
-
-      const focusTarget = () => {
-        if (!element.hasAttribute("tabindex")) {
-          element.setAttribute("tabindex", "-1");
-        }
-        try {
-          element.focus({ preventScroll: true });
-        } catch {}
-      };
-
-      if (effectiveBehavior === "auto") {
-        window.scrollTo({
-          top: destination,
-          behavior: "auto",
-        });
-        focusTarget();
-        return;
-      }
-
-      const distance = destination - window.scrollY;
-      const duration = calculateScrollDuration(distance);
-
-      animateScroll(destination, duration, () => {
-        focusTarget();
-      });
+      performScrollToTarget(target, options, prefersReduced);
     },
     [prefersReduced]
   );
 
   const scrollToTop = useCallback(
     (options: SmoothScrollOptions = {}) => {
-      if (typeof window === "undefined") return;
-      const { behavior = "smooth" } = options;
-      const effectiveBehavior = getEffectiveScrollBehavior(behavior, prefersReduced);
-
-      if (effectiveBehavior === "auto") {
-        window.scrollTo({
-          top: 0,
-          behavior: "auto",
-        });
-        return;
-      }
-
-      const duration = calculateScrollDuration(window.scrollY);
-      animateScroll(0, duration);
+      performScrollToTop(options, prefersReduced);
     },
     [prefersReduced]
   );
@@ -316,10 +363,6 @@ export interface SmoothScrollProviderProps {
   headerOffset?: number;
 }
 
-/**
- * Dedicated lightweight client provider for smooth scroll animations.
- * Provides global anchor delegation, URL hash synchronization, and React Aria focus preservation.
- */
 export function SmoothScrollProvider({
   children,
   headerOffset = 72,
@@ -328,64 +371,14 @@ export function SmoothScrollProvider({
 
   const scrollToTarget = useCallback(
     (target: string | HTMLElement, options: SmoothScrollOptions = {}) => {
-      if (typeof window === "undefined") return;
-
-      const { offset = headerOffset, behavior = "smooth" } = options;
-      const element =
-        typeof target === "string"
-          ? document.getElementById(target.replace(/^#/, ""))
-          : target;
-
-      if (!element) return;
-
-      const rect = element.getBoundingClientRect();
-      const destination = calculateScrollTarget(rect.top, window.scrollY, offset);
-      const effectiveBehavior = getEffectiveScrollBehavior(behavior, prefersReduced);
-
-      const focusTarget = () => {
-        if (!element.hasAttribute("tabindex")) {
-          element.setAttribute("tabindex", "-1");
-        }
-        try {
-          element.focus({ preventScroll: true });
-        } catch {}
-      };
-
-      if (effectiveBehavior === "auto") {
-        window.scrollTo({
-          top: destination,
-          behavior: "auto",
-        });
-        focusTarget();
-        return;
-      }
-
-      const distance = destination - window.scrollY;
-      const duration = calculateScrollDuration(distance);
-
-      animateScroll(destination, duration, () => {
-        focusTarget();
-      });
+      performScrollToTarget(target, options, prefersReduced, headerOffset);
     },
     [headerOffset, prefersReduced]
   );
 
   const scrollToTop = useCallback(
     (options: SmoothScrollOptions = {}) => {
-      if (typeof window === "undefined") return;
-      const { behavior = "smooth" } = options;
-      const effectiveBehavior = getEffectiveScrollBehavior(behavior, prefersReduced);
-
-      if (effectiveBehavior === "auto") {
-        window.scrollTo({
-          top: 0,
-          behavior: "auto",
-        });
-        return;
-      }
-
-      const duration = calculateScrollDuration(window.scrollY);
-      animateScroll(0, duration);
+      performScrollToTop(options, prefersReduced);
     },
     [prefersReduced]
   );
@@ -406,24 +399,20 @@ export function SmoothScrollProvider({
       }
 
       const targetEl = e.target as HTMLElement | null;
-      if (!targetEl) return;
-
-      if (isInsideModal(targetEl)) {
+      if (!targetEl || isInsideModal(targetEl)) {
         return;
       }
 
       const anchor = targetEl.closest("a");
       if (!anchor) return;
+      if (anchor.target === "_blank" || anchor.hasAttribute("download")) return;
 
       const href = anchor.getAttribute("href");
       if (!href) return;
 
       if (isInternalAnchorLink(href, window.location.pathname)) {
         const hash = href.startsWith("#") ? href : href.slice(href.indexOf("#"));
-        const targetId = hash.replace(/^#/, "");
-        if (!targetId) return;
-
-        const target = document.getElementById(targetId);
+        const target = findAnchorElement(hash);
         if (target) {
           e.preventDefault();
           scrollToTarget(target, { offset: headerOffset });
@@ -437,9 +426,7 @@ export function SmoothScrollProvider({
     const handleHashNavigation = () => {
       const hash = window.location.hash;
       if (!hash) return;
-      const targetId = hash.replace(/^#/, "");
-      if (!targetId) return;
-      const target = document.getElementById(targetId);
+      const target = findAnchorElement(hash);
       if (target) {
         requestAnimationFrame(() => {
           scrollToTarget(target, { offset: headerOffset });
@@ -449,6 +436,7 @@ export function SmoothScrollProvider({
 
     document.addEventListener("click", handleClick);
     window.addEventListener("hashchange", handleHashNavigation);
+    window.addEventListener("popstate", handleHashNavigation);
 
     if (window.location.hash) {
       handleHashNavigation();
@@ -457,6 +445,7 @@ export function SmoothScrollProvider({
     return () => {
       document.removeEventListener("click", handleClick);
       window.removeEventListener("hashchange", handleHashNavigation);
+      window.removeEventListener("popstate", handleHashNavigation);
     };
   }, [headerOffset, scrollToTarget]);
 
@@ -494,12 +483,14 @@ export function SmoothScrollLink({
     onClick?.(e);
     if (e.defaultPrevented) return;
 
-    if (href.startsWith("#")) {
+    const currentPathname = typeof window !== "undefined" ? window.location.pathname : "/";
+    if (isInternalAnchorLink(href, currentPathname)) {
       e.preventDefault();
       onBeforeScroll?.();
-      scrollToTarget(href, { offset });
+      const hash = href.startsWith("#") ? href : href.slice(href.indexOf("#"));
+      scrollToTarget(hash, { offset });
       if (typeof window !== "undefined" && window.history.pushState) {
-        window.history.pushState(null, "", href);
+        window.history.pushState(null, "", hash);
       }
     }
   };
@@ -513,49 +504,53 @@ export function SmoothScrollLink({
 
 export interface ScrollProgressBarProps {
   className?: string;
-  containerRef?: React.RefObject<HTMLElement | null>;
+  containerRef?: RefObject<HTMLElement | null>;
 }
 
 export function ScrollProgressBar({ className, containerRef }: ScrollProgressBarProps) {
-  const [progress, setProgress] = useState(0);
+  const barRef = useRef<HTMLDivElement>(null);
   const prefersReduced = usePrefersReducedMotion();
-  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined" || prefersReduced) return;
 
+    let rafId: number | null = null;
+
     const update = () => {
-      let next = 0;
+      let progress = 0;
       if (containerRef?.current) {
         const el = containerRef.current;
-        next = calculateScrollProgress(el.scrollTop, el.scrollHeight, el.clientHeight);
+        progress = calculateScrollProgress(el.scrollTop, el.scrollHeight, el.clientHeight);
       } else {
         const doc = document.documentElement;
-        next = calculateScrollProgress(
+        progress = calculateScrollProgress(
           window.scrollY || doc.scrollTop,
           doc.scrollHeight,
           window.innerHeight
         );
       }
-      setProgress(next);
+      if (barRef.current) {
+        barRef.current.style.transform = `scaleX(${progress}) translateZ(0)`;
+      }
     };
 
     const handleScroll = () => {
-      if (rafRef.current !== null) return;
-      rafRef.current = window.requestAnimationFrame(() => {
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
         update();
-        rafRef.current = null;
+        rafId = null;
       });
     };
 
     update();
+
     const target = containerRef?.current ?? window;
     target.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", handleScroll, { passive: true });
 
     return () => {
-      if (rafRef.current !== null) {
-        window.cancelAnimationFrame(rafRef.current);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
       }
       target.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleScroll);
@@ -568,25 +563,25 @@ export function ScrollProgressBar({ className, containerRef }: ScrollProgressBar
     <div
       aria-hidden="true"
       className={cx(
-        "pointer-events-none fixed inset-x-0 top-0 z-50 h-[2.5px] bg-transparent",
+        "pointer-events-none fixed inset-x-0 top-0 z-50 h-0.5 bg-transparent",
         className
       )}
     >
       <div
-        className="h-full w-full bg-accent-600 transition-transform duration-75 ease-out"
+        ref={barRef}
+        className="h-full w-full bg-accent-600 origin-left"
         style={{
-          transformOrigin: "0% 50%",
-          transform: `scaleX(${progress}) translateZ(0)`,
-          willChange: "transform",
+          transform: "scaleX(0)",
         }}
       />
     </div>
   );
 }
 
-export interface ScrollToTopButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface ScrollToTopButtonProps extends Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> {
   threshold?: number;
   label?: string;
+  className?: string;
 }
 
 export function ScrollToTopButton({
@@ -596,25 +591,31 @@ export function ScrollToTopButton({
   ...props
 }: ScrollToTopButtonProps) {
   const [isVisible, setIsVisible] = useState(false);
+  const isVisibleRef = useRef(false);
   const { scrollToTop } = useSmoothScroll();
-  const rafRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
 
+    let rafId: number | null = null;
+
     const handleScroll = () => {
-      if (rafRef.current !== null) return;
-      rafRef.current = window.requestAnimationFrame(() => {
-        setIsVisible(window.scrollY > threshold);
-        rafRef.current = null;
+      if (rafId !== null) return;
+      rafId = window.requestAnimationFrame(() => {
+        const next = window.scrollY > threshold;
+        if (isVisibleRef.current !== next) {
+          isVisibleRef.current = next;
+          setIsVisible(next);
+        }
+        rafId = null;
       });
     };
 
     handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
     return () => {
-      if (rafRef.current !== null) {
-        window.cancelAnimationFrame(rafRef.current);
+      if (rafId !== null) {
+        window.cancelAnimationFrame(rafId);
       }
       window.removeEventListener("scroll", handleScroll);
     };
@@ -627,7 +628,7 @@ export function ScrollToTopButton({
       aria-label={label}
       title={label}
       className={cx(
-        "fixed bottom-6 right-6 z-30 inline-flex items-center justify-center size-10 rounded-full",
+        "fixed bottom-6 end-6 z-30 inline-flex items-center justify-center size-10 rounded-full",
         "bg-background-primary-default/90 backdrop-blur-md border border-border-button-default",
         "text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover",
         "shadow-card transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring cursor-pointer",

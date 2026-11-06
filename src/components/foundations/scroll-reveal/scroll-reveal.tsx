@@ -1,6 +1,15 @@
 "use client";
 
-import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type ElementType,
+  type HTMLAttributes,
+  type ReactNode,
+} from "react";
 import { cx } from "@/utils/cx";
 
 interface UseScrollRevealOptions {
@@ -66,9 +75,9 @@ export function useScrollReveal<T extends HTMLElement = HTMLDivElement>(
   return { ref: elementRef, isVisible: isVisible || prefersReduced };
 }
 
-export interface ScrollRevealProps extends React.HTMLAttributes<HTMLElement> {
-  children: React.ReactNode;
-  as?: React.ElementType;
+export interface ScrollRevealProps extends HTMLAttributes<HTMLElement> {
+  children: ReactNode;
+  as?: ElementType;
   variant?: "slide-up" | "scale-up" | "fade";
   delay?: number;
   duration?: number;
@@ -110,10 +119,10 @@ export function ScrollReveal({
       ? "scroll-driven-fade"
       : "scroll-driven-reveal";
 
-  const dynamicStyle: React.CSSProperties = {
+  const dynamicStyle: CSSProperties = {
     ...style,
     ...(delay ? { transitionDelay: `${delay}ms` } : {}),
-    ...(duration ? { "--reveal-duration": `${duration}ms` } as React.CSSProperties : {}),
+    ...(duration ? ({ "--reveal-duration": `${duration}ms` } as CSSProperties) : {}),
   };
 
   return (

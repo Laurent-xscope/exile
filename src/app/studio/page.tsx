@@ -875,7 +875,6 @@ export default function StudioPage() {
 
   const [studentPovActive, setStudentPovActive] = useState<boolean>(false);
 
-  // Adaptive Quiz Difficulty Slider (1 = Dasar, 2 = Sedang, 3 = Menantang HOTS)
   const [quizDifficulty, setQuizDifficulty] = useState<number>(2);
   const [testedAnswers, setTestedAnswers] = useState<Record<string, string>>({});
   const [showDistractorRationale, setShowDistractorRationale] = useState<boolean>(true);
@@ -884,7 +883,6 @@ export default function StudioPage() {
   const [flashcardIndex, setFlashcardIndex] = useState<number>(0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [showFlashcardHint, setShowFlashcardHint] = useState<boolean>(false);
-  // Wayground-style study loop: cards the learner marked "Got it".
   const [masteredCards, setMasteredCards] = useState<number[]>([]);
   const [cardViewMode, setCardViewMode] = useState<"deck" | "grid">("deck");
   const [cardTagFilter, setCardTagFilter] = useState<string>("all");

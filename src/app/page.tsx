@@ -174,8 +174,8 @@ export default function LandingPage() {
     if (!isValidRoomCode(cleanPin)) {
       toast.error(
         isEn
-          ? "Enter the 6-digit room Pin from your teacher."
-          : "Masukkan Pin ruangan 6 digit dari pengajar."
+          ? "Enter the 6-digit room pin from your teacher."
+          : "Masukkan pin ruangan 6 digit dari pengajar."
       );
       return;
     }
@@ -211,7 +211,7 @@ export default function LandingPage() {
         throw new Error(data.error || "Gagal membuat ruangan.");
       }
       saveHostToken(data.roomCode, data.hostToken);
-      toast.success(isEn ? `Room created! Pin: ${data.roomCode}` : `Ruangan berhasil dibuat! Pin: ${data.roomCode}`);
+      toast.success(isEn ? `Room created! pin: ${data.roomCode}` : `Ruangan berhasil dibuat! pin: ${data.roomCode}`);
       router.push(`/host/${data.roomCode}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal membuat ruangan.";
@@ -268,7 +268,7 @@ export default function LandingPage() {
             <h1 className="text-[40px] sm:text-[56px] text-text-primary">
               {t.hero.headingLine1} {t.hero.headingLine2}
             </h1>
-            <div className="h-[3px] w-24 bg-red-500" aria-hidden />
+            <div className="h-[3px] w-24 bg-accent-700" aria-hidden />
 
             <p className="text-[20px] leading-[1.65] text-text-secondary max-w-2xl">
               {t.hero.subheading}
@@ -355,12 +355,12 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
           <ScrollReveal variant="slide-up" className="flex flex-col items-center text-center space-y-3 max-w-3xl mx-auto">
             <h2 className="text-display-4-semibold sm:text-display-3-semibold text-text-primary">
-              {isEn ? "Curriculum concepts & 3D interactive cards" : "Kartu konsep kurikulum & flashcard 3D"}
+              {isEn ? "Curriculum concepts & 3d interactive cards" : "Kartu konsep kurikulum & flashcard 3d"}
             </h2>
             <p className="text-body-regular sm:text-body-medium text-text-secondary max-w-2xl">
               {isEn
-                ? "Explore essential cross-discipline concepts with self-rotating 3D flashcards designed for pedagogical clarity."
-                : "Eksplorasi konsep esensial lintas kurikulum secara mendalam dengan kartu interaktif 3D."}
+                ? "Explore essential cross-discipline concepts with self-rotating 3d flashcards designed for pedagogical clarity."
+                : "Eksplorasi konsep esensial lintas kurikulum secara mendalam dengan kartu interaktif 3d."}
             </p>
           </ScrollReveal>
 

@@ -30,6 +30,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { markStudentTabForRoom } from "@/lib/rooms/host-token";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
+import { InputBase } from "@/components/base/input/input";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
 import { IconButton } from "@/components/base/buttons/icon-button";
 import { Chip } from "@/components/base/badges/chip";
@@ -419,19 +420,27 @@ export default function PlayArenaClient({
           correctOption: correctOpt,
           explanation:
             submitData.explanation ||
-            "Pilihanmu tepat! Analisis dan pemahamanmu terhadap materi ini sangat baik.",
+            (isEn
+              ? "Great job! Your analysis and understanding of this concept is spot on."
+              : "Pilihanmu tepat! Analisis dan pemahamanmu terhadap materi ini sangat baik."),
         });
-        toast.success(`Benar! +${scoreAwarded} poin diperoleh`);
+        toast.success(
+          isEn
+            ? `Correct! +${scoreAwarded} points awarded`
+            : `Benar! +${scoreAwarded} poin diperoleh`
+        );
       } else {
         soundEffects.playIncorrect();
-        toast.error("Jawaban salah");
+        toast.error(isEn ? "Incorrect answer" : "Jawaban salah");
         setLastSubmissionResult({
           isCorrect: false,
           scoreAwarded,
           correctOption: correctOpt,
           microFeedback:
             submitData.explanation ||
-            "Perhatikan kembali analisis opsi jawaban pada materi ini.",
+            (isEn
+              ? "Review the answer options for this topic."
+              : "Perhatikan kembali analisis opsi jawaban pada materi ini."),
         });
         try {
           const explainRes = await fetch("/api/ai/explain-error", {
@@ -463,7 +472,12 @@ export default function PlayArenaClient({
         }
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal mengirim jawaban";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : isEn
+            ? "Failed to submit answer"
+            : "Gagal mengirim jawaban";
       toast.error(msg);
     } finally {
       setSubmitting(false);
@@ -496,10 +510,18 @@ export default function PlayArenaClient({
       if (res.ok && data.reply) {
         setCopilotMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
       } else {
-        throw new Error(data.error || "Gagal menghubungi Copilot");
+        throw new Error(
+          data.error ||
+            (isEn ? "Failed to contact copilot" : "Gagal menghubungi copilot")
+        );
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Copilot sedang sibuk";
+      const msg =
+        err instanceof Error
+          ? err.message
+          : isEn
+            ? "Copilot is busy"
+            : "Copilot sedang sibuk";
       toast.error(msg);
     } finally {
       setCopilotLoading(false);
@@ -546,7 +568,7 @@ export default function PlayArenaClient({
             <Link
               href="/"
               className="shrink-0 p-1 rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring text-text-secondary hover:text-text-primary transition-colors"
-              aria-label={isEn ? "Back to Home" : "Kembali ke Beranda"}
+              aria-label={isEn ? "Back to home" : "Kembali ke beranda"}
             >
               <RiArrowLeftLine className="size-5" />
             </Link>
@@ -1234,8 +1256,8 @@ export default function PlayArenaClient({
               }}
               className="flex items-center gap-2"
             >
-              <input
-                type="text"
+              <InputBase
+                aria-label={isEn ? "Ask copilot" : "Tanya copilot"}
                 value={copilotInput}
                 onChange={(e) => setCopilotInput(e.target.value)}
                 placeholder={
@@ -1243,7 +1265,8 @@ export default function PlayArenaClient({
                     ? "Ask any concept you don't understand..."
                     : "Tanyakan konsep yang belum kamu mengerti..."
                 }
-                className="flex-1 px-3.5 py-2 rounded-xl bg-background-secondary-default border border-border-button-default text-caption-1-medium text-text-primary focus:outline-none focus:ring-2 focus:ring-border-focus-ring"
+                size="small"
+                className="flex-1"
               />
               <Button
                 type="submit"

@@ -23,8 +23,6 @@ import {
   type QuizDifficultyLevel,
 } from "@/lib/quiz/options";
 
-export { shuffleQuestionOptions, type QuizDifficultyLevel };
-
 // Guarded at every call site: when no service-role key is configured the app
 // runs in stateless in-memory mode and this client is never used.
 function db() {
@@ -316,11 +314,11 @@ export function _resetInMemoryRoomsForTesting(): void {
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-export function isValidUuid(val?: string | null): boolean {
+function isValidUuid(val?: string | null): boolean {
   return Boolean(val && UUID_REGEX.test(val));
 }
 
-export function generateRoomCode(): string {
+function generateRoomCode(): string {
   let pin = "";
   let attempts = 0;
   do {

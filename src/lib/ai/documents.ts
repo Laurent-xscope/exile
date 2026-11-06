@@ -1,7 +1,7 @@
 /** Server-side text extraction for uploaded study material. */
 
-export const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
-export const MAX_SOURCE_CHARS = 60_000;
+const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+const MAX_SOURCE_CHARS = 60_000;
 
 const TEXT_EXTENSIONS = new Set(["txt", "md", "markdown", "csv", "json", "html", "htm", "rtf", "srt", "vtt"]);
 

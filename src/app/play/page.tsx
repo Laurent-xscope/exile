@@ -170,8 +170,8 @@ export default function PlayJoinPage() {
                   ? "Checking active rooms..."
                   : "Memeriksa daftar ruang aktif..."
                 : isEn
-                  ? "No active rooms detected yet. Enter the 6-digit Pin from your teacher above."
-                  : "Belum ada ruang aktif terdeteksi. Masukkan 6 digit Pin dari guru di atas."}
+                  ? "No active rooms detected yet. Enter the 6-digit pin from your teacher above."
+                  : "Belum ada ruang aktif terdeteksi. Masukkan 6 digit pin dari guru di atas."}
             </p>
           ) : (
             <div className="max-h-48 space-y-2 overflow-y-auto pe-1">
@@ -180,7 +180,7 @@ export default function PlayJoinPage() {
                   key={r.roomCode}
                   type="button"
                   onClick={() => setInitialCode(r.roomCode)}
-                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border-button-default bg-background-secondary-default/60 p-3 text-left transition hover:border-border-button-hover hover:bg-background-secondary-default"
+                  className="flex w-full cursor-pointer items-center justify-between gap-3 rounded-2xl border border-border-button-default bg-background-secondary-default/60 p-3 text-start transition hover:border-border-button-hover hover:bg-background-secondary-default"
                 >
                   <div className="min-w-0 space-y-0.5">
                     <div className="flex items-center gap-2">
