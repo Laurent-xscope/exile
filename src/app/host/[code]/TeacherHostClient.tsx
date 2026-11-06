@@ -36,7 +36,7 @@ import {
   isStudentTabForRoom,
 } from "@/lib/rooms/host-token";
 import { getPlayerToken } from "@/lib/rooms/player-token";
-import type { QuizDifficultyLevel } from "@/lib/rooms/store";
+import type { QuizDifficultyLevel } from "@/lib/quiz/options";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -451,7 +451,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const copyPin = () => {
     navigator.clipboard.writeText(roomCode);
     soundEffects.playClick();
-    toast.success("PIN disalin ke papan klip");
+    toast.success("Pin disalin ke papan klip");
   };
 
   const copyShareLink = () => {
@@ -505,7 +505,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Status badge shown once the quiz is running or finished */}
                 {state?.status === "waiting" ? null : state?.status === "finished" ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-[#9CA3AF]/10 text-[#9CA3AF] border border-[#9CA3AF]/20">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-tertiary border border-border-button-default">
                     <RiCheckboxCircleLine className="size-3.5" aria-hidden />
                     <span>{isEn ? "Quiz finished" : "Kuis selesai"}</span>
                   </span>
@@ -828,7 +828,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           {!option.isCorrect && optRationale && (voteCount > 0 || selectedOnHost) && (
                             <p className="text-caption-2-regular text-text-secondary pt-1.5 ps-8 border-t border-border-button-default/50 relative z-10">
                               <span className="font-semibold text-text-primary">
-                                {isEn ? "Misconception: " : "Analisis miskonsepsi: "}
+                                {isEn ? "Weak point: " : "Titik lemah: "}
                               </span>
                               {optRationale}
                             </p>
@@ -1080,7 +1080,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             <button
                               type="button"
                               onClick={() => handleRejectPlayer(p.id)}
-                              className="cursor-pointer size-8 rounded-lg flex items-center justify-center bg-background-primary-default border border-border-button-default text-[#9CA3AF] hover:text-text-error-primary transition"
+                              className="cursor-pointer size-8 rounded-lg flex items-center justify-center bg-background-primary-default border border-border-button-default text-text-tertiary hover:text-text-error-primary transition"
                               title="Tolak siswa"
                             >
                               <RiCloseLine className="size-4" />

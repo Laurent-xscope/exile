@@ -1,4 +1,4 @@
-import type { Question } from "@/lib/ai/prompts";
+import type { Question } from "@/types/assessment";
 
 /**
  * Wayground-compatible scoring.
@@ -20,6 +20,13 @@ export interface ScoreResult {
   total: number;
   newStreak: number;
   scoreBreakup: ScoreBreakdown;
+}
+
+export function calculateStreakBonus(streak: number): number {
+  if (streak === 2) return 100;
+  if (streak === 3) return 200;
+  if (streak === 4) return 300;
+  return streak >= 5 ? 400 : 0;
 }
 
 export function calculateResponseScore({
@@ -51,13 +58,7 @@ export function calculateResponseScore({
   const timer = Math.round(remainingRatio * MAX_TIMER_BONUS);
   const newStreak = (Number.isFinite(currentStreak) ? Math.max(0, currentStreak) : 0) + 1;
 
-  let streak = 0;
-  if (streakBonusEnabled) {
-    if (newStreak === 2) streak = 100;
-    else if (newStreak === 3) streak = 200;
-    else if (newStreak === 4) streak = 300;
-    else if (newStreak >= 5) streak = 400;
-  }
+  const streak = streakBonusEnabled ? calculateStreakBonus(newStreak) : 0;
 
   return {
     total: Math.ceil(BASE_SCORE + timer + streak),

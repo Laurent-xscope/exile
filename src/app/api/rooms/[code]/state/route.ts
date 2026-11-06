@@ -18,7 +18,7 @@ export async function GET(
 
     if (!isValidRoomCode(normalizedCode)) {
       return NextResponse.json(
-        { success: false, error: "PIN ruangan harus tepat 6 digit." },
+        { success: false, error: "Pin ruangan harus tepat 6 digit." },
         { status: 400 }
       );
     }
@@ -29,7 +29,7 @@ export async function GET(
       return NextResponse.json(
         {
           success: false,
-          error: `Room PIN "${code}" tidak ditemukan.`,
+          error: `Room pin "${code}" tidak ditemukan.`,
         },
         { status: 404 }
       );

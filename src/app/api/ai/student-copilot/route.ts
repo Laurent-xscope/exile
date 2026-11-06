@@ -43,7 +43,7 @@ export async function POST(req: Request) {
 
     if (!isValidRoomCode(roomCode)) {
       return NextResponse.json(
-        { error: "PIN ruangan harus tepat 6 digit." },
+        { error: "Pin ruangan harus tepat 6 digit." },
         { status: 400 }
       );
     }

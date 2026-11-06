@@ -85,7 +85,7 @@ import {
 } from "@/lib/quiz/scoring";
 import type { ScoreResult } from "@/lib/quiz/scoring";
 import { confidenceLevel } from "@/lib/wayground/flashcards";
-import type { QuizDifficultyLevel } from "@/lib/rooms/store";
+import type { QuizDifficultyLevel } from "@/lib/quiz/options";
 
 type StudioArtifactTab =
   | "summary"
@@ -1459,7 +1459,7 @@ export default function StudioPage() {
 
       saveHostToken(data.roomCode, data.hostToken);
       void triggerConfetti({ particleCount: 60, spread: 70 });
-      toast.success(`Ruang kuis aktif! PIN: ${data.roomCode}`);
+      toast.success(`Ruang kuis aktif! Pin: ${data.roomCode}`);
       router.push(`/host/${data.roomCode}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal meluncurkan ruangan kuis";
@@ -1565,7 +1565,7 @@ export default function StudioPage() {
 
       saveHostToken(data.roomCode, data.hostToken);
       void triggerConfetti({ particleCount: 60, spread: 70 });
-      toast.success(`Ruang kuis AI aktif! PIN: ${data.roomCode}`);
+      toast.success(`Ruang kuis AI aktif! Pin: ${data.roomCode}`);
       router.push(`/host/${data.roomCode}`);
     } catch (err: unknown) {
       toast.error(

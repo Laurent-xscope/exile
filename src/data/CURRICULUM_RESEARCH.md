@@ -13,8 +13,8 @@ Berdasarkan Panduan Resmi Peserta, rubrik penilaian memberikan porsi terbesar pa
 3. **Problem Relevance & Impact (15% - 20% di tahap 1)**
 
 `Exile` memosisikan diri bukan sekadar pembuat kuis otomatis (*quiz wrapper*), melainkan **mesin diagnostik siklus tertutup (*closed-loop learning engine*)** yang memecahkan krisis asesmen muatan lokal di Bali:
-* **Tantangan Nyata di Sekolah**: Guru bahasa Bali dan guru kelas di Bali kerap kesulitan merancang soal bertingkat (*Anggah-ungguhing Basa*) yang dilengkapi analisis miskonsepsi mengapa siswa memilih jawaban salah.
-* **Peran Nyata AI**: AI menganalisis pola kesalahan kelas, mengelompokkan siswa berdasarkan jenis miskonsepsi (misal: gagal membedakan *Kruna Alus Singgih* dan *Alus Sor*), dan secara otomatis menyusun 3 soal remedial terpersonalisasi.
+* **Tantangan Nyata di Sekolah**: Guru bahasa Bali dan guru kelas di Bali kerap kesulitan merancang soal bertingkat (*Anggah-ungguhing Basa*) yang dilengkapi analisis titik lemah mengapa siswa memilih jawaban salah.
+* **Peran Nyata AI**: AI menganalisis pola kesalahan kelas, mengelompokkan siswa berdasarkan jenis kekeliruan konsep (misal: gagal membedakan *Kruna Alus Singgih* dan *Alus Sor*), dan secara otomatis menyusun 3 soal remedial terpersonalisasi.
 
 ---
 
@@ -47,7 +47,7 @@ Masyarakat Bali mengenal stratifikasi bahasa berdasarkan rasa hormat (*kesantuna
 2. **Basa Alus Sor (ASO)**:
    * Ditujukan untuk merendahkan diri sendiri (*ngandapang raga*) di hadapan orang yang dihormati.
    * *Contoh*: *padem* (mati/meninggal), *neda* (makan), *matur* (berkata), *mamargi* (berjalan), *miragi* (mendengar).
-   * **Miskonsepsi Siswa Paling Fatal**: Siswa sering menggunakan Kruna Alus Singgih untuk diri sendiri, misalnya mengatakan *"Titiang sampun ngrayunan"* (salah besar, artinya memuliakan diri sendiri; seharusnya *"Titiang sampun neda"*).
+   * **Kekeliruan Siswa Paling Fatal**: Siswa sering menggunakan Kruna Alus Singgih untuk diri sendiri, misalnya mengatakan *"Titiang sampun ngrayunan"* (salah besar, artinya memuliakan diri sendiri; seharusnya *"Titiang sampun neda"*).
 3. **Basa Alus Madia (AMA)**:
    * Bentuk sopan penengah untuk orang yang belum akrab atau percakapan sopan santai.
    * *Contoh*: *tiang*, *nggih*, *ampura*, *sira*.
@@ -89,6 +89,6 @@ Masyarakat Bali mengenal stratifikasi bahasa berdasarkan rasa hormat (*kesantuna
 1. **Pre-Seeded Knowledge Retrieval**:
    * File `src/data/curriculum-bali.json` dibaca secara server-side oleh `src/lib/ai/prompts.ts` dan `src/lib/ai/gateway.ts`.
 2. **Few-Shot Prompt Grounding**:
-   * Saat guru meminta pembuatan kuis topik *"Anggah-ungguhing Basa"*, engine menyuntikkan matriks konversi kata dan aturan miskonsepsi agar soal yang digenerate oleh AI bebas dari halusinasi tata krama.
+   * Saat guru meminta pembuatan kuis topik *"Anggah-ungguhing Basa"*, engine menyuntikkan matriks konversi kata dan aturan evaluasi agar soal yang digenerate oleh AI bebas dari halusinasi tata krama.
 3. **Realtime Error Diagnostic**:
-   * Ketika siswa salah memilih opsi B (*Alus Sor* bukannya *Alus Singgih*), endpoint `/api/ai/explain-error` langsung memetakan `misconception_tag` dan memberikan bimbingan 1 kalimat tanpa jeda.
+   * Ketika siswa salah memilih opsi B (*Alus Sor* bukannya *Alus Singgih*), endpoint `/api/ai/explain-error` langsung memetakan `weak_point_tag` dan memberikan bimbingan 1 kalimat tanpa jeda.

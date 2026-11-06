@@ -88,8 +88,8 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
       if (!isValidRoomCode(code)) {
         setEntryError(
           isEn
-            ? "Room PINs are exactly 6 digits."
-            : "PIN ruangan harus tepat 6 digit."
+            ? "Room pins are exactly 6 digits."
+            : "Pin ruangan harus tepat 6 digit."
         );
         setPhase("error");
         return;
@@ -118,8 +118,8 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
         if (data.status === "finished") {
           setEntryError(
             isEn
-              ? "This quiz session has ended. Ask your teacher for a new room PIN."
-              : "Sesi kuis ini sudah berakhir. Minta PIN baru kepada pengajar."
+              ? "This quiz session has ended. Ask your teacher for a new room Pin."
+              : "Sesi kuis ini sudah berakhir. Minta Pin baru kepada pengajar."
           );
           setPhase("error");
           return;
@@ -285,7 +285,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
           </p>
           {code && (
             <p className="mt-3 font-mono text-caption-1-medium text-text-tertiary">
-              PIN {code}
+              Pin {code}
             </p>
           )}
           <ButtonLink
@@ -295,7 +295,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
             leadingIcon={RiArrowLeftLine}
             className="mt-6 w-full justify-center"
           >
-            {isEn ? "Try another PIN" : "Coba PIN lain"}
+            {isEn ? "Try another Pin" : "Coba Pin lain"}
           </ButtonLink>
         </motion.div>
       ) : (

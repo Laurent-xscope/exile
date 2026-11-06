@@ -8,7 +8,7 @@ import { checkRateLimit } from "@/lib/security/rate-limiter";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 
 const JoinRoomSchema = z.object({
-  roomCode: z.string().min(1, "Room code PIN is required"),
+  roomCode: z.string().min(1, "Room code Pin is required"),
   nickname: z.string().min(1, "Nickname is required").max(30, "Nickname too long"),
   avatar: z.string().optional().default("garuda"),
   playerToken: z.string().optional(),
@@ -49,7 +49,7 @@ export async function POST(req: Request) {
 
     if (!isValidRoomCode(normalizedCode)) {
       return NextResponse.json(
-        { success: false, error: "PIN ruangan harus tepat 6 digit." },
+        { success: false, error: "Pin ruangan harus tepat 6 digit." },
         { status: 400 }
       );
     }
@@ -65,7 +65,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           success: false,
-          error: `Room PIN "${normalizedCode}" tidak ditemukan atau permainan telah selesai. Pastikan PIN yang dimasukkan sudah sesuai.`,
+          error: `Room pin "${normalizedCode}" tidak ditemukan atau permainan telah selesai. Pastikan pin yang dimasukkan sudah sesuai.`,
         },
         { status: 404 }
       );

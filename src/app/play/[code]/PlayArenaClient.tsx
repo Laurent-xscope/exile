@@ -570,7 +570,7 @@ export default function PlayArenaClient({
 
                 {/* Admission Status Indicator */}
                 {myStatus === "pending" ? (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-secondary border border-border-button-default">
                     <RiTimeLine className="size-3" />
                     <span>{isEn ? "Awaiting approval" : "Menunggu persetujuan"}</span>
                   </span>
@@ -582,7 +582,7 @@ export default function PlayArenaClient({
                 )}
 
                 {myStreak > 1 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                     <RiFireLine className="size-3 shrink-0" aria-hidden />
                     <span>{isEn ? `${myStreak}x streak` : `${myStreak}x beruntun`}</span>
                   </span>
@@ -641,11 +641,11 @@ export default function PlayArenaClient({
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-10 px-6 bg-background-primary-default border border-[#D97706]/30 rounded-3xl shadow-card space-y-5"
+            className="text-center py-10 px-6 bg-background-primary-default border border-border-button-default rounded-3xl shadow-card space-y-5"
           >
             <div className="relative size-14 mx-auto flex items-center justify-center">
-              <span className="animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] absolute inline-flex h-full w-full rounded-full bg-[#D97706] opacity-30" />
-              <div className="relative size-12 rounded-2xl bg-[#D97706]/15 text-text-error-primary flex items-center justify-center border border-[#D97706]/30">
+              <span className="animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] absolute inline-flex h-full w-full rounded-full bg-accent-700 opacity-20" />
+              <div className="relative size-12 rounded-2xl bg-accent-700/10 text-accent-700 flex items-center justify-center border border-accent-700/20">
                 <RiTimeLine className="size-6" aria-hidden />
               </div>
             </div>
@@ -675,7 +675,7 @@ export default function PlayArenaClient({
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-background-tertiary-default text-text-secondary border border-border-button-default">
               <RiTimeLine className="size-4 shrink-0" />
               <span>{isEn ? "Status: guest verification queue" : "Status: antrean verifikasi tamu"}</span>
             </div>
@@ -748,7 +748,7 @@ export default function PlayArenaClient({
                   className={cx(
                     "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums border",
                     timeLeft <= 5
-                      ? "bg-[#D97706]/10 text-text-error-primary border-[#D97706]/30"
+                      ? "bg-background-tertiary-default text-text-error-primary border-border-error-default"
                       : "bg-background-primary-default text-text-secondary border-border-button-default"
                   )}
                 >
@@ -1105,7 +1105,7 @@ export default function PlayArenaClient({
                         "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-caption-2-medium shrink-0",
                         item.isCorrect
                           ? "bg-accent-700/10 text-accent-700 border border-accent-700/20"
-                          : "bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20"
+                          : "bg-background-tertiary-default text-text-error-primary border border-border-error-default"
                       )}
                     >
                       {item.isCorrect ? <RiCheckLine className="size-3" /> : <RiRestartLine className="size-3" />}

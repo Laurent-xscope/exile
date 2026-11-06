@@ -7,7 +7,8 @@ import {
 } from "@/lib/ai/prompts";
 import { chatJSON, AIUnavailableError } from "@/lib/ai/llm";
 import { extractText, UnsupportedFileError } from "@/lib/ai/documents";
-import { storeQuiz, shuffleQuestionOptions } from "@/lib/rooms/store";
+import { storeQuiz } from "@/lib/rooms/store";
+import { shuffleQuestionOptions } from "@/lib/quiz/options";
 
 export const maxDuration = 120;
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { Question } from "@/lib/ai/prompts";
-import { shuffleQuestionOptions, type QuizDifficultyLevel } from "@/lib/rooms/store";
+import { shuffleQuestionOptions, type QuizDifficultyLevel } from "@/lib/quiz/options";
 import { chatJSON, AIUnavailableError } from "./llm";
 
 const GeneratedSchema = z.object({
@@ -25,7 +25,7 @@ Pedoman Langkah Pembuatan Soal (Step-by-Step Assessment Design):
 1. Analisis Sumber & Topik: Identifikasi konsep-konsep esensial dari bahan ajar atau instruksi topik yang diberikan. Pastikan seluruh soal berakar pada fakta ilmiah dan materi yang akurat.
 2. Penentuan Tingkat Kesulitan:
    - MUDAH (Comprehension): TIDAK BOLEH berupa hafalan definisi kata demi kata atau pengecoh konyol/asal-asalan. Soal mudah tetap menuntut pemahaman makna dari satu konsep spesifik dalam konteks wajar. Keempat opsi harus berada dalam kategori semantik dan panjang yang setara.
-   - SEDANG (Application & Cause-Effect): Menuntut penerapan konsep pada situasi nyata, analisis hubungan sebab-akibat, atau pemecahan masalah satu-dua langkah. Pengecoh mewakili miskonsepsi umum peserta didik.
+   - SEDANG (Application & Cause-Effect): Menuntut penerapan konsep pada situasi nyata, analisis hubungan sebab-akibat, atau pemecahan masalah satu-dua langkah. Pengecoh mewakili titik lemah umum peserta didik.
    - SULIT / HOTS (High-Order Thinking): Analisis kritis terhadap studi kasus, pemecahan masalah multi-langkah, evaluasi trade-off, atau prediksi akibat ketika suatu variabel dalam sistem diubah.
    - CAMPURAN (Progressive): Bagi tingkat kesulitan secara bertahap: awal mudah (pemahaman konsep), tengah sedang (aplikasi/sebab-akibat), akhir sulit (analisis kritis HOTS).
 3. Struktur Pertanyaan (Stem): Tuliskan pokok soal dengan kalimat yang lugas, tidak ambigu, dan tidak menyisipkan petunjuk ke arah jawaban benar. Hindari bentuk negatif ganda (misal: "Kecuali yang bukan...").
@@ -81,7 +81,7 @@ const DIFFICULTY_GUIDE: Record<QuizDifficultyLevel, string> = {
   mudah:
     "Tingkat kesulitan: MUDAH — fokus pada pemahaman konsep inti (bukan sekadar hafalan definisi kata). Siswa menguji pemahaman satu konsep dalam konteks nyata dengan 3 pengecoh logis yang setara kategori dan panjangnya.",
   sedang:
-    "Tingkat kesulitan: SEDANG — fokus pada penerapan konsep, hubungan sebab-akibat, dan analisis kasus terarah. Pengecoh mencerminkan kekeliruan logika atau miskonsepsi umum.",
+    "Tingkat kesulitan: SEDANG — fokus pada penerapan konsep, hubungan sebab-akibat, dan analisis kasus terarah. Pengecoh mencerminkan kekeliruan logika atau titik lemah umum.",
   sulit:
     "Tingkat kesulitan: SULIT (HOTS) — fokus pada penalaran tingkat tinggi, studi kasus multi-langkah, evaluasi trade-off atau dilema, dan sintesis kesimpulan dari situasi yang kompleks.",
   campuran:

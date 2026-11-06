@@ -172,8 +172,8 @@ export default function PlayJoinPage() {
                   ? "Checking active rooms..."
                   : "Memeriksa daftar ruang aktif..."
                 : isEn
-                  ? "No active rooms detected yet. Enter the 6-digit PIN from your teacher above."
-                  : "Belum ada ruang aktif terdeteksi. Masukkan 6 digit PIN dari guru di atas."}
+                  ? "No active rooms detected yet. Enter the 6-digit Pin from your teacher above."
+                  : "Belum ada ruang aktif terdeteksi. Masukkan 6 digit Pin dari guru di atas."}
             </p>
           ) : (
             <div className="max-h-48 space-y-2 overflow-y-auto pe-1">

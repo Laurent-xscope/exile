@@ -1,67 +1,118 @@
 import React from "react";
-import { AbsoluteFill, Easing, useCurrentFrame, useVideoConfig } from "remotion";
-import { COPY } from "../constants";
+import { AbsoluteFill, Img, spring, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import {
-  DiamondField,
-  FadeInText,
-  PatraDivider,
-  SlowZoom,
-  body,
-  display,
-  ramp,
-  useEnter,
-  useTheme,
-} from "../ui";
+  COPY,
+  CTA_BRAND_COLOR,
+  CTA_DOT_COLOR,
+  CTA_TAGLINE_COLOR,
+  CTA_URL_BG,
+  CTA_URL_BORDER,
+  CTA_URL_COLOR,
+  WHITE,
+} from "../constants";
+import { inter, mono } from "../ui";
 
-export const CtaScene: React.FC<{ tagline: string; url: string }> = ({ tagline, url }) => {
-  const t = useTheme();
+const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
+
+export const CtaScene: React.FC<{ tagline?: string; url?: string }> = ({
+  tagline = COPY.cta.tagline,
+  url = COPY.cta.url,
+}) => {
   const frame = useCurrentFrame();
-  const { durationInFrames } = useVideoConfig();
-  const mark = useEnter(4, { damping: 12, stiffness: 120, mass: 0.9 });
-  const urlIn = useEnter(70, { damping: 16, stiffness: 140, mass: 0.8 });
-  const out = ramp(frame, durationInFrames - 40, durationInFrames - 6, 1, 0, Easing.inOut(Easing.cubic));
+  const { fps } = useVideoConfig();
+
+  const logoSpring = spring({ frame: frame - 6, fps, config: { damping: 18, stiffness: 120, mass: 0.8 } });
+  const taglineSpring = spring({ frame: frame - 16, fps, config: { damping: 18, stiffness: 120, mass: 0.8 } });
+  const urlSpring = spring({ frame: frame - 26, fps, config: { damping: 18, stiffness: 120, mass: 0.8 } });
+
+  const logoEnter = clamp01(logoSpring);
+  const taglineEnter = clamp01(taglineSpring);
+  const urlEnter = clamp01(urlSpring);
+
   return (
-    <AbsoluteFill style={{ background: `radial-gradient(1200px 800px at 50% 45%, ${t.teal}, ${t.tealDeep})` }}>
-      <DiamondField color={t.gold} opacity={0.1} />
-      <SlowZoom to={1.04}>
-        <AbsoluteFill style={{ alignItems: "center", justifyContent: "center", opacity: out }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 34, transform: `scale(${0.8 + 0.2 * mark})`, opacity: mark }}>
-            <svg width={150} height={150} viewBox="-50 -50 100 100">
-              <path d="M0 -46 L46 0 L0 46 L-46 0Z" fill={t.gold} />
-              <path d="M0 -30 L30 0 L0 30 L-30 0Z" fill={t.teal} />
-              <circle r={9} fill={t.gold} />
-            </svg>
-            <div style={{ ...display(190, t.cream) }}>{COPY.cta.brand}</div>
-          </div>
-          <div style={{ marginTop: 40 }}>
-            <PatraDivider width={620} color={t.gold} progress={ramp(frame, 26, 70)} />
-          </div>
-          <FadeInText
-            text={tagline}
-            byWord
-            delay={44}
-            stagger={5}
-            size={60}
-            font="body"
-            weight={600}
-            color={t.cream}
-            style={{ marginTop: 40, maxWidth: 1500 }}
+    <AbsoluteFill
+      style={{
+        background: WHITE,
+        alignItems: "center",
+        justifyContent: "center",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
+      {/* Centered Exile logo & wordmark */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 26,
+          opacity: logoEnter,
+          transform: `translateY(${(1 - logoEnter) * 22}px) scale(${0.96 + 0.04 * logoEnter})`,
+        }}
+      >
+        <div
+          style={{
+            width: 100,
+            height: 100,
+            borderRadius: 24,
+            overflow: "hidden",
+            border: "1px solid rgba(0, 0, 0, 0.08)",
+            boxShadow: "0 16px 36px rgba(0, 0, 0, 0.07)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            background: WHITE,
+          }}
+        >
+          <Img
+            src={staticFile("logo.png")}
+            style={{ width: "100%", height: "100%", objectFit: "cover" }}
           />
-          <div
-            style={{
-              ...body(54, t.ink, 700),
-              marginTop: 54,
-              padding: "20px 56px",
-              borderRadius: 999,
-              background: t.gold,
-              opacity: urlIn,
-              transform: `translateY(${(1 - urlIn) * 40}px) scale(${0.9 + 0.1 * urlIn})`,
-            }}
-          >
-            {url}
-          </div>
-        </AbsoluteFill>
-      </SlowZoom>
+        </div>
+        <div
+          style={{
+            ...inter(84, CTA_BRAND_COLOR, 700),
+            letterSpacing: "-0.035em",
+            lineHeight: 1,
+          }}
+        >
+          {COPY.cta.brand}
+        </div>
+      </div>
+
+      {/* Debut tagline in Inter */}
+      <div
+        style={{
+          ...inter(32, CTA_TAGLINE_COLOR, 500),
+          letterSpacing: "-0.015em",
+          marginTop: 34,
+          opacity: taglineEnter,
+          transform: `translateY(${(1 - taglineEnter) * 18}px)`,
+          textAlign: "center",
+        }}
+      >
+        {tagline}
+      </div>
+
+      {/* Small mono URL caption in JetBrains Mono */}
+      <div
+        style={{
+          ...mono(20, CTA_URL_COLOR, 500),
+          marginTop: 38,
+          padding: "10px 24px",
+          borderRadius: 999,
+          background: CTA_URL_BG,
+          border: `1px solid ${CTA_URL_BORDER}`,
+          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.03)",
+          opacity: urlEnter,
+          transform: `translateY(${(1 - urlEnter) * 16}px)`,
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+        }}
+      >
+        <div style={{ width: 8, height: 8, borderRadius: "50%", background: CTA_DOT_COLOR }} />
+        <span>{url}</span>
+      </div>
     </AbsoluteFill>
   );
 };

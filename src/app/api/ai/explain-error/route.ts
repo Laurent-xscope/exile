@@ -29,7 +29,7 @@ export async function POST(req: Request) {
         {
           role: "system",
           content:
-            "Kamu menjelaskan kepada siswa kenapa jawabannya salah. Tulis maksimal dua kalimat bahasa Indonesia yang santai dan jelas: apa yang keliru dari pilihannya, lalu apa yang benar. Jangan membuka dengan pujian atau kata 'Tentu'. Jangan memakai kata 'miskonsepsi'.",
+            "Kamu menjelaskan kepada siswa kenapa jawabannya salah. Tulis maksimal dua kalimat bahasa Indonesia yang santai dan jelas: apa yang keliru dari pilihannya, lalu apa yang benar. Jangan membuka dengan pujian atau kata 'Tentu'. Jangan memakai istilah teknis atau jargon yang kaku.",
         },
         {
           role: "user",

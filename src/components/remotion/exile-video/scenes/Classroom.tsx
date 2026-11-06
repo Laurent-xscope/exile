@@ -174,7 +174,7 @@ const LobbyScreen: React.FC<{ pin: string }> = ({ pin }) => {
     <AbsoluteFill style={{ padding: 44 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ ...body(30, t.cream, 600), opacity: 0.85 }}>
-          PIN <b style={{ color: t.gold, letterSpacing: "0.1em" }}>{pin}</b>
+          Pin <b style={{ color: t.gold, letterSpacing: "0.1em" }}>{pin}</b>
         </div>
         <div style={{ ...display(76, t.gold) }}>
           {count}
@@ -342,7 +342,7 @@ const PhoneWaiting: React.FC<{ url: string }> = ({ url }) => {
       <UrlBar url={url} />
       <div style={{ ...display(64, t.teal), textAlign: "center", marginTop: 150, transform: `scale(${pulse})` }}>exile</div>
       <div style={{ margin: "40px 32px 0", ...body(28, t.ink, 600), padding: "20px 22px", borderRadius: 18, border: "2px solid rgba(20,40,42,0.18)", color: t.muted }}>
-        Masukkan PIN
+        Masukkan pin
       </div>
       <div style={{ margin: "22px 32px 0", ...body(30, t.cream, 700), padding: "20px 0", borderRadius: 18, background: t.muted, textAlign: "center", opacity: 0.6 }}>
         Gabung

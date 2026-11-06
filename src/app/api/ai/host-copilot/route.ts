@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   const roomCode = normalizeRoomCode(rawCode);
 
   if (!isValidRoomCode(roomCode)) {
-    return NextResponse.json({ error: "PIN ruangan harus tepat 6 digit." }, { status: 400 });
+    return NextResponse.json({ error: "Pin ruangan harus tepat 6 digit." }, { status: 400 });
   }
 
   if (!(await validateHostToken(roomCode, req.headers.get("x-host-token")))) {
@@ -45,7 +45,7 @@ export async function POST(req: Request) {
     ? room.questions.map((q, i) => `${i + 1}. ${q.question}`).join("\n")
     : "Belum ada soal.";
 
-  const system = `Kamu asisten guru di ruang kuis Exile (PIN ${roomCode}). Bantu guru mengelola kelas berdasarkan data di bawah. Jangan mengarang data yang tidak ada.
+  const system = `Kamu asisten guru di ruang kuis Exile (Pin ${roomCode}). Bantu guru mengelola kelas berdasarkan data di bawah. Jangan mengarang data yang tidak ada.
 
 Status: ${details.status}
 Soal aktif: ${current ? `${current.question} (kunci ${current.correctAnswer})` : "belum ada"}

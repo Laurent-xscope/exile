@@ -31,7 +31,7 @@ export async function POST(
   const { code } = await params;
   const roomCode = normalizeRoomCode(code);
   if (!isValidRoomCode(roomCode)) {
-    return NextResponse.json({ error: "PIN ruangan harus tepat 6 digit." }, { status: 400 });
+    return NextResponse.json({ error: "Pin ruangan harus tepat 6 digit." }, { status: 400 });
   }
   if (!(await validateHostToken(roomCode, req.headers.get("x-host-token")))) {
     return NextResponse.json({ error: "Akses pengajar diperlukan." }, { status: 401 });

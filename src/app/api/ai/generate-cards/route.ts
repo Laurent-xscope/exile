@@ -21,7 +21,7 @@ const SYSTEM = `Kamu menyusun kartu belajar (flashcards) dengan ketajaman setara
 
 Aturan kartu (1:1 NotebookLM):
 - Semua isi wajib bersumber dari bahan ajar. Jangan menambah fakta dari luar bahan.
-- Gunakan bahasa yang sama dengan bahan ajar. Kalimat lugas, bernas, tanpa kata "miskonsepsi" atau basa-basi.
+- Gunakan bahasa yang sama dengan bahan ajar. Kalimat lugas, bernas, tanpa basa-basi atau istilah teknis yang kaku.
 - Variasikan sudut pertanyaan agar melatih daya ingat aktif secara menyeluruh:
   1. Mekanisme / alur ("Bagaimana proses X berlangsung hingga menghasilkan Y?")
   2. Perbandingan ("Apa perbedaan utama antara X dan Y dalam bahan ini?")

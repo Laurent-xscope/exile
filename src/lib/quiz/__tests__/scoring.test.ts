@@ -4,7 +4,7 @@ import {
   calculateResponseScore,
   evaluateQuizResponse,
 } from "@/lib/quiz/scoring";
-import type { Question } from "@/lib/ai/prompts";
+import type { Question } from "@/types/assessment";
 
 describe("Wayground-compatible scoring", () => {
   test("awards base plus remaining-time bonus", () => {

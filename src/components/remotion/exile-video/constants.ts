@@ -4,6 +4,14 @@ import { zColor } from "@remotion/zod-types";
 export const FPS = 30;
 export const WIDTH = 1920;
 export const HEIGHT = 1080;
+export const WHITE = "#FFFFFF";
+
+export const CTA_BRAND_COLOR = "#0A0A0A";
+export const CTA_TAGLINE_COLOR = "#3F3F46";
+export const CTA_URL_COLOR = "#18181B";
+export const CTA_URL_BG = "#F4F4F5";
+export const CTA_URL_BORDER = "#E4E4E7";
+export const CTA_DOT_COLOR = "#EF4444";
 
 /** Overlap between two neighbouring scenes (frames). */
 export const TRANSITION = 15;
@@ -40,7 +48,7 @@ export const exileVideoSchema = z.object({
 export type ExileVideoProps = z.infer<typeof exileVideoSchema>;
 
 export const DEFAULT_PROPS: ExileVideoProps = {
-  tagline: "Evaluasi yang tahu kenapa siswa keliru",
+  tagline: "A debut: exile.web.id",
   pin: "482915",
   url: "exile.web.id",
   teal: "#0A0A0A",
@@ -62,7 +70,7 @@ export const COPY = {
     caption: "Guru hanya melihat skor, bukan alasan di balik jawaban yang salah.",
   },
   solution: {
-    windowTitle: "exile.web.id / Studio",
+    windowTitle: "exile.web.id / studio",
     moduleLabel: "Modul teks",
     moduleHeading: "Struktur sel & fungsi organel",
     moduleBody:
@@ -88,9 +96,9 @@ export const COPY = {
     steps: ["Tampilkan pin", "Siswa bergabung", "Kuis berjalan", "Laporan kelas"],
     captions: [
       "Guru menampilkan pin di proyektor.",
-      "Siswa masuk lewat HP, tanpa akun.",
+      "Siswa masuk lewat ponsel, tanpa akun.",
       "Jawaban salah langsung dapat penjelasan singkat yang ramah.",
-      "Guru melihat peta miskonsepsi kelas saat itu juga.",
+      "Guru melihat titik lemah kelas saat itu juga.",
     ],
     joinHint: "Gabung di",
     pinLabel: "Pin kuis",
@@ -102,17 +110,17 @@ export const COPY = {
     feedbackTitle: "Belum tepat!",
     feedbackBody:
       "Lisosom mencerna limbah sel, bukan penghasil ATP. Organel tempat utama respirasi sel adalah mitokondria.",
-    reportTitle: "Laporan miskonsepsi",
+    reportTitle: "Laporan hasil kelas",
     reportRows: [
       ["Mitokondria vs lisosom", 62],
       ["Sintesis protein ribosom", 41],
       ["Transpor aktif membran", 24],
     ] as [string, number][],
-    sample: "contoh data",
+    sample: "Contoh data",
   },
   differentiator: {
     title: "Konsep yang paling sering keliru",
-    sample: "contoh data",
+    sample: "Contoh data",
     rows: [
       { label: "Mitokondria vs kloroplas", value: 68, highlight: true },
       { label: "Transpor pasif vs aktif membran", value: 57 },
@@ -125,6 +133,8 @@ export const COPY = {
     caption: "Bukan cuma skor: exile.web.id menunjukkan konsep mana yang perlu diulang.",
   },
   cta: {
-    brand: "exile.web.id",
+    brand: "Exile",
+    tagline: "A debut: exile.web.id",
+    url: "exile.web.id",
   },
 } as const;

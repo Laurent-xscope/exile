@@ -16,7 +16,7 @@ export function ExileLogo({
   return (
     <div className={cx("inline-flex items-center gap-2.5 select-none", className)}>
       <div
-        className="relative overflow-hidden rounded-xl border border-border-button-default shadow-xs shrink-0 flex items-center justify-center bg-[#131211]"
+        className="relative overflow-hidden rounded-xl border border-border-button-default shadow-xs shrink-0 flex items-center justify-center bg-background-secondary-default"
         style={{ width: size, height: size }}
       >
         <Image

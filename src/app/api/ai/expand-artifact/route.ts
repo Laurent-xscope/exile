@@ -8,7 +8,7 @@ import {
   MindMapNodeSchema,
   ReportSectionSchema,
 } from "@/lib/ai/prompts";
-import { shuffleQuestionOptions } from "@/lib/rooms/store";
+import { shuffleQuestionOptions } from "@/lib/quiz/options";
 
 export const maxDuration = 90;
 

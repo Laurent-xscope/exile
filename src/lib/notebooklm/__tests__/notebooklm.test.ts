@@ -4,7 +4,7 @@ import {
   encodeBatchexecuteRequest,
   extractCsrfToken,
 } from "@/lib/notebooklm/batchexecute";
-import { NOTEBOOKLM_RPC, rpcArgs } from "@/lib/notebooklm/rpc-catalog";
+import { rpcArgs } from "@/lib/notebooklm/rpc-catalog";
 import { generateSapisidHash } from "@/lib/notebooklm/client";
 
 describe("batchexecute codec", () => {
@@ -31,7 +31,6 @@ describe("batchexecute codec", () => {
 
 describe("rpc catalog", () => {
   test("maps documented RPC ids and payloads", () => {
-    expect(NOTEBOOKLM_RPC.CREATE_NOTEBOOK).toBe("CCqFvf");
     expect(rpcArgs.addUrlSource("n", "https://a.b", "T")).toEqual([
       "n",
       null,

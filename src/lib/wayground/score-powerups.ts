@@ -2,6 +2,7 @@ import {
   BASE_SCORE,
   MAX_TIMER_BONUS,
   calculateResponseScore,
+  calculateStreakBonus,
 } from "@/lib/quiz/scoring";
 
 export { BASE_SCORE, MAX_TIMER_BONUS };
@@ -26,13 +27,6 @@ export interface PowerupScoreResult {
   };
 }
 
-function streakTier(streak: number): number {
-  if (streak === 2) return 100;
-  if (streak === 3) return 200;
-  if (streak === 4) return 300;
-  return streak >= 5 ? 400 : 0;
-}
-
 /**
  * Full Wayground score including powerups (03_quiz_engine_and_scoring.md):
  * - Double Jeopardy: doubles a correct score, -1000 if wrong.
@@ -46,12 +40,14 @@ export function calculateScoreWithPowerups({
   totalTimeMs,
   currentStreak,
   powerups = [],
+  streakBonusEnabled = true,
 }: {
   isCorrect: boolean;
   timeTakenMs: number;
   totalTimeMs: number;
   currentStreak: number;
   powerups?: PowerupEffect[];
+  streakBonusEnabled?: boolean;
 }): PowerupScoreResult {
   const has = (id: PowerupId) => powerups.some((p) => p.id === id);
 
@@ -76,6 +72,7 @@ export function calculateScoreWithPowerups({
     timeTakenMs,
     totalTimeMs,
     currentStreak,
+    streakBonusEnabled,
   });
 
   const base = plain.scoreBreakup.base;
@@ -88,8 +85,8 @@ export function calculateScoreWithPowerups({
   if (has("time_freeze")) {
     items.push({ id: "time_freeze", score: timer - plain.scoreBreakup.timer });
   }
-  if (has("streak_booster")) {
-    const boost = Math.max(0, streakTier(plain.newStreak + 1) - streak);
+  if (has("streak_booster") && streakBonusEnabled) {
+    const boost = Math.max(0, calculateStreakBonus(plain.newStreak + 1) - streak);
     items.push({ id: "streak_booster", score: boost });
     extra += boost;
   }

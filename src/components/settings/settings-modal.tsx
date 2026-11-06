@@ -68,7 +68,10 @@ function SettingToggleRow({
       </div>
       <MacOSToggle
         checked={checked}
-        onChange={onChange}
+        onChange={(val) => {
+          soundEffects.playClick();
+          onChange(val);
+        }}
         disabled={disabled}
         label={title}
         color="green"

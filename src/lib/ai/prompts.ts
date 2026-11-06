@@ -1,39 +1,13 @@
 import { z } from "zod";
-
-/**
- * Zod Schemas for Exile Pedagogical Engine
- */
-
-export const OptionSchema = z.object({
-  label: z.enum(["A", "B", "C", "D"]),
-  text: z.string().min(1, "Option text cannot be empty"),
-  isCorrect: z.boolean(),
-  distractorRationale: z.string().optional(),
-});
-
-export const QuestionSchema = z.object({
-  id: z.string().optional(),
-  questionOrder: z.number().optional(),
-  question: z.string().min(5, "Question text must be descriptive"),
-  options: z.array(OptionSchema).length(4, "Must provide exactly 4 options (A, B, C, D)"),
-  correctAnswer: z.enum(["A", "B", "C", "D"]),
-  explanation: z.string().min(3, "Explanation must be provided"),
-  conceptTag: z.string().min(1).optional().default("Konsep Inti"),
-  culturalContext: z.string().optional(),
-});
-
-export const QuizSchema = z.object({
-  title: z.string().min(3),
-  description: z.string(),
-  targetGrade: z.string().optional(),
-  category: z.string().optional(),
-  culturalTheme: z.string().optional(),
-  questions: z.array(QuestionSchema).min(1),
-});
-
-export type Option = z.infer<typeof OptionSchema>;
-export type Question = z.infer<typeof QuestionSchema>;
-export type Quiz = z.infer<typeof QuizSchema>;
+import { QuestionSchema } from "@/types/assessment";
+export {
+  OptionSchema,
+  QuestionSchema,
+  QuizSchema,
+  type Option,
+  type Question,
+  type Quiz,
+} from "@/types/assessment";
 
 export const SlideItemSchema = z.object({
   slideNumber: z.number(),
@@ -297,7 +271,7 @@ export function buildDocumentAnalysisPrompt(
 
 Aturan utama:
 - Semua fakta, istilah, angka, dan hubungan sebab-akibat harus berasal dari bahan yang diberikan. Jangan mengarang fakta di luar bahan.
-- Gunakan bahasa yang sama dengan bahan ajar (atau Bahasa Indonesia yang jelas bila bahan dwibahasa). Tulis lugas, bernas, dan alami—tanpa jargon kaku, tanpa kata "miskonsepsi" atau "pengecoh", dan tanpa kalimat basa-basi.
+- Gunakan bahasa yang sama dengan bahan ajar (atau Bahasa Indonesia yang jelas bila bahan dwibahasa). Tulis lugas, bernas, dan alami—tanpa jargon kaku, tanpa kata "pengecoh", dan tanpa kalimat basa-basi.
 
 ${instructions.join("\n\n")}
 

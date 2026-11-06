@@ -5,7 +5,7 @@ import { RiFileTextLine, RiUploadCloud2Line, RiCloseLine } from "@remixicon/reac
 import { toast } from "sonner";
 import { Button } from "@/components/base/buttons/button";
 import { Spinner } from "@/components/base/spinner/spinner";
-import type { QuizDifficultyLevel } from "@/lib/rooms/store";
+import type { QuizDifficultyLevel } from "@/lib/quiz/options";
 import { cx } from "@/utils/cx";
 
 const ACCEPT = ".pdf,.docx,.txt,.md";

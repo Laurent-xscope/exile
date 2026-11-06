@@ -18,7 +18,7 @@ interface CompetencyData {
   topic: string;
   masteryPercent: number;
   studentsAssessed: number;
-  primaryMisconception: string;
+  primaryWeakPoint: string;
   remedialTarget: string;
   severity: "low" | "medium" | "high";
   trend: string;
@@ -30,7 +30,7 @@ const METRICS_DATA: CompetencyData[] = [
     topic: "Organel sel (mitokondria vs lisosom)",
     masteryPercent: 68,
     studentsAssessed: 142,
-    primaryMisconception: "Menganggap lisosom pembentuk ATP (seharusnya mitokondria respirasi seluler)",
+    primaryWeakPoint: "Menganggap lisosom pembentuk ATP (seharusnya mitokondria respirasi seluler)",
     remedialTarget: "Latihan komparasi organel 3-soal adaptif",
     severity: "high",
     trend: "+14% setelah feedback",
@@ -40,7 +40,7 @@ const METRICS_DATA: CompetencyData[] = [
     topic: "Fotosintesis (reaksi terang vs siklus Calvin)",
     masteryPercent: 82,
     studentsAssessed: 138,
-    primaryMisconception: "Mengira reaksi gelap tidak membutuhkan produk reaksi terang (ATP & NADPH)",
+    primaryWeakPoint: "Mengira reaksi gelap tidak membutuhkan produk reaksi terang (ATP & NADPH)",
     remedialTarget: "Drill fisiologi kloroplas & stroma",
     severity: "medium",
     trend: "+9% konsisten",
@@ -50,7 +50,7 @@ const METRICS_DATA: CompetencyData[] = [
     topic: "Transpor membran (difusi vs transpor aktif)",
     masteryPercent: 91,
     studentsAssessed: 156,
-    primaryMisconception: "Tertukar arah ion pompa Na+/K+ terhadap gradien konsentrasi",
+    primaryWeakPoint: "Tertukar arah ion pompa Na+/K+ terhadap gradien konsentrasi",
     remedialTarget: "Refleksi kasus transpor membran sel",
     severity: "low",
     trend: "+6% optimal",
@@ -60,7 +60,7 @@ const METRICS_DATA: CompetencyData[] = [
     topic: "Sintesis protein (transkripsi & translasi)",
     masteryPercent: 74,
     studentsAssessed: 120,
-    primaryMisconception: "Tertukar fungsi triplet kodon mRNA dengan antikodon tRNA di ribosom",
+    primaryWeakPoint: "Tertukar fungsi triplet kodon mRNA dengan antikodon tRNA di ribosom",
     remedialTarget: "Simulasi pembacaan kodon ribosom",
     severity: "medium",
     trend: "+18% perbaikan",
@@ -273,7 +273,7 @@ export function DiagnosticMetricsDashboard({
                   <span>Catatan jawaban siswa:</span>
                 </div>
                 <p className="text-body-2-regular text-text-secondary leading-relaxed pl-5">
-                  {activeComp.primaryMisconception}
+                  {activeComp.primaryWeakPoint}
                 </p>
               </div>
 
@@ -342,8 +342,8 @@ export function DiagnosticMetricsDashboard({
                         </span>
                       </div>
                     </td>
-                    <td className="py-3.5 px-4 text-text-secondary max-w-xs truncate" title={row.primaryMisconception}>
-                      {row.primaryMisconception}
+                    <td className="py-3.5 px-4 text-text-secondary max-w-xs truncate" title={row.primaryWeakPoint}>
+                      {row.primaryWeakPoint}
                     </td>
                     <td className="py-3.5 px-4 text-end font-mono text-emerald-600 dark:text-emerald-400 font-medium">
                       {row.trend}

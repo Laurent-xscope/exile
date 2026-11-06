@@ -2,7 +2,7 @@ import {
   getSupabaseAdmin,
   isDatabaseEnabled,
 } from "@/lib/supabase-admin";
-import type { Question } from "@/lib/ai/prompts";
+import type { Question } from "@/types/assessment";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 import {
   calculateResponseScore,
@@ -14,6 +14,13 @@ import {
   calculateScoreWithPowerups,
   type PowerupId,
 } from "@/lib/wayground/score-powerups";
+import { generateRandomRoomPin } from "@/lib/rooms/code";
+import {
+  shuffleQuestionOptions,
+  type QuizDifficultyLevel,
+} from "@/lib/quiz/options";
+
+export { shuffleQuestionOptions, type QuizDifficultyLevel };
 
 // Guarded at every call site: when no service-role key is configured the app
 // runs in stateless in-memory mode and this client is never used.
@@ -22,8 +29,6 @@ function db() {
   if (!client) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required when Supabase is configured.");
   return client;
 }
-
-export type QuizDifficultyLevel = "mudah" | "sedang" | "sulit" | "campuran";
 
 export interface PlayerRecord {
   id: string;
@@ -315,60 +320,11 @@ export function isValidUuid(val?: string | null): boolean {
 export function generateRoomCode(): string {
   let pin = "";
   let attempts = 0;
-  const buffer = new Uint32Array(1);
   do {
-    crypto.getRandomValues(buffer);
-    // Cryptographically uniform 6-digit number in 100000 - 999999
-    const val = 100000 + (buffer[0] % 900000);
-    pin = val.toString();
+    pin = generateRandomRoomPin();
     attempts++;
   } while (inMemoryRooms.has(pin) && attempts < 100);
   return pin;
-}
-
-export function shuffleQuestionOptions(q: Question): Question {
-  const rawOptions = Array.isArray(q.options) ? q.options.slice(0, 4) : [];
-  if (rawOptions.length === 0) return q;
-
-  const declaredCorrect = (q.correctAnswer || "").trim().toUpperCase();
-  let foundCorrectIdx = rawOptions.findIndex((opt) => opt.isCorrect === true);
-  if (foundCorrectIdx === -1 && declaredCorrect) {
-    foundCorrectIdx = rawOptions.findIndex(
-      (opt) => (opt.label || "").trim().toUpperCase() === declaredCorrect
-    );
-  }
-  if (foundCorrectIdx === -1) {
-    foundCorrectIdx = 0;
-  }
-
-  const options = rawOptions.map((opt, idx) => ({
-    ...opt,
-    isCorrect: idx === foundCorrectIdx,
-  }));
-
-  for (let i = options.length - 1; i > 0; i--) {
-    const j = randomInt(i + 1);
-    [options[i], options[j]] = [options[j], options[i]];
-  }
-
-  const labels: ("A" | "B" | "C" | "D")[] = ["A", "B", "C", "D"];
-  let newCorrectAnswer: "A" | "B" | "C" | "D" = "A";
-  const updatedOptions = options.map((opt, idx) => {
-    const label = labels[idx] || "A";
-    if (opt.isCorrect) {
-      newCorrectAnswer = label;
-    }
-    return {
-      ...opt,
-      label,
-    };
-  });
-
-  return {
-    ...q,
-    options: updatedOptions,
-    correctAnswer: newCorrectAnswer,
-  };
 }
 
 export async function createGameRoom(params: {
@@ -488,24 +444,8 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
   await closeIdleRooms();
 
   const cached = inMemoryRooms.get(roomCode) || null;
-  if (cached) {
-    if (cached.status !== "finished" && isIdleRoom(cached)) {
-      cached.status = "finished";
-      cached.updatedAt = new Date().toISOString();
-      cached.lastSyncedAt = Date.now();
-      if (isDatabaseEnabled()) {
-        withTimeout(
-          db()
-            .from("game_rooms")
-            .update({ status: "finished", updated_at: cached.updatedAt })
-            .match({ room_code: roomCode }),
-          1500
-        ).catch(() => {});
-      }
-    }
-    if (cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 750) {
-      return cached;
-    }
+  if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 750) {
+    return cached;
   }
 
   try {
@@ -1010,6 +950,7 @@ export async function recordAnswerSubmission(params: {
       totalTimeMs: timeLimitMs,
       currentStreak: player.streak,
       powerups: [{ id: validPowerup }],
+      streakBonusEnabled: room.settings.streakBonus,
     });
     scoreAwarded = powerupRes.total;
     nextStreak = powerupRes.newStreak;
@@ -1109,12 +1050,13 @@ export async function recordAnswerSubmission(params: {
       return { ok: false, reason: "write_failed" };
     }
 
+    const previousStreak = player.streak;
     const nextScore = Math.max(0, player.score + scoreAwarded);
     player.score = nextScore;
     player.streak = nextStreak;
 
     const streakDelta = isCorrect
-      ? (validPowerup === "streak_booster" ? 2 : nextStreak - player.streak)
+      ? (validPowerup === "streak_booster" ? 2 : nextStreak - previousStreak)
       : (validPowerup === "immunity" ? 0 : -999999);
 
     const scoreRes = (await withTimeout(
@@ -1794,19 +1736,19 @@ export async function approveAllPlayers(roomCode: string): Promise<number> {
   room.updatedAt = nowIso;
   room.lastSyncedAt = Date.now();
 
-  const db = getSupabaseAdmin();
-  if (db) {
+  const dbAdmin = getSupabaseAdmin();
+  if (dbAdmin) {
     try {
       await withTimeout(
         Promise.all([
           count > 0
-            ? db
+            ? dbAdmin
                 .from("players")
                 .update({ status: "approved" })
                 .eq("room_code", roomCode)
                 .eq("status", "pending")
             : Promise.resolve(null),
-          db
+          dbAdmin
             .from("game_rooms")
             .update({ updated_at: nowIso })
             .match({ room_code: roomCode }),
@@ -1835,9 +1777,9 @@ export async function toggleAutoApprove(roomCode: string, enabled?: boolean): Pr
   room.updatedAt = new Date().toISOString();
   room.lastSyncedAt = Date.now();
 
-  const db = getSupabaseAdmin();
-  if (db) {
-    const { error } = await db
+  const dbAdmin = getSupabaseAdmin();
+  if (dbAdmin) {
+    const { error } = await dbAdmin
       .from("game_rooms")
       .update({ settings: room.settings, updated_at: room.updatedAt })
       .match({ room_code: roomCode });

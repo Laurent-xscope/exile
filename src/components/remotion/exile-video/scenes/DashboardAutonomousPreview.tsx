@@ -74,11 +74,11 @@ export const DashboardAutonomousPreview: React.FC = () => {
   });
   const buttonScale = frame >= 310 && frame <= 350 ? 1 + buttonSpring * 0.08 : 1;
 
-  // Toast confirmation notification on remedial click
+  // Toast confirmation notification on remedial click (positioned below header)
   const toastY = interpolate(
     frame,
     [312, 330, 370, 390],
-    [-80, 20, 20, -80],
+    [-80, 84, 84, -80],
     { extrapolateRight: "clamp", extrapolateLeft: "clamp" }
   );
 
@@ -139,7 +139,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
         >
           <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#34D399" }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: "#ECFDF5" }}>
-            Latihan Remedial Terkirim ke 142 Perangkat Siswa!
+            Latihan remedial terkirim ke 142 perangkat siswa!
           </span>
         </div>
       )}
@@ -167,7 +167,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
               marginLeft: 8,
             }}
           >
-            Exile live cockpit • Formative telemetry stream
+            Panel pantauan formatif kelas
           </span>
         </div>
 
@@ -208,7 +208,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
               zIndex: 2,
             }}
           >
-            Grafik Capaian
+            Grafik capaian
           </div>
           <div
             style={{
@@ -218,7 +218,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
               zIndex: 2,
             }}
           >
-            Diagnosis Miskonsepsi
+            Diagnosis hasil belajar
           </div>
         </div>
       </div>
@@ -236,7 +236,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
           }}
         >
           <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)", fontWeight: 500 }}>
-            Rata-rata Capaian Kelas
+            Rata-rata capaian kelas
           </div>
           <div
             style={{
@@ -253,7 +253,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
             <span style={{ fontSize: 12, color: "#10B981", fontWeight: 600 }}>+15.6%</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", marginTop: 4 }}>
-            142 siswa terverifikasi di room aktif
+            142 siswa terverifikasi di ruang aktif
           </div>
         </div>
 
@@ -267,7 +267,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
           }}
         >
           <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)", fontWeight: 500 }}>
-            Waktu Respon Rata-rata
+            Waktu respons rata-rata
           </div>
           <div
             style={{
@@ -281,10 +281,10 @@ export const DashboardAutonomousPreview: React.FC = () => {
             }}
           >
             14.2s
-            <span style={{ fontSize: 12, color: "#F59E0B", fontWeight: 600 }}>Siap & Cepat</span>
+            <span style={{ fontSize: 12, color: "#F59E0B", fontWeight: 600 }}>Siap & cepat</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", marginTop: 4 }}>
-            Batas waktu 20s per soal adaptif
+            Batas waktu 20 detik per soal adaptif
           </div>
         </div>
 
@@ -298,7 +298,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
           }}
         >
           <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)", fontWeight: 500 }}>
-            Topik Penguatan Terdeteksi
+            Materi perlu penguatan
           </div>
           <div
             style={{
@@ -311,8 +311,8 @@ export const DashboardAutonomousPreview: React.FC = () => {
               gap: 8,
             }}
           >
-            3 Topik
-            <span style={{ fontSize: 12, color: "#DC5647", fontWeight: 600 }}>Perlu Latihan</span>
+            3 topik
+            <span style={{ fontSize: 12, color: "#DC5647", fontWeight: 600 }}>Perlu latihan</span>
           </div>
           <div style={{ fontSize: 11, color: "rgba(255, 255, 255, 0.4)", marginTop: 4 }}>
             Tingkat kesalahan pengecoh 42%
@@ -336,7 +336,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
               Analisis tingkat penguasaan & diagnosis konsep
             </div>
             <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)", marginTop: 2 }}>
-              Tolok ukur empiris capaian kurikulum biologi & sains nasional
+              Capaian kurikulum biologi & sains nasional
             </div>
           </div>
           <div
@@ -362,7 +362,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
             <span style={{ color: "rgba(255, 255, 255, 0.8)", fontWeight: 500 }}>
               1. Struktur & fungsi organel sel (mitokondria vs kloroplas)
             </span>
-            <span style={{ color: "#F59E0B", fontWeight: 600 }}>{68 + waveCycle}% penguasaan</span>
+            <span style={{ color: "#F59E0B", fontWeight: 600 }}>{Math.round(68 + waveCycle)}% penguasaan</span>
           </div>
           <div style={{ width: "100%", height: 7, background: "rgba(255, 255, 255, 0.08)", borderRadius: 4 }}>
             <div

@@ -79,8 +79,8 @@ export function JoinRoomForm({
     if (!isValidRoomCode(cleanCode)) {
       setError(
         isEn
-          ? "Enter the 6-digit room PIN from your teacher."
-          : "Masukkan PIN ruangan 6 digit dari pengajar."
+          ? "Enter the 6-digit room Pin from your teacher."
+          : "Masukkan Pin ruangan 6 digit dari pengajar."
       );
       return;
     }
@@ -112,8 +112,8 @@ export function JoinRoomForm({
         throw new Error(
           data.error ||
             (isEn
-              ? "That room could not be joined. Check the PIN and try again."
-              : "Ruangan tidak dapat dimasuki. Periksa PIN lalu coba lagi.")
+              ? "That room could not be joined. Check the Pin and try again."
+              : "Ruangan tidak dapat dimasuki. Periksa Pin lalu coba lagi.")
         );
       }
 

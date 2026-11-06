@@ -196,8 +196,8 @@ export default function LandingPage() {
     if (!isValidRoomCode(cleanPin)) {
       toast.error(
         isEn
-          ? "Enter the 6-digit room PIN from your teacher."
-          : "Masukkan PIN ruangan 6 digit dari pengajar."
+          ? "Enter the 6-digit room Pin from your teacher."
+          : "Masukkan Pin ruangan 6 digit dari pengajar."
       );
       return;
     }
@@ -233,7 +233,7 @@ export default function LandingPage() {
         throw new Error(data.error || "Gagal membuat ruangan.");
       }
       saveHostToken(data.roomCode, data.hostToken);
-      toast.success(isEn ? `Room created! PIN: ${data.roomCode}` : `Ruangan berhasil dibuat! PIN: ${data.roomCode}`);
+      toast.success(isEn ? `Room created! Pin: ${data.roomCode}` : `Ruangan berhasil dibuat! Pin: ${data.roomCode}`);
       router.push(`/host/${data.roomCode}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal membuat ruangan.";

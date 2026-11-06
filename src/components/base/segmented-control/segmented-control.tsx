@@ -135,7 +135,7 @@ export function SegmentedControlItem({
           "transition-colors duration-200 ease",
           "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
           state.isSelected
-            ? "text-body-medium text-[#0a0a0a] font-semibold"
+            ? "text-body-medium text-text-primary font-semibold"
             : "text-body-regular text-text-secondary hover:text-text-primary",
           state.isDisabled && "cursor-not-allowed opacity-50",
           typeof className === "function" ? className(state) : className,

@@ -18,15 +18,15 @@
                 "Getaran, Gelombang, dan Cahaya",
                 "Pewarisan Sifat & Bioteknologi Sederhana"
               ],
-              "common_misconceptions": [
+              "common_weak_points": [
                 {
                   "concept": "Massa vs Berat",
-                  "misconception": "Siswa sering menganggap massa dan berat adalah hal yang sama dengan satuan kilogram.",
+                  "weak_point": "Siswa sering menganggap massa dan berat adalah hal yang sama dengan satuan kilogram.",
                   "correction": "Massa adalah jumlah materi (satuan kg, selalu konstan), sedangkan berat adalah gaya gravitasi pada massa (satuan Newton, berubah sesuai gravitasi setempat)."
                 },
                 {
                   "concept": "Fotosintesis & Pernapasan Tumbuhan",
-                  "misconception": "Siswa beranggapan tumbuhan hanya bernapas pada malam hari dan hanya berfotosintesis di siang hari.",
+                  "weak_point": "Siswa beranggapan tumbuhan hanya bernapas pada malam hari dan hanya berfotosintesis di siang hari.",
                   "correction": "Tumbuhan melakukan respirasi (pernapasan seluler) sepanjang waktu (siang dan malam), sedangkan fotosintesis hanya berlangsung saat ada cahaya."
                 }
               ]
@@ -40,10 +40,10 @@
                 "Statistika (Mean, Median, Modus) dan Diagram Data",
                 "Peluang Teoretik dan Empirik"
               ],
-              "common_misconceptions": [
+              "common_weak_points": [
                 {
                   "concept": "Operasi Aljabar dengan Tanda Negatif",
-                  "misconception": "Siswa sering salah mengalikan tanda minus ke dalam tanda kurung, misalnya -(3x - 5) disederhanakan menjadi -3x - 5 bukannya -3x + 5.",
+                  "weak_point": "Siswa sering salah mengalikan tanda minus ke dalam tanda kurung, misalnya -(3x - 5) disederhanakan menjadi -3x - 5 bukannya -3x + 5.",
                   "correction": "Tanda negatif di depan kurung mendistribusikan faktor -1 ke setiap suku di dalam tanda kurung."
                 }
               ]
@@ -169,7 +169,7 @@
           { "andap": "suba", "alus_singgih": "sampun", "alus_sor": "sampun", "meaning": "sudah" },
           { "andap": "sing", "alus_singgih": "nénten", "alus_sor": "nénten", "meaning": "tidak" }
         ],
-        "common_student_misconceptions": [
+        "common_student_weak_points": [
           {
             "title": "Meninggikan Diri Sendiri (Salah Memakai Alus Singgih)",
             "error_pattern": "Siswa mengatakan 'Tiyang sampun ngrayunan' saat ditanya oleh guru.",
@@ -276,7 +276,7 @@
         "C": "'Ipun' kagunayang antuk anak tiosan sane sor, tur 'ngrayunan' kruna Alus Singgih nenten dados kanggen nyambatang raga padidi.",
         "D": "'Icang' lan 'ngamah' inggih punika kruna andap/kasar sane nenten manut ring tata krama mabasa Bali alus."
       },
-      "misconception_tag": "ASI_vs_ASO_Self_Humble"
+      "weak_point_tag": "ASI_vs_ASO_Self_Humble"
     },
     {
       "id": "q-mulok-002",
@@ -297,7 +297,7 @@
         "C": "'Ngamah' punika kruna andap/kasar.",
         "D": "'Medaar' punika kruna andap (basa lumrah)."
       },
-      "misconception_tag": "ASI_Respect_Honorifics"
+      "weak_point_tag": "ASI_Respect_Honorifics"
     },
     {
       "id": "q-mulok-003",
@@ -318,7 +318,7 @@
         "C": "Pernyataan puniki patut; konsonan mati ring tengahing kruna patut nganggen gantungan/gempelan.",
         "D": "Pernyataan puniki patut ngeninin fungsi adeg-adeg."
       },
-      "misconception_tag": "Adeg_Adeg_MidWord_Error"
+      "weak_point_tag": "Adeg_Adeg_MidWord_Error"
     },
     {
       "id": "q-mulok-004",
@@ -339,7 +339,7 @@
         "C": "Palemahan nyihnayang palinnggihan fisik palemahan lan konservasi alam.",
         "D": "Bhuta Yadnya wantah silih sinunggil pahan panca yadnya, nenten pasaut sane jangkep."
       },
-      "misconception_tag": "THK_Classification_Pura_vs_Palemahan"
+      "weak_point_tag": "THK_Classification_Pura_vs_Palemahan"
     },
     {
       "id": "q-mulok-005",
@@ -360,7 +360,7 @@
         "C": "Dewa Yadnya katur ring Ida Bhatara ring Pura.",
         "D": "Rsi Yadnya katur ring para guru suci lan rohaniawan."
       },
-      "misconception_tag": "Panca_Yadnya_LifeCycle"
+      "weak_point_tag": "Panca_Yadnya_LifeCycle"
     },
     {
       "id": "q-merdeka-001",
@@ -378,10 +378,10 @@
       "explanation": "Massa benda selalu tetap di mana pun berada (m = 60 kg). Berat di Bulan W = m x g_bulan = 60 kg x (10/6 m/s²) = 100 N.",
       "distractor_rationales": {
         "B": "Terbalik menganggap massa yang menyusut dan berat yang tetap.",
-        "C": "Miskonsepsi umum siswa yang membagi massa dengan 6, padahal massa materi tidak terpengaruh gravitasi.",
+        "C": "Kekeliruan umum siswa yang membagi massa dengan 6, padahal massa materi tidak terpengaruh gravitasi.",
         "D": "Menganggap massa dan berat sama persis dengan kondisi di Bumi tanpa memperhitungkan gravitasi Bulan."
       },
-      "misconception_tag": "Physics_Mass_vs_Weight"
+      "weak_point_tag": "Physics_Mass_vs_Weight"
     },
     {
       "id": "q-merdeka-002",
@@ -402,7 +402,7 @@
         "C": "Siswa salah mengira burung hantu pemakan tanaman padi, padahal bersifat karnivora predator.",
         "D": "Ular sawah tidak langsung punah karena memiliki alternatif mangsa tikus dan katak."
       },
-      "misconception_tag": "Ecology_Trophic_Cascade"
+      "weak_point_tag": "Ecology_Trophic_Cascade"
     },
     {
       "id": "q-merdeka-003",
@@ -423,7 +423,7 @@
         "C": "Siswa salah menghitung -12 + 15 menjadi -3.",
         "D": "Siswa hanya mengalikan suku pertama dan melupakan suku kedua."
       },
-      "misconception_tag": "Algebra_Negative_Distribution"
+      "weak_point_tag": "Algebra_Negative_Distribution"
     }
   ]
 }

@@ -1,6 +1,6 @@
 import React, { createContext, useContext } from "react";
 import { Easing, interpolate, spring, useCurrentFrame, useVideoConfig } from "remotion";
-import { BODY_FONT, DISPLAY_FONT } from "./fonts";
+import { BODY_FONT, DISPLAY_FONT, INTER_FONT, MONO_FONT } from "./fonts";
 
 export type Theme = {
   teal: string;
@@ -12,6 +12,7 @@ export type Theme = {
   muted: string;
   danger: string;
   success: string;
+  white: string;
 };
 
 export const makeTheme = (p: { teal: string; gold: string; cream: string }): Theme => ({
@@ -22,6 +23,7 @@ export const makeTheme = (p: { teal: string; gold: string; cream: string }): The
   muted: "#4F6361",
   danger: "#C4513A",
   success: "#2F8F6B",
+  white: "#FFFFFF",
 });
 
 const ThemeContext = createContext<Theme | null>(null);
@@ -72,6 +74,23 @@ export const body = (size: number, color: string, weight = 500): React.CSSProper
   fontWeight: weight,
   color,
   lineHeight: 1.3,
+});
+
+export const inter = (size: number, color: string, weight = 600): React.CSSProperties => ({
+  fontFamily: INTER_FONT,
+  fontSize: size,
+  fontWeight: weight,
+  color,
+  lineHeight: 1.25,
+});
+
+export const mono = (size: number, color: string, weight = 500): React.CSSProperties => ({
+  fontFamily: MONO_FONT,
+  fontSize: size,
+  fontWeight: weight,
+  color,
+  lineHeight: 1.3,
+  letterSpacing: "0.04em",
 });
 
 /** Slow push-in so no frame is ever static. */

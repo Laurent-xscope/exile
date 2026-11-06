@@ -2,7 +2,6 @@
 
 import React from "react";
 import { cx } from "@/utils/cx";
-import { soundEffects } from "@/lib/audio/sounds";
 
 interface MacOSToggleProps {
   checked: boolean;
@@ -29,7 +28,6 @@ export function MacOSToggle({
 }: MacOSToggleProps) {
   const handleClick = () => {
     if (disabled) return;
-    soundEffects.playClick();
     onChange(!checked);
   };
 

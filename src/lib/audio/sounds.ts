@@ -96,223 +96,149 @@ class SoundEngine {
     }
   }
 
-  // Soft click for tactile button press
-  public playClick() {
+  private playTones(
+    build: (ctx: AudioContext) => Array<{
+      type?: OscillatorType;
+      frequency: number;
+      startOffset: number;
+      duration: number;
+      gain: number;
+      rampTo?: { freq: number; time: number };
+    }>
+  ) {
     if (this.isMuted || this.volume <= 0) return;
     const ctx = this.getContext();
     if (!ctx) return;
 
     try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
+      const tones = build(ctx);
+      for (const t of tones) {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const startTime = ctx.currentTime + t.startOffset;
 
-      osc.type = "sine";
-      osc.frequency.setValueAtTime(420, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(180, ctx.currentTime + 0.04);
+        osc.type = t.type || "sine";
+        osc.frequency.setValueAtTime(t.frequency, startTime);
+        if (t.rampTo) {
+          osc.frequency.exponentialRampToValueAtTime(t.rampTo.freq, startTime + t.rampTo.time);
+        }
 
-      gain.gain.setValueAtTime(0.08, ctx.currentTime);
-      gain.gain.setTargetAtTime(0, ctx.currentTime + 0.01, 0.015);
+        gain.gain.setValueAtTime(t.gain, startTime);
+        gain.gain.setTargetAtTime(0, startTime + t.duration * 0.4, t.duration * 0.3);
 
-      osc.connect(gain);
-      this.connectOutput(gain, ctx);
+        osc.connect(gain);
+        this.connectOutput(gain, ctx);
 
-      osc.onended = () => {
-        try {
-          osc.disconnect();
-          gain.disconnect();
-        } catch {}
-      };
+        osc.onended = () => {
+          try {
+            osc.disconnect();
+            gain.disconnect();
+          } catch {}
+        };
 
-      osc.start();
-      osc.stop(ctx.currentTime + 0.05);
+        osc.start(startTime);
+        osc.stop(startTime + t.duration + 0.05);
+      }
     } catch {
       // Audio autoplay policy fallback
     }
   }
 
+  // Soft click for tactile button press
+  public playClick() {
+    this.playTones(() => [
+      {
+        type: "sine",
+        frequency: 420,
+        startOffset: 0,
+        duration: 0.04,
+        gain: 0.08,
+        rampTo: { freq: 180, time: 0.04 },
+      },
+    ]);
+  }
+
   // Countdown timer tick (woodblock rhythm)
   public playTick() {
-    if (this.isMuted || !this.countdownTicksEnabled || this.volume <= 0) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-
-      osc.type = "triangle";
-      osc.frequency.setValueAtTime(800, ctx.currentTime);
-      osc.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.03);
-
-      gain.gain.setValueAtTime(0.05, ctx.currentTime);
-      gain.gain.setTargetAtTime(0, ctx.currentTime + 0.01, 0.01);
-
-      osc.connect(gain);
-      this.connectOutput(gain, ctx);
-
-      osc.onended = () => {
-        try {
-          osc.disconnect();
-          gain.disconnect();
-        } catch {}
-      };
-
-      osc.start();
-      osc.stop(ctx.currentTime + 0.04);
-    } catch {}
+    if (!this.countdownTicksEnabled) return;
+    this.playTones(() => [
+      {
+        type: "triangle",
+        frequency: 800,
+        startOffset: 0,
+        duration: 0.03,
+        gain: 0.05,
+        rampTo: { freq: 400, time: 0.03 },
+      },
+    ]);
   }
 
   // Celebratory correct answer chime (harmonic overtone)
   public playCorrect() {
-    if (this.isMuted || this.volume <= 0) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
+    this.playTones(() => {
       const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 arpeggio
-      notes.forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const startTime = ctx.currentTime + idx * 0.06;
-
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(freq, startTime);
-
-        gain.gain.setValueAtTime(0.12, startTime);
-        gain.gain.setTargetAtTime(0, startTime + 0.08, 0.08);
-
-        osc.connect(gain);
-        this.connectOutput(gain, ctx);
-
-        osc.onended = () => {
-          try {
-            osc.disconnect();
-            gain.disconnect();
-          } catch {}
-        };
-
-        osc.start(startTime);
-        osc.stop(startTime + 0.35);
-      });
-    } catch {}
+      return notes.map((freq, idx) => ({
+        type: "sine",
+        frequency: freq,
+        startOffset: idx * 0.06,
+        duration: 0.3,
+        gain: 0.12,
+      }));
+    });
   }
 
   // Gentle feedback for incorrect choice
   public playIncorrect() {
-    if (this.isMuted || this.volume <= 0) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
+    this.playTones(() => {
       const notes = [311.13, 261.63]; // Eb4 down to C4
-      notes.forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const startTime = ctx.currentTime + idx * 0.12;
-
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(freq, startTime);
-
-        gain.gain.setValueAtTime(0.09, startTime);
-        gain.gain.setTargetAtTime(0, startTime + 0.06, 0.08);
-
-        osc.connect(gain);
-        this.connectOutput(gain, ctx);
-
-        osc.onended = () => {
-          try {
-            osc.disconnect();
-            gain.disconnect();
-          } catch {}
-        };
-
-        osc.start(startTime);
-        osc.stop(startTime + 0.3);
-      });
-    } catch {}
+      return notes.map((freq, idx) => ({
+        type: "triangle",
+        frequency: freq,
+        startOffset: idx * 0.12,
+        duration: 0.25,
+        gain: 0.09,
+      }));
+    });
   }
 
   // Streak celebration fanfare based on streak count
   public playStreak(streakCount: number = 3) {
-    if (this.isMuted || this.volume <= 0) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
-      const scale = streakCount >= 5
-        ? [523.25, 659.25, 783.99, 1046.5, 1318.51] // C5, E5, G5, C6, E6
-        : [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
-
-      scale.forEach((freq, idx) => {
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        const startTime = ctx.currentTime + idx * 0.05;
-
-        osc.type = "triangle";
-        osc.frequency.setValueAtTime(freq, startTime);
-
-        gain.gain.setValueAtTime(0.14, startTime);
-        gain.gain.setTargetAtTime(0, startTime + 0.1, 0.09);
-
-        osc.connect(gain);
-        this.connectOutput(gain, ctx);
-
-        osc.onended = () => {
-          try {
-            osc.disconnect();
-            gain.disconnect();
-          } catch {}
-        };
-
-        osc.start(startTime);
-        osc.stop(startTime + 0.4);
-      });
-    } catch {}
+    this.playTones(() => {
+      const scale =
+        streakCount >= 5
+          ? [523.25, 659.25, 783.99, 1046.5, 1318.51] // C5, E5, G5, C6, E6
+          : [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6
+      return scale.map((freq, idx) => ({
+        type: "triangle",
+        frequency: freq,
+        startOffset: idx * 0.05,
+        duration: 0.35,
+        gain: 0.14,
+      }));
+    });
   }
 
   // Victory fanfare for leaderboard / game completion
   public playVictory() {
-    if (this.isMuted || this.volume <= 0) return;
-    const ctx = this.getContext();
-    if (!ctx) return;
-
-    try {
+    this.playTones(() => {
       const chords = [
         [523.25, 659.25, 783.99], // C major
-        [587.33, 739.99, 880.0],  // D major
+        [587.33, 739.99, 880.0], // D major
         [659.25, 830.61, 987.77], // E major
         [1046.5, 1318.51, 1567.98], // High C major
       ];
-
-      chords.forEach((chord, step) => {
-        const startTime = ctx.currentTime + step * 0.14;
+      return chords.flatMap((chord, step) => {
+        const startOffset = step * 0.14;
         const duration = step === chords.length - 1 ? 0.6 : 0.12;
-
-        chord.forEach((freq) => {
-          const osc = ctx.createOscillator();
-          const gain = ctx.createGain();
-
-          osc.type = "sine";
-          osc.frequency.setValueAtTime(freq, startTime);
-
-          gain.gain.setValueAtTime(0.08, startTime);
-          gain.gain.setTargetAtTime(0, startTime + duration * 0.5, duration * 0.3);
-
-          osc.connect(gain);
-          this.connectOutput(gain, ctx);
-
-          osc.onended = () => {
-            try {
-              osc.disconnect();
-              gain.disconnect();
-            } catch {}
-          };
-
-          osc.start(startTime);
-          osc.stop(startTime + duration + 0.05);
-        });
+        return chord.map((freq) => ({
+          type: "sine" as OscillatorType,
+          frequency: freq,
+          startOffset,
+          duration,
+          gain: 0.08,
+        }));
       });
-    } catch {}
+    });
   }
 }
 
