@@ -168,6 +168,9 @@ export function JoinRoomForm({
           value={code}
           onChange={(value) => setCode(normalizeRoomCode(value))}
           maxLength={6}
+          inputMode="numeric"
+          pattern="[0-9]*"
+          autoFocus
           inputDir="ltr"
           fieldClassName="h-12 bg-background-primary-default border border-border-button-default shadow-2xs"
           inputClassName="text-center font-mono text-title-2-semibold tracking-[0.28em]"

@@ -24,6 +24,8 @@ import {
   RiToggleLine,
   RiCheckboxCircleLine,
   RiTimeLine,
+  RiFullscreenLine,
+  RiFullscreenExitLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -39,6 +41,7 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/base/buttons/button";
+import { IconButton } from "@/components/base/buttons/icon-button";
 import { Chip } from "@/components/base/badges/chip";
 import { Badge } from "@/components/base/badges/badge";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -182,13 +185,27 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
   const leaderboardFade = useScrollFade();
   const playersFade = useScrollFade();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    soundEffects.playClick();
+    if (typeof document === "undefined") return;
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+      setIsFullscreen(true);
+    } else {
+      document.exitFullscreen().catch(() => {});
+      setIsFullscreen(false);
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
-    // Prevent student tabs or unauthenticated visitors from taking over /host/[code]
+    // Check localStorage hostToken to avoid false-positive student tab lockout
+    const hasValidHostToken = Boolean(hostToken || getHostToken(roomCode));
     const studentTab = isStudentTabForRoom(roomCode);
-    const hasPlayerTokenOnly = Boolean(getPlayerToken(roomCode)) && !hostToken;
-    if (studentTab || hasPlayerTokenOnly || !hostToken) {
+    const hasPlayerTokenOnly = Boolean(getPlayerToken(roomCode)) && !hasValidHostToken;
+    if (!hasValidHostToken || (studentTab && !hasValidHostToken) || hasPlayerTokenOnly) {
       toast.error(
         isEn
           ? "Access denied: students cannot open the teacher host control room."
@@ -538,6 +555,13 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               </span>
             </div>
 
+            <IconButton
+              icon={isFullscreen ? RiFullscreenExitLine : RiFullscreenLine}
+              size="medium"
+              onClick={toggleFullscreen}
+              aria-label={isEn ? "Toggle fullscreen projector mode" : "Buka mode proyektor layar penuh"}
+              title={isEn ? "Classroom projector mode" : "Mode proyektor layar penuh"}
+            />
             <ThemeToggle />
           </div>
         </div>
@@ -579,8 +603,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="relative flex size-2.5">
-                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-[#D97706] opacity-50" />
-                      <span className="relative inline-flex rounded-full size-2.5 bg-[#D97706]" />
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-50" />
+                      <span className="relative inline-flex rounded-full size-2.5 bg-amber-500" />
                     </span>
                     <span className="text-body-semibold text-text-primary">
                       {isEn ? "Classroom lobby waiting for students" : "Lobi ruangan menunggu siswa"}
@@ -619,10 +643,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-4 rounded-3xl bg-[#D97706]/10 border border-[#D97706]/30 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              className="p-4 rounded-3xl bg-amber-500/10 border border-amber-500/30 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
             >
               <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-[#D97706]/20 text-text-error-primary flex items-center justify-center shrink-0">
+                <div className="size-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
                   <RiTimeLine className="size-5" aria-hidden />
                 </div>
                 <div>
@@ -726,6 +750,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           ? Math.round((voteCount / effectiveTotal) * 100)
                           : 0;
 
+                      const rationalesMap = (currentQ as unknown as { distractorRationales?: Record<string, string> }).distractorRationales;
+                      const optRationale =
+                        (option as { distractorRationale?: string }).distractorRationale ||
+                        rationalesMap?.[optKey] ||
+                        rationalesMap?.[option.label];
+
                       return (
                         <button
                           key={option.label}
@@ -738,7 +768,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             }));
                           }}
                           className={cx(
-                            "p-4 rounded-2xl border transition relative overflow-hidden space-y-2 text-left cursor-pointer",
+                            "p-4 rounded-2xl border transition relative overflow-hidden space-y-2 text-start cursor-pointer",
                             selectedOnHost
                               ? option.isCorrect
                                 ? "bg-emerald-500/15 border-emerald-500"
@@ -794,6 +824,15 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                               {voteCount} ({votePercent}%)
                             </span>
                           </div>
+
+                          {!option.isCorrect && optRationale && (voteCount > 0 || selectedOnHost) && (
+                            <p className="text-caption-2-regular text-text-secondary pt-1.5 ps-8 border-t border-border-button-default/50 relative z-10">
+                              <span className="font-semibold text-text-primary">
+                                {isEn ? "Misconception: " : "Analisis miskonsepsi: "}
+                              </span>
+                              {optRationale}
+                            </p>
+                          )}
                         </button>
                       );
                     })}
@@ -989,7 +1028,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       "cursor-pointer px-3.5 py-1.5 rounded-xl border text-caption-1-medium flex items-center gap-2 transition outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring shrink-0",
                       isAutoApprove
                         ? "bg-accent-700/10 text-accent-700 border-accent-700/30"
-                        : "bg-[#D97706]/10 text-text-error-primary border-[#D97706]/30"
+                        : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30"
                     )}
                   >
                     <RiToggleLine className="size-4" aria-hidden />
@@ -1005,7 +1044,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         <span className="text-body-semibold text-text-primary">
                           Menunggu persetujuan
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-[#D97706]/10 text-text-error-primary border border-[#D97706]/20">
+                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
                           {totalPending} siswa
                         </span>
                       </div>
@@ -1023,7 +1062,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       {pendingPlayersList.map((p) => (
                         <div
                           key={p.id}
-                          className="p-3.5 rounded-2xl bg-[#D97706]/5 border border-[#D97706]/25 flex items-center justify-between gap-3"
+                          className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/25 flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />

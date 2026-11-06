@@ -12,7 +12,6 @@ import {
   Group as AriaGroup,
   Input as AriaInput,
   TextField as AriaTextField,
-  useLocale,
 } from "react-aria-components";
 import type {
   FieldErrorProps as AriaFieldErrorProps,
@@ -194,7 +193,7 @@ export function inputFieldClassName(
     // Disabled
     isDisabled && "bg-surface opacity-50",
     // Invalid
-    isInvalid && "ring-[#EF4444] text-[#EF4444]",
+    isInvalid && "ring-red-500 text-text-error-primary",
   );
 }
 
@@ -210,7 +209,6 @@ export function InputBase({
   groupRef,
   ...inputProps
 }: InputBaseProps) {
-  const { direction } = useLocale();
   const ctx = useContext(TextFieldContext);
   const size: InputSize = sizeProp ?? ctx.size ?? "medium";
   const hasAddon = leadingAddon !== undefined && leadingAddon !== null;
@@ -230,8 +228,8 @@ export function InputBase({
           <AriaInput
             ref={ref}
             {...inputProps}
-            // Align to the field's start even when email/URL values use LTR.
-            className={cx(inputStyles.input, direction === "rtl" ? "pr-1 text-right" : "pl-1 text-left", ctx.inputClassName, className)}
+            // Logical alignment for RTL & LTR
+            className={cx(inputStyles.input, "ps-1 text-start", ctx.inputClassName, className)}
           />
         </div>
         {trailingAddon ?? (Trailing ? (
@@ -258,6 +256,10 @@ export interface InputProps
       | "fieldClassName"
       | "groupRef"
       | "ref"
+      | "inputMode"
+      | "pattern"
+      | "maxLength"
+      | "autoFocus"
     > {
   label?: ReactNode;
   hint?: ReactNode;
@@ -290,6 +292,10 @@ export function Input({
   ref,
   groupRef,
   className,
+  inputMode,
+  pattern,
+  maxLength,
+  autoFocus,
   ...textFieldProps
 }: InputProps) {
   return (
@@ -323,6 +329,10 @@ export function Input({
             trailingIcon={trailingIcon}
             leadingAddon={leadingAddon}
             fieldClassName={fieldClassName}
+            inputMode={inputMode}
+            pattern={pattern}
+            maxLength={maxLength}
+            autoFocus={autoFocus}
           />
           {isInvalid && errorMessage != null ? (
             <AriaFieldError className={hintTextClassName(true)}>{errorMessage}</AriaFieldError>

@@ -27,7 +27,7 @@ import { toast } from "sonner";
 
 const nowMs = () => Date.now();
 import { soundEffects } from "@/lib/audio/sounds";
-import { loadSettings } from "@/lib/settings/user-settings";
+import { useExileSettings } from "@/lib/settings/user-settings";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { markStudentTabForRoom } from "@/lib/rooms/host-token";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -142,7 +142,8 @@ export default function PlayArenaClient({
   const [questionStartTime, setQuestionStartTime] = useState<number>(0);
   const [lastQuestionId, setLastQuestionId] = useState<string | null>(null);
   const [lastQuestionStartedAt, setLastQuestionStartedAt] = useState<string | null>(null);
-  const [isMuted, setIsMuted] = useState(false);
+  const { settings, updateSetting } = useExileSettings();
+  const isMuted = !settings.soundEnabled;
   const finishedCelebrated = useRef(false);
 
   // Student Copilot Drawer
@@ -168,18 +169,11 @@ export default function PlayArenaClient({
   const leaderboardFade = useScrollFade();
 
   const toggleSound = () => {
-    const nextMuted = !isMuted;
-    setIsMuted(nextMuted);
-    soundEffects.setMuted(nextMuted);
+    updateSetting("soundEnabled", !settings.soundEnabled);
   };
 
   useEffect(() => {
     markStudentTabForRoom(roomCode);
-    const settings = loadSettings();
-    /* eslint-disable react-hooks/set-state-in-effect -- sound preference is client-only */
-    setIsMuted(!settings.soundEnabled);
-    soundEffects.setMuted(!settings.soundEnabled);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [roomCode]);
 
   const fetchState = async () => {
@@ -412,7 +406,12 @@ export default function PlayArenaClient({
       ]);
 
       if (isCorrect) {
-        soundEffects.playCorrect();
+        const streak = Number(submitData.player?.streak) || 0;
+        if (streak >= 3) {
+          soundEffects.playStreak(streak);
+        } else {
+          soundEffects.playCorrect();
+        }
         confetti({
           particleCount: 40,
           spread: 60,
@@ -613,8 +612,10 @@ export default function PlayArenaClient({
               <span className="hidden sm:inline">{isEn ? "Student copilot" : "Copilot siswa"}</span>
             </button>
 
-            <LanguageToggle />
-            <ThemeToggle />
+            <div className="hidden sm:flex items-center gap-2">
+              <LanguageToggle />
+              <ThemeToggle />
+            </div>
             <IconButton
               icon={isMuted ? RiVolumeMuteLine : RiVolumeUpLine}
               size="medium"
@@ -807,19 +808,19 @@ export default function PlayArenaClient({
                 <span className="text-caption-2-semibold text-text-secondary">
                   {isEn ? "Powerups (1x per session):" : "Powerup siswa (1x pakai):"}
                 </span>
-                <div className="flex flex-wrap items-center gap-1.5">
+                <div className="flex flex-wrap items-center gap-2">
                   <button
                     type="button"
                     disabled={usedPowerups.includes("time_freeze")}
                     onClick={() => handleTogglePowerup("time_freeze")}
                     className={cx(
-                      "inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                      "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
                       activePowerup === "time_freeze"
-                        ? "border-sky-500 bg-sky-500/15 text-sky-700 dark:text-sky-300"
+                        ? "border-accent-700 bg-accent-700 text-white"
                         : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                     )}
                   >
-                    <RiSnowflakeLine className="size-3.5" />
+                    <RiSnowflakeLine className="size-4" />
                     <span>{isEn ? "Freeze time" : "Bekukan waktu"}</span>
                   </button>
                   <button
@@ -827,13 +828,13 @@ export default function PlayArenaClient({
                     disabled={usedPowerups.includes("double_jeopardy")}
                     onClick={() => handleTogglePowerup("double_jeopardy")}
                     className={cx(
-                      "inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                      "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
                       activePowerup === "double_jeopardy"
-                        ? "border-amber-500 bg-amber-500/15 text-amber-700 dark:text-amber-300"
+                        ? "border-accent-700 bg-accent-700 text-white"
                         : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                     )}
                   >
-                    <RiFlashlightLine className="size-3.5" />
+                    <RiFlashlightLine className="size-4" />
                     <span>{isEn ? "2x score" : "Skor 2x"}</span>
                   </button>
                   <button
@@ -841,13 +842,13 @@ export default function PlayArenaClient({
                     disabled={usedPowerups.includes("immunity")}
                     onClick={() => handleTogglePowerup("immunity")}
                     className={cx(
-                      "inline-flex cursor-pointer items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
+                      "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
                       activePowerup === "immunity"
-                        ? "border-emerald-500 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300"
+                        ? "border-accent-700 bg-accent-700 text-white"
                         : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                     )}
                   >
-                    <RiShieldFlashLine className="size-3.5" />
+                    <RiShieldFlashLine className="size-4" />
                     <span>{isEn ? "Streak shield" : "Perisai beruntun"}</span>
                   </button>
                 </div>
@@ -916,6 +917,8 @@ export default function PlayArenaClient({
 
             {hasAnsweredCurrentQ && (
               <motion.div
+                role="status"
+                aria-live="polite"
                 initial={{ opacity: 0, scale: 0.98 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className={cx(
@@ -973,7 +976,7 @@ export default function PlayArenaClient({
                 </div>
 
                 <div className="flex items-center justify-center gap-2 text-caption-1-medium text-text-secondary pt-1">
-                  <span className="size-2 rounded-full bg-[#9CA3AF]" />
+                  <span className="size-2 rounded-full bg-neutral-400" />
                   <span>
                     {isEn
                       ? "Waiting for educator to open next question..."
@@ -1143,6 +1146,9 @@ export default function PlayArenaClient({
       <AnimatePresence>
         {showCopilot && (
           <motion.div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="copilot-drawer-title"
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
@@ -1153,7 +1159,7 @@ export default function PlayArenaClient({
                 <div className="size-8 rounded-xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center">
                   <RiCopilotFill className="size-4" />
                 </div>
-                <h4 className="text-body-semibold text-text-primary">
+                <h4 id="copilot-drawer-title" className="text-body-semibold text-text-primary">
                   {isEn ? "Exile student copilot" : "Copilot siswa exile"}
                 </h4>
               </div>

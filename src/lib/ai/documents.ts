@@ -39,14 +39,26 @@ export async function extractText(file: UploadedFile): Promise<string> {
   let text: string;
 
   if (ext === "pdf" || mime === "application/pdf") {
-    const { extractText: pdfText, getDocumentProxy } = await import("unpdf");
-    const pdf = await getDocumentProxy(new Uint8Array(bytes));
-    const result = await pdfText(pdf, { mergePages: true });
-    text = Array.isArray(result.text) ? result.text.join("\n\n") : result.text;
+    try {
+      const { extractText: pdfText, getDocumentProxy } = await import("unpdf");
+      const pdf = await getDocumentProxy(new Uint8Array(bytes));
+      const result = await pdfText(pdf, { mergePages: true });
+      text = Array.isArray(result.text) ? result.text.join("\n\n") : result.text;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.toLowerCase() : "";
+      if (msg.includes("password") || msg.includes("encrypted")) {
+        throw new UnsupportedFileError("Berkas pdf dilindungi kata sandi. Harap buka kunci terlebih dahulu.");
+      }
+      throw new UnsupportedFileError("Berkas pdf rusak atau strukturnya tidak valid. Pastikan berkas dapat dibuka secara normal.");
+    }
   } else if (ext === "docx" || mime.includes("wordprocessingml")) {
-    const { default: mammoth } = await import("mammoth");
-    const out = await mammoth.extractRawText({ buffer: bytes });
-    text = out.value;
+    try {
+      const { default: mammoth } = await import("mammoth");
+      const out = await mammoth.extractRawText({ buffer: bytes });
+      text = out.value;
+    } catch {
+      throw new UnsupportedFileError("Berkas docx rusak atau berformat lama (.doc). Simpan ulang ke format .docx standar atau .txt.");
+    }
   } else if (TEXT_EXTENSIONS.has(ext) || mime.startsWith("text/") || mime === "application/json") {
     text = bytes.toString("utf8");
     if (ext === "html" || ext === "htm") {

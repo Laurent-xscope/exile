@@ -430,9 +430,10 @@
   --color-button-primary-disabled-foreground: var(--color-neutral-500);
 
   /* Text */
-  --color-text-primary:  var(--color-neutral-50);
-  --color-text-tertiary: var(--color-neutral-600);
-  --color-text-disabled: var(--color-neutral-800);
+  --color-text-primary:   var(--color-neutral-50);
+  --color-text-secondary: var(--color-neutral-300);
+  --color-text-tertiary:  var(--color-neutral-400);
+  --color-text-disabled:  var(--color-neutral-600);
   --color-text-error-primary: var(--color-red-400);
   --color-text-destructive: color-mix(in srgb, var(--color-red-500) 80%, var(--color-neutral-500));
   --color-input-disabled-text: color-mix(in srgb, var(--color-neutral-500) 40%, transparent);

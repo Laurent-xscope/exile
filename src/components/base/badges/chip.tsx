@@ -30,10 +30,10 @@ type ChipVariant = "bold" | "subtle" | "caption";
 export type ChipColor = "orange" | "lime" | "rose" | "yellow" | "cyan" | "blue" | "purple" | "neutral" | "gray" | "soft";
 
 /** Background and text pair per colour, shared with Tag Group's tags. */
-const CHIP_SUCCESS = "bg-[#F0FDF4] dark:bg-[#052E16] text-[#16A34A] border-[#16A34A]";
-const CHIP_WARNING = "bg-[#FEFCE8] dark:bg-[#2A2306] text-[#CA8A04] border-[#CA8A04]";
-const CHIP_ERROR = "bg-[#FEF2F2] dark:bg-[#2A0A0A] text-[#EF4444] border-[#EF4444]";
-const CHIP_NEUTRAL = "bg-transparent text-muted border-line2";
+const CHIP_SUCCESS = "bg-green-50 text-green-700 border-green-600";
+const CHIP_WARNING = "bg-amber-50 text-amber-700 border-amber-600";
+const CHIP_ERROR = "bg-rose-50 text-text-error-primary border-border-error-default";
+const CHIP_NEUTRAL = "bg-transparent text-text-secondary border-border-button-default";
 
 export const CHIP_COLORS: Record<ChipColor, string> = {
   orange: CHIP_ERROR,
@@ -44,8 +44,8 @@ export const CHIP_COLORS: Record<ChipColor, string> = {
   blue: CHIP_NEUTRAL,
   purple: CHIP_NEUTRAL,
   neutral: CHIP_NEUTRAL,
-  gray: "bg-ink text-paper border-ink",
-  soft: "bg-surface text-muted border-line",
+  gray: "bg-background-primary-default text-text-primary border-border-button-default",
+  soft: "bg-background-secondary-default text-text-secondary border-border-button-default",
 };
 
 export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {

@@ -147,7 +147,7 @@ const TopSheet: React.FC = () => {
       }}
     >
       <div style={{ ...body(28, t.ink, 700) }}>{COPY.problem.worksheetTitle}</div>
-      <div style={{ ...body(24, t.muted, 500), marginTop: 6 }}>Nama: I Komang · Kelas 8B</div>
+      <div style={{ ...body(24, t.muted, 500), marginTop: 6 }}>Nama: Dimas Arya · Kelas 8B</div>
       <div style={{ marginTop: 34, display: "flex", flexDirection: "column", gap: 34 }}>
         {ROWS.map((r, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 18 }}>

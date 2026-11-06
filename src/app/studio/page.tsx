@@ -3,8 +3,14 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import confetti from "canvas-confetti";
 import { toast } from "sonner";
+
+const triggerConfetti = async (options?: { particleCount?: number; spread?: number; origin?: { y?: number; x?: number } }) => {
+  try {
+    const { default: confettiLib } = await import("canvas-confetti");
+    confettiLib(options);
+  } catch {}
+};
 import {
   RiBookOpenLine,
   RiQuestionnaireLine,
@@ -697,7 +703,7 @@ function InstantQuizDialog({
                       onClick={() => selectAnswer(option.label)}
                       disabled={revealed}
                       className={cx(
-                        "group flex min-h-24 w-full items-start gap-3 rounded-2xl border p-3.5 text-left transition-all cursor-pointer disabled:cursor-default motion-safe:active:scale-[0.99]",
+                        "group flex min-h-24 w-full items-start gap-3 rounded-2xl border p-3.5 text-start transition-all cursor-pointer disabled:cursor-default motion-safe:active:scale-[0.99]",
                         isSelectedCorrect
                           ? "border-emerald-500 bg-emerald-500/15"
                           : isWrongSelection
@@ -1105,24 +1111,38 @@ export default function StudioPage() {
     const mime = file.type || "text/plain";
     setUploadedMimeType(mime);
 
-    // Support Word .docx directly via client-side mammoth extraction
+    // Support Word .docx via server extraction
     if (file.name.toLowerCase().endsWith(".docx")) {
       setUploadedFileType("text");
       setUploadedFileBase64("");
       const reader = new FileReader();
       reader.onload = async (event) => {
         try {
-          const arrayBuffer = event.target?.result as ArrayBuffer;
-          const { default: mammoth } = await import("mammoth");
-          const { value } = await mammoth.extractRawText({ arrayBuffer });
-          const cleanedText = value.trim();
+          const res = event.target?.result as string;
+          const base64 = res.includes(",") ? res.split(",")[1] : res;
+          const apiRes = await fetch("/api/ai/process-document", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "transcribe",
+              fileName: file.name,
+              fileType: "text",
+              mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              fileBase64: base64,
+            }),
+          });
+          const data = await apiRes.json();
+          if (!apiRes.ok || !data.success) {
+            throw new Error(data.error || "Gagal membaca dokumen Word (.docx)");
+          }
+          const cleanedText = String(data.transcription || "").trim();
           setDocText(cleanedText);
           toast.success(`Dokumen Word "${file.name}" berhasil diekstrak (${cleanedText.length} karakter).`);
         } catch {
           toast.error("Gagal membaca dokumen Word (.docx). Pastikan berkas tidak terenkripsi atau rusak.");
         }
       };
-      reader.readAsArrayBuffer(file);
+      reader.readAsDataURL(file);
       return;
     }
 
@@ -1382,7 +1402,7 @@ export default function StudioPage() {
         setSelectedMindMapNode(null);
       }
       setActiveSlideIndex(0);
-      confetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
+      void triggerConfetti({ particleCount: 45, spread: 60, origin: { y: 0.7 } });
       toast.success(
         isEn
           ? "Selected artifacts are ready."
@@ -1426,7 +1446,7 @@ export default function StudioPage() {
       }
 
       saveHostToken(data.roomCode, data.hostToken);
-      confetti({ particleCount: 60, spread: 70 });
+      void triggerConfetti({ particleCount: 60, spread: 70 });
       toast.success(`Ruang kuis aktif! PIN: ${data.roomCode}`);
       router.push(`/host/${data.roomCode}`);
     } catch (err: unknown) {
@@ -1486,7 +1506,7 @@ export default function StudioPage() {
         questions: data.quiz.questions,
         launch: "ai",
       });
-      confetti({ particleCount: 35, spread: 55, origin: { y: 0.65 } });
+      void triggerConfetti({ particleCount: 35, spread: 55, origin: { y: 0.65 } });
       toast.success(
         isEn
           ? `Instant quiz ready: ${data.quiz.questions.length} questions.`
@@ -1531,7 +1551,7 @@ export default function StudioPage() {
       }
 
       saveHostToken(data.roomCode, data.hostToken);
-      confetti({ particleCount: 60, spread: 70 });
+      void triggerConfetti({ particleCount: 60, spread: 70 });
       toast.success(`Ruang kuis AI aktif! PIN: ${data.roomCode}`);
       router.push(`/host/${data.roomCode}`);
     } catch (err: unknown) {
@@ -2092,7 +2112,7 @@ export default function StudioPage() {
                     }
                   }}
                   className={cx(
-                    "group flex w-full flex-col gap-2.5 rounded-2xl border border-dashed p-3.5 text-left transition-all cursor-pointer",
+                    "group flex w-full flex-col gap-2.5 rounded-2xl border border-dashed p-3.5 text-start transition-all cursor-pointer",
                     isDraggingFile
                       ? "border-accent-600 bg-accent-500/10"
                       : uploadedFileName
@@ -2325,7 +2345,7 @@ export default function StudioPage() {
                         aria-checked={checked}
                         onClick={() => toggleArtifactSelection(item.id)}
                         className={cx(
-                          "flex w-full items-center justify-between gap-2.5 rounded-xl border px-3 py-2 text-left transition-all cursor-pointer",
+                          "flex w-full items-center justify-between gap-2.5 rounded-xl border px-3 py-2 text-start transition-all cursor-pointer",
                           checked
                             ? "border-accent-600/50 bg-accent-500/10 text-text-primary"
                             : "border-border-button-default bg-background-secondary-default/30 text-text-secondary hover:bg-background-secondary-default/60 hover:text-text-primary"
@@ -2411,17 +2431,25 @@ export default function StudioPage() {
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 <button
                   type="button"
-                  disabled={!hasFlashcards}
                   onClick={() => {
-                    if (!hasFlashcards) return;
                     soundEffects.playClick();
+                    if (!hasFlashcards) {
+                      toast.info(
+                        isEn
+                          ? `Artifact "${t.studio.tabs.flashcards}" is not yet crafted. Select it above and click "Generate artifacts".`
+                          : `Artifak "${t.studio.tabs.flashcards}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
+                      );
+                      return;
+                    }
                     setActiveTab("flashcards");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                     activeTab === "flashcards" && hasFlashcards
                       ? "bg-accent-700 text-text-white font-semibold shadow-xs"
-                      : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                      : hasFlashcards
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
                   )}
                 >
                   <RiFileCopyLine className="size-4" />
@@ -2435,17 +2463,25 @@ export default function StudioPage() {
 
                 <button
                   type="button"
-                  disabled={!hasQuiz}
                   onClick={() => {
-                    if (!hasQuiz) return;
                     soundEffects.playClick();
+                    if (!hasQuiz) {
+                      toast.info(
+                        isEn
+                          ? `Artifact "${t.studio.tabs.quiz}" is not yet crafted. Select it above and click "Generate artifacts".`
+                          : `Artifak "${t.studio.tabs.quiz}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
+                      );
+                      return;
+                    }
                     setActiveTab("quiz");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                     activeTab === "quiz" && hasQuiz
                       ? "bg-accent-700 text-text-white font-semibold shadow-xs"
-                      : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                      : hasQuiz
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
                   )}
                 >
                   <RiQuestionnaireLine className="size-4" />
@@ -2459,17 +2495,25 @@ export default function StudioPage() {
 
                 <button
                   type="button"
-                  disabled={!hasSummary}
                   onClick={() => {
-                    if (!hasSummary) return;
                     soundEffects.playClick();
+                    if (!hasSummary) {
+                      toast.info(
+                        isEn
+                          ? `Artifact "${t.studio.tabs.summary}" is not yet crafted. Select it above and click "Generate artifacts".`
+                          : `Artifak "${t.studio.tabs.summary}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
+                      );
+                      return;
+                    }
                     setActiveTab("summary");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                     activeTab === "summary" && hasSummary
                       ? "bg-accent-700 text-text-white font-semibold shadow-xs"
-                      : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                      : hasSummary
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
                   )}
                 >
                   <RiBookOpenLine className="size-4" />
@@ -2478,17 +2522,25 @@ export default function StudioPage() {
 
                 <button
                   type="button"
-                  disabled={!hasMindMap}
                   onClick={() => {
-                    if (!hasMindMap) return;
                     soundEffects.playClick();
+                    if (!hasMindMap) {
+                      toast.info(
+                        isEn
+                          ? `Artifact "${t.studio.tabs.mindmap}" is not yet crafted. Select it above and click "Generate artifacts".`
+                          : `Artifak "${t.studio.tabs.mindmap}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
+                      );
+                      return;
+                    }
                     setActiveTab("mindmap");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                     activeTab === "mindmap" && hasMindMap
                       ? "bg-accent-700 text-text-white font-semibold shadow-xs"
-                      : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                      : hasMindMap
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
                   )}
                 >
                   <RiNodeTree className="size-4" />
@@ -2502,17 +2554,25 @@ export default function StudioPage() {
 
                 <button
                   type="button"
-                  disabled={!hasInfographic}
                   onClick={() => {
-                    if (!hasInfographic) return;
                     soundEffects.playClick();
+                    if (!hasInfographic) {
+                      toast.info(
+                        isEn
+                          ? `Artifact "${t.studio.tabs.infographic}" is not yet crafted. Select it above and click "Generate artifacts".`
+                          : `Artifak "${t.studio.tabs.infographic}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
+                      );
+                      return;
+                    }
                     setActiveTab("infographic");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                     activeTab === "infographic" && hasInfographic
                       ? "bg-accent-700 text-text-white font-semibold shadow-xs"
-                      : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                      : hasInfographic
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
                   )}
                 >
                   <RiBarChartBoxLine className="size-4" />
@@ -2526,17 +2586,25 @@ export default function StudioPage() {
 
                 <button
                   type="button"
-                  disabled={!hasTable}
                   onClick={() => {
-                    if (!hasTable) return;
                     soundEffects.playClick();
+                    if (!hasTable) {
+                      toast.info(
+                        isEn
+                          ? `Artifact "${t.studio.tabs.table}" is not yet crafted. Select it above and click "Generate artifacts".`
+                          : `Artifak "${t.studio.tabs.table}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
+                      );
+                      return;
+                    }
                     setActiveTab("table");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                     activeTab === "table" && hasTable
                       ? "bg-accent-700 text-text-white font-semibold shadow-xs"
-                      : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                      : hasTable
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
                   )}
                 >
                   <RiTableLine className="size-4" />
@@ -2550,17 +2618,25 @@ export default function StudioPage() {
 
                 <button
                   type="button"
-                  disabled={!hasReport}
                   onClick={() => {
-                    if (!hasReport) return;
                     soundEffects.playClick();
+                    if (!hasReport) {
+                      toast.info(
+                        isEn
+                          ? `Artifact "${t.studio.tabs.report}" is not yet crafted. Select it above and click "Generate artifacts".`
+                          : `Artifak "${t.studio.tabs.report}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
+                      );
+                      return;
+                    }
                     setActiveTab("report");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                     activeTab === "report" && hasReport
                       ? "bg-accent-700 text-text-white font-semibold shadow-xs"
-                      : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                      : hasReport
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
+                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
                   )}
                 >
                   <RiFileList3Line className="size-4" />
@@ -3447,7 +3523,7 @@ export default function StudioPage() {
                                         );
                                       }}
                                       className={cx(
-                                        "flex w-full cursor-pointer flex-col justify-between gap-2 rounded-xl border p-3 text-left text-caption-1-regular transition-all",
+                                        "flex w-full cursor-pointer flex-col justify-between gap-2 rounded-xl border p-3 text-start text-caption-1-regular transition-all",
                                         isSelected
                                           ? opt.isCorrect
                                             ? "border-emerald-500 bg-emerald-500/15 text-text-primary"
@@ -3768,7 +3844,7 @@ export default function StudioPage() {
                                       }));
                                       setSelectedMindMapNode(branch);
                                     }}
-                                    className="flex items-start gap-2 text-left cursor-pointer group"
+                                    className="flex items-start gap-2 text-start cursor-pointer group"
                                   >
                                     <span className="mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-lg bg-accent-700/15 font-mono text-caption-2-semibold text-accent-700">
                                       {bIdx + 1}
@@ -3822,7 +3898,7 @@ export default function StudioPage() {
                                           setSelectedMindMapNode(leaf);
                                         }}
                                         className={cx(
-                                          "w-full text-left p-2.5 rounded-xl border transition-colors cursor-pointer space-y-0.5",
+                                          "w-full text-start p-2.5 rounded-xl border transition-colors cursor-pointer space-y-0.5",
                                           selectedMindMapNode?.id === leaf.id
                                             ? "border-accent-500/50 bg-accent-500/10"
                                             : "bg-background-secondary-default/60 border-border-button-default hover:border-accent-500/35"
@@ -4102,7 +4178,7 @@ export default function StudioPage() {
 
                     <div className="rounded-2xl border border-border-button-default overflow-hidden bg-background-secondary-default/40">
                       <div className="overflow-x-auto">
-                        <table className="w-full text-left text-caption-1-regular">
+                        <table className="w-full text-start text-caption-1-regular">
                           <thead className="bg-background-primary-default border-b border-separator-border text-text-secondary">
                             <tr>
                               {processedDoc.dataTable.columns.map((col, i) => (
@@ -4434,7 +4510,7 @@ export default function StudioPage() {
                             }}
                             aria-expanded={isOpen}
                             aria-controls={`ai-question-explanation-${index}`}
-                            className="flex w-full items-start gap-2.5 p-3 text-left transition-colors hover:bg-background-secondary-default/60 cursor-pointer"
+                            className="flex w-full items-start gap-2.5 p-3 text-start transition-colors hover:bg-background-secondary-default/60 cursor-pointer"
                           >
                             <span className="mt-0.5 font-mono text-caption-2-medium text-text-tertiary">
                               {String(index + 1).padStart(2, "0")}
@@ -4489,7 +4565,7 @@ export default function StudioPage() {
                                             }));
                                           }}
                                           className={cx(
-                                            "flex w-full items-start justify-between gap-2 rounded-xl border p-2.5 text-left text-caption-2-regular transition-colors cursor-pointer",
+                                            "flex w-full items-start justify-between gap-2 rounded-xl border p-2.5 text-start text-caption-2-regular transition-colors cursor-pointer",
                                             isSelected
                                               ? opt.isCorrect
                                                 ? "border-emerald-500 bg-emerald-500/15 text-text-primary"

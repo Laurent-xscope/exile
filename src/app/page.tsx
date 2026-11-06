@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
 import { InputBase } from "@/components/base/input/input";
 import { Spinner } from "@/components/base/spinner/spinner";
+import { ExileLogo } from "@/components/brand/exile-logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
 import { SettingsButton } from "@/components/settings/settings-modal";
@@ -91,7 +92,6 @@ export default function LandingPage() {
 
   const [isFlipped, setIsFlipped] = useState(false);
   const [showHint, setShowHint] = useState(false);
-  const [_secondsRemaining, setSecondsRemaining] = useState(30);
   const [isHovered, setIsHovered] = useState(false);
 
   const stateRef = useRef({
@@ -128,7 +128,6 @@ export default function LandingPage() {
       setCurrentCardId(nextId);
       setIsFlipped(false);
       setShowHint(false);
-      setSecondsRemaining(30);
       return;
     }
 
@@ -154,7 +153,6 @@ export default function LandingPage() {
     setHistoryIndex(hIndex + 1);
     setIsFlipped(false);
     setShowHint(false);
-    setSecondsRemaining(30);
   }, []);
 
   const handleCategorySelect = (category: CategoryFilter) => {
@@ -162,7 +160,6 @@ export default function LandingPage() {
     setSelectedCategory(category);
     setIsFlipped(false);
     setShowHint(false);
-    setSecondsRemaining(30);
 
     const pool =
       category === "all"
@@ -175,21 +172,15 @@ export default function LandingPage() {
     setHistoryIndex((prev) => prev + 1);
   };
 
-  // 30-second live countdown timer (with pause on hover)
+  // 30-second rotation (with pause on hover)
   const isTimerPaused = isHovered;
 
   useEffect(() => {
     if (isTimerPaused) return;
 
     const interval = setInterval(() => {
-      setSecondsRemaining((prev) => {
-        if (prev <= 1) {
-          handleNextCard();
-          return 30;
-        }
-        return prev - 1;
-      });
-    }, 1000);
+      handleNextCard();
+    }, 30_000);
 
     return () => clearInterval(interval);
   }, [isTimerPaused, handleNextCard]);
@@ -259,7 +250,7 @@ export default function LandingPage() {
       {/* Masthead */}
       <header className="border-b-2 border-ink bg-background-full sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div />
+          <ExileLogo size={32} showText />
 
           <div className="flex items-center gap-2">
             <LanguageToggle />
@@ -277,7 +268,7 @@ export default function LandingPage() {
             <h1 className="text-[40px] sm:text-[56px] text-text-primary">
               {t.hero.headingLine1} {t.hero.headingLine2}
             </h1>
-            <div className="h-[3px] w-24 bg-[#EF4444]" aria-hidden />
+            <div className="h-[3px] w-24 bg-red-500" aria-hidden />
 
             <p className="text-[20px] leading-[1.65] text-text-secondary max-w-2xl">
               {t.hero.subheading}
@@ -411,11 +402,21 @@ export default function LandingPage() {
             >
               {/* 3D Flip Canvas */}
               <div
-                className="relative min-h-[460px] sm:min-h-[420px] w-full cursor-pointer select-none"
+                role="button"
+                tabIndex={0}
+                aria-label={isEn ? "Flip curriculum flashcard" : "Balik kartu kurikulum"}
+                className="relative min-h-[460px] sm:min-h-[420px] w-full cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-2xl"
                 style={{ perspective: "1200px" }}
                 onClick={() => {
                   soundEffects.playClick();
                   setIsFlipped((prev) => !prev);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    soundEffects.playClick();
+                    setIsFlipped((prev) => !prev);
+                  }
                 }}
               >
                 <div

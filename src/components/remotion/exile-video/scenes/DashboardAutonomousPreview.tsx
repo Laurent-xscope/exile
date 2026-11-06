@@ -163,12 +163,11 @@ export const DashboardAutonomousPreview: React.FC = () => {
               fontSize: 12,
               fontWeight: 600,
               color: "rgba(255, 255, 255, 0.45)",
-              letterSpacing: "0.06em",
+              letterSpacing: "0.04em",
               marginLeft: 8,
-              textTransform: "uppercase",
             }}
           >
-            Exile Live Cockpit • Formative Telemetry Stream
+            Exile live cockpit • Formative telemetry stream
           </span>
         </div>
 
@@ -334,10 +333,10 @@ export const DashboardAutonomousPreview: React.FC = () => {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div>
             <div style={{ fontSize: 15, fontWeight: 600, color: "#FFFFFF" }}>
-              Analisis Tingkat Penguasaan & Diagnosis Konsep
+              Analisis tingkat penguasaan & diagnosis konsep
             </div>
             <div style={{ fontSize: 12, color: "rgba(255, 255, 255, 0.5)", marginTop: 2 }}>
-              Tolok ukur empiris literasi sekunder (Undiksha & Balai Bahasa Bali)
+              Tolok ukur empiris capaian kurikulum biologi & sains nasional
             </div>
           </div>
           <div
@@ -353,7 +352,7 @@ export const DashboardAutonomousPreview: React.FC = () => {
               cursor: "pointer",
             }}
           >
-            Kirim Latihan Remedial
+            Kirim latihan remedial
           </div>
         </div>
 
@@ -361,9 +360,9 @@ export const DashboardAutonomousPreview: React.FC = () => {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
             <span style={{ color: "rgba(255, 255, 255, 0.8)", fontWeight: 500 }}>
-              1. Kaidah Tata Santun Bahasa (Alus Sor vs Alus Singgih)
+              1. Struktur & fungsi organel sel (mitokondria vs kloroplas)
             </span>
-            <span style={{ color: "#F59E0B", fontWeight: 600 }}>{68 + waveCycle}% Penguasaan</span>
+            <span style={{ color: "#F59E0B", fontWeight: 600 }}>{68 + waveCycle}% penguasaan</span>
           </div>
           <div style={{ width: "100%", height: 7, background: "rgba(255, 255, 255, 0.08)", borderRadius: 4 }}>
             <div
@@ -381,9 +380,9 @@ export const DashboardAutonomousPreview: React.FC = () => {
         <div style={{ marginBottom: 14 }}>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
             <span style={{ color: "rgba(255, 255, 255, 0.8)", fontWeight: 500 }}>
-              2. Kaidah Ortografi Pasang Aksara (Gantungan & Adeg-adeg)
+              2. Transpor membran sel (difusi osmosis vs transpor aktif)
             </span>
-            <span style={{ color: "#3B82F6", fontWeight: 600 }}>74% Penguasaan</span>
+            <span style={{ color: "#3B82F6", fontWeight: 600 }}>74% penguasaan</span>
           </div>
           <div style={{ width: "100%", height: 7, background: "rgba(255, 255, 255, 0.08)", borderRadius: 4 }}>
             <div
@@ -401,9 +400,9 @@ export const DashboardAutonomousPreview: React.FC = () => {
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, marginBottom: 5 }}>
             <span style={{ color: "rgba(255, 255, 255, 0.8)", fontWeight: 500 }}>
-              3. Sains & Energi Terbarukan (Konversi Daya PLTS Inverter)
+              3. Metabolisme seluler (reaksi katabolisme & anabolisme ATP)
             </span>
-            <span style={{ color: "#10B981", fontWeight: 600 }}>82% Penguasaan</span>
+            <span style={{ color: "#10B981", fontWeight: 600 }}>82% penguasaan</span>
           </div>
           <div style={{ width: "100%", height: 7, background: "rgba(255, 255, 255, 0.08)", borderRadius: 4 }}>
             <div

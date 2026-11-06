@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
+const MAX_MEMORY_BUCKETS = 10_000;
+
 interface RateLimitRecord {
   timestamps: number[];
 }
@@ -32,8 +34,7 @@ if (!state.cleanup) {
 }
 
 /**
- * Prefer platform-provided headers, and take the right-most forwarded address:
- * the left-most entry is client-controlled and can be spoofed.
+ * Prefer platform-provided headers (CF-Connecting-IP, X-Vercel-Forwarded-For).
  */
 function getClientIp(req: Request): string {
   const cloudflare = req.headers.get("cf-connecting-ip");
@@ -42,7 +43,7 @@ function getClientIp(req: Request): string {
   const vercel = req.headers.get("x-vercel-forwarded-for");
   if (vercel) {
     const parts = vercel.split(",").map((part) => part.trim()).filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1];
+    if (parts.length > 0) return parts[0];
   }
 
   const realIp = req.headers.get("x-real-ip");
@@ -51,7 +52,7 @@ function getClientIp(req: Request): string {
   const forwarded = req.headers.get("x-forwarded-for");
   if (forwarded) {
     const parts = forwarded.split(",").map((part) => part.trim()).filter(Boolean);
-    if (parts.length > 0) return parts[parts.length - 1];
+    if (parts.length > 0) return parts[0];
   }
 
   return "unknown";
@@ -134,6 +135,10 @@ export async function checkRateLimit(
   const now = Date.now();
   let record = state.store.get(bucket);
   if (!record) {
+    if (state.store.size >= MAX_MEMORY_BUCKETS) {
+      const oldestKey = state.store.keys().next().value;
+      if (oldestKey) state.store.delete(oldestKey);
+    }
     record = { timestamps: [] };
     state.store.set(bucket, record);
   }

@@ -38,6 +38,15 @@ export async function POST(req: Request) {
     const { roomCode, nickname, avatar, playerToken } = parsed.data;
     const normalizedCode = normalizeRoomCode(roomCode);
 
+    const BLOCKED_TERMS = ["anjing", "babi", "bangsat", "kontol", "memek", "taek", "fuck", "shit", "bitch", "asshole"];
+    const isOffensive = BLOCKED_TERMS.some((term) => nickname.toLowerCase().includes(term));
+    if (isOffensive) {
+      return NextResponse.json(
+        { success: false, error: "Nama panggilan tidak pantas. Gunakan nama yang sopan untuk kelas." },
+        { status: 400 }
+      );
+    }
+
     if (!isValidRoomCode(normalizedCode)) {
       return NextResponse.json(
         { success: false, error: "PIN ruangan harus tepat 6 digit." },

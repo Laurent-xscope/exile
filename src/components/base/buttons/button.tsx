@@ -111,13 +111,13 @@ const styles = sortCx({
 
   variant: {
     primary:
-      "bg-ink text-paper border-ink hover:bg-[#EF4444] hover:border-[#EF4444] active:bg-[#DC2626] active:border-[#DC2626]",
+      "bg-ink text-paper border-ink hover:bg-red-500 hover:border-red-500 active:bg-red-600 active:border-red-600",
     danger:
-      "bg-[#EF4444] text-paper border-[#EF4444] hover:bg-[#DC2626] hover:border-[#DC2626] active:bg-[#B91C1C] active:border-[#B91C1C]",
+      "bg-red-500 text-paper border-red-500 hover:bg-red-600 hover:border-red-600 active:bg-red-700 active:border-red-700",
     secondary:
-      "bg-transparent text-ink border-ink hover:bg-ink hover:text-paper active:bg-[#262626]",
+      "bg-transparent text-ink border-ink hover:bg-ink hover:text-paper active:bg-neutral-700",
     ghost:
-      "bg-transparent text-ink border-transparent hover:text-[#EF4444] active:text-[#DC2626]",
+      "bg-transparent text-ink border-transparent hover:text-red-500 active:text-red-600",
   },
 });
 

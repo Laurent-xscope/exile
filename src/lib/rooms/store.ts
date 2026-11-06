@@ -17,10 +17,10 @@ import {
 
 // Guarded at every call site: when no service-role key is configured the app
 // runs in stateless in-memory mode and this client is never used.
-const supabase = getSupabaseAdmin();
 function db() {
-  if (!supabase) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required when Supabase is configured.");
-  return supabase;
+  const client = getSupabaseAdmin();
+  if (!client) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required when Supabase is configured.");
+  return client;
 }
 
 export type QuizDifficultyLevel = "mudah" | "sedang" | "sulit" | "campuran";
@@ -296,11 +296,21 @@ export async function createGameRoom(params: {
     const isPlaceholder = !isDatabaseEnabled();
 
     if (!isPlaceholder) {
+      let verifiedQuizId: string | null = null;
+      if (newRoom.quizId) {
+        const { data: qExists } = await db()
+          .from("quizzes")
+          .select("id")
+          .eq("id", newRoom.quizId)
+          .maybeSingle();
+        if (qExists) verifiedQuizId = newRoom.quizId;
+      }
+
       await withTimeout(
         db().from("game_rooms").insert({
           id: roomId,
           room_code: roomCode,
-          quiz_id: newRoom.quizId || null,
+          quiz_id: verifiedQuizId,
           host_token: newRoom.hostToken,
           host_name: newRoom.hostName,
           status: newRoom.status,
@@ -319,7 +329,7 @@ export async function createGameRoom(params: {
 
 export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord | null> {
   const cached = inMemoryRooms.get(roomCode) || null;
-  if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 250) {
+  if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 750) {
     return cached;
   }
 
@@ -769,13 +779,17 @@ export async function recordAnswerSubmission(params: {
     return { ok: false, reason: "inactive" };
   }
 
-  const responseTimeMs = Math.max(
-    0,
-    Math.min(
-      params.hostBypass ? params.responseTimeMs : serverElapsed ?? params.responseTimeMs,
-      120_000
-    )
-  );
+  const rawTime =
+    validPowerup === "time_freeze"
+      ? 0
+      : Math.max(
+          0,
+          Math.min(
+            params.hostBypass ? params.responseTimeMs : serverElapsed ?? params.responseTimeMs,
+            120_000
+          )
+        );
+  const responseTimeMs = Number.isFinite(rawTime) ? rawTime : 3000;
 
   let scoreAwarded = 0;
   let nextStreak = isCorrect ? player.streak + 1 : 0;
@@ -890,16 +904,21 @@ export async function recordAnswerSubmission(params: {
     player.score = nextScore;
     player.streak = nextStreak;
 
-    const streakDelta = nextStreak - player.streak;
-    const { data: scoreRows, error: scoreError } = await db.rpc(
-      "apply_player_score",
-      {
+    const streakDelta = isCorrect
+      ? (validPowerup === "streak_booster" ? 2 : nextStreak - player.streak)
+      : (validPowerup === "immunity" ? 0 : -999999);
+
+    const scoreRes = (await withTimeout(
+      db.rpc("apply_player_score", {
         p_room_code: params.roomCode,
         p_player_id: player.id,
         p_score_delta: scoreAwarded,
-        p_streak_delta: isCorrect ? 1 : validPowerup === "immunity" ? 0 : -999999,
-      }
-    );
+        p_streak_delta: streakDelta,
+      }),
+      2000
+    )) as { data: unknown; error: unknown } | null;
+    const scoreRows = scoreRes?.data;
+    const scoreError = scoreRes?.error;
 
     if (!scoreError && Array.isArray(scoreRows) && scoreRows[0]) {
       const updated = scoreRows[0] as { score: number; streak: number };
@@ -1237,6 +1256,35 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
   }
   const isPlaceholder = !isDatabaseEnabled();
 
+  // If the room has not started yet, begin at question 0 instead of skipping to 1
+  if (room.status === "waiting") {
+    room.status = "active";
+    room.currentQuestionIndex = 0;
+    room.questionStartTime = new Date().toISOString();
+    room.updatedAt = new Date().toISOString();
+    room.lastSyncedAt = Date.now();
+
+    try {
+      if (!isPlaceholder) {
+        await withTimeout(
+          db()
+            .from("game_rooms")
+            .update({
+              status: "active",
+              current_question_index: 0,
+              updated_at: room.updatedAt,
+            })
+            .match({ room_code: roomCode }),
+          1500
+        );
+      }
+    } catch (err) {
+      console.warn("[RoomStore] Supabase start sync omitted:", err);
+    }
+
+    return { success: true, isFinished: false, currentQuestionIndex: 0 };
+  }
+
   const nextIndex = room.currentQuestionIndex + 1;
   if (nextIndex >= room.questions.length) {
     room.status = "finished";
@@ -1296,7 +1344,7 @@ export async function setRoomStatus(
   const room = await ensureRoomLoaded(roomCode);
   if (!room) return false;
   room.status = status;
-  if (status === "active") {
+  if (status === "active" || status === "question_active") {
     room.questionStartTime = new Date().toISOString();
   }
   room.updatedAt = new Date().toISOString();
@@ -1310,7 +1358,7 @@ export async function setRoomStatus(
         status,
         updated_at: room.updatedAt,
       };
-      if (status === "active") {
+      if (status === "active" || status === "question_active") {
         updatePayload.question_start_time = room.questionStartTime;
       }
       await withTimeout(

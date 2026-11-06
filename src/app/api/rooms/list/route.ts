@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
 import { listActiveRooms } from "@/lib/rooms/store";
+import { checkRateLimit } from "@/lib/security/rate-limiter";
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rateLimit = await checkRateLimit(req, 60, 60_000);
+  if (!rateLimit.allowed && rateLimit.errorResponse) {
+    return rateLimit.errorResponse;
+  }
+
   try {
     const rooms = await listActiveRooms();
     return NextResponse.json(

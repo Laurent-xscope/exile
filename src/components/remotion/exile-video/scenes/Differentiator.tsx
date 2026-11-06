@@ -88,7 +88,7 @@ export const DifferentiatorScene: React.FC = () => {
               transform: `translateY(${(1 - advice) * 140}px) scale(${0.92 + 0.08 * advice})`,
             }}
           >
-            <div style={{ ...body(24, t.ink, 700), letterSpacing: "0.1em", textTransform: "uppercase", opacity: 0.75 }}>
+            <div style={{ ...body(24, t.ink, 700), letterSpacing: "0.04em", opacity: 0.75 }}>
               {COPY.differentiator.adviceTag}
             </div>
             <div style={{ ...display(46, t.ink) }}>{COPY.differentiator.adviceTitle}</div>

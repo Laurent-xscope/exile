@@ -25,7 +25,7 @@ const STATUS_BY_REASON: Record<string, number> = {
 };
 
 export async function POST(req: Request) {
-  const rateLimit = await checkRateLimit(req, 60, 60_000);
+  const rateLimit = await checkRateLimit(req, 300, 60_000);
   if (!rateLimit.allowed && rateLimit.errorResponse) {
     return rateLimit.errorResponse;
   }

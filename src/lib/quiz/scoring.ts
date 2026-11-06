@@ -44,10 +44,12 @@ export function calculateResponseScore({
     };
   }
 
-  const limit = Math.max(1, totalTimeMs);
-  const remainingRatio = Math.max(0, Math.min(1, (limit - timeTakenMs) / limit));
+  const safeTotalTime = Number.isFinite(totalTimeMs) && totalTimeMs > 0 ? totalTimeMs : 20000;
+  const safeTimeTaken = Number.isFinite(timeTakenMs) ? Math.max(0, timeTakenMs) : safeTotalTime;
+  const limit = Math.max(1, safeTotalTime);
+  const remainingRatio = Math.max(0, Math.min(1, (limit - safeTimeTaken) / limit));
   const timer = Math.round(remainingRatio * MAX_TIMER_BONUS);
-  const newStreak = Math.max(0, currentStreak) + 1;
+  const newStreak = (Number.isFinite(currentStreak) ? Math.max(0, currentStreak) : 0) + 1;
 
   let streak = 0;
   if (streakBonusEnabled) {
@@ -84,8 +86,10 @@ export function deriveScoreBreakdown({
     return { base: 0, timer: 0, streak: 0 };
   }
 
-  const limit = Math.max(1, totalTimeMs);
-  const remainingRatio = Math.max(0, Math.min(1, (limit - timeTakenMs) / limit));
+  const safeTotalTime = Number.isFinite(totalTimeMs) && totalTimeMs > 0 ? totalTimeMs : 20000;
+  const safeTimeTaken = Number.isFinite(timeTakenMs) ? Math.max(0, timeTakenMs) : safeTotalTime;
+  const limit = Math.max(1, safeTotalTime);
+  const remainingRatio = Math.max(0, Math.min(1, (limit - safeTimeTaken) / limit));
   const base = Math.min(BASE_SCORE, scoreAwarded);
   const timer = Math.min(
     Math.round(remainingRatio * MAX_TIMER_BONUS),
@@ -111,7 +115,7 @@ export function evaluateQuizResponse(
   const selected = String(selectedLabel ?? "").trim().toUpperCase();
   const expected = String(
     question.correctAnswer ||
-      question.options.find((option) => option.isCorrect)?.label ||
+      (Array.isArray(question.options) ? question.options.find((option) => option.isCorrect)?.label : "") ||
       ""
   )
     .trim()

@@ -363,7 +363,7 @@ const PhoneJoin: React.FC<{ pin: string }> = ({ pin }) => {
       <UrlBar url="exile.web.id" />
       <div style={{ ...display(64, t.teal), textAlign: "center", marginTop: 110 }}>exile</div>
       <div style={{ margin: "34px 32px 0", ...body(34, t.ink, 700), padding: "18px 22px", borderRadius: 18, border: `2px solid ${t.teal}`, letterSpacing: "0.18em" }}>
-        {pin.slice(0, typed) || <span style={{ color: t.muted, letterSpacing: 0, fontWeight: 500 }}>Masukkan PIN</span>}
+        {pin.slice(0, typed) || <span style={{ color: t.muted, letterSpacing: 0, fontWeight: 500 }}>Masukkan pin</span>}
       </div>
       <div style={{ margin: "16px 32px 0", ...body(30, t.ink, 600), padding: "18px 22px", borderRadius: 18, border: "2px solid rgba(20,40,42,0.18)", minHeight: 30 }}>
         {nick || <span style={{ color: t.muted, fontWeight: 500 }}>Nama panggilan</span>}
@@ -499,7 +499,7 @@ const PhoneResult: React.FC = () => {
       <div style={{ ...display(40, t.ink), marginTop: 24 }}>Kuis selesai!</div>
       <div style={{ ...body(26, t.muted, 600), marginTop: 10 }}>2 konsep perlu diulang</div>
       <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
-        {["Alus singgih", "Kata ganti"].map((c, i) => (
+        {["Mitokondria", "Lisosom"].map((c, i) => (
           <Chip key={c} text={c} delay={30 + i * 6} />
         ))}
       </div>

@@ -102,9 +102,9 @@
 
   --color-text-primary: #0a0a0a;
   --color-text-secondary: #525252;
-  --color-text-tertiary: #a3a3a3;
-  --color-text-disabled: #a3a3a3;
-  --color-text-placeholder: #a3a3a3;
+  --color-text-tertiary: #595959;
+  --color-text-disabled: #595959;
+  --color-text-placeholder: #595959;
   --color-text-error-primary: #ef4444;
   --color-text-destructive: #ef4444;
   --color-text-white: #fafafa;
@@ -578,10 +578,10 @@ samp {
   --color-background-recent-hire-role: #171717;
 
   --color-text-primary: #fafafa;
-  --color-text-secondary: #a3a3a3;
-  --color-text-tertiary: #737373;
-  --color-text-disabled: #737373;
-  --color-text-placeholder: #737373;
+  --color-text-secondary: #d4d4d4;
+  --color-text-tertiary: #a3a3a3;
+  --color-text-disabled: #a3a3a3;
+  --color-text-placeholder: #a3a3a3;
   --color-text-error-primary: #ef4444;
   --color-text-destructive: #ef4444;
   --color-text-white: #0a0a0a;

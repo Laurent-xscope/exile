@@ -6,7 +6,7 @@ import {
   RiLogoutBoxRLine,
   RiBookOpenLine,
   RiArrowDownSLine,
-  RiSparklingLine,
+  RiQuillPenLine,
   RiLoginBoxLine,
 } from "@remixicon/react";
 import { Avatar } from "@/components/base/avatar/avatar";
@@ -96,7 +96,7 @@ export function UserNav() {
         />
       </DropdownTrigger>
 
-      <DropdownPopover aria-label={isEn ? "Account Menu" : "Menu Akun"} placement="bottom end">
+      <DropdownPopover aria-label={isEn ? "Account menu" : "Menu akun"} placement="bottom end">
         <div className="flex flex-col gap-1.5 px-2 py-1.5">
           <div className="flex items-center gap-2.5">
             <Avatar
@@ -128,7 +128,7 @@ export function UserNav() {
               router.push("/studio");
             }}
           >
-            <RiSparklingLine
+            <RiQuillPenLine
               className="size-4 shrink-0 text-foreground-icon-secondary"
               aria-hidden
             />

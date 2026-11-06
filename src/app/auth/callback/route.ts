@@ -12,9 +12,8 @@ function safeNextPath(value: string | null): string {
 
 export async function GET(request: Request) {
   const url = new URL(request.url);
-  const forwardedHost = request.headers.get("x-forwarded-host");
-  const forwardedProto = request.headers.get("x-forwarded-proto") || "https";
-  const origin = forwardedHost ? `${forwardedProto}://${forwardedHost}` : url.origin;
+  // Use verified server request origin to prevent Host Header Poisoning / Open Redirects
+  const origin = url.origin;
 
   const searchParams = url.searchParams;
   const code = searchParams.get("code");

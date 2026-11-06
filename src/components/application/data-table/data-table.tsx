@@ -430,7 +430,7 @@ export function DataTableExample({
       {/* Toolbar */}
       <div className="flex w-full flex-col items-start gap-3 px-3 py-1 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col justify-center">
-          <p className="text-body-medium whitespace-nowrap text-text-tertiary">Total Results</p>
+          <p className="text-body-medium whitespace-nowrap text-text-tertiary">Total results</p>
           <p className="text-body-medium whitespace-nowrap text-text-primary">
             {data.length.toLocaleString()} customers
           </p>

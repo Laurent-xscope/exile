@@ -97,7 +97,7 @@ const Workspace: React.FC = () => {
         <div style={{ ...body(26, t.muted, 600), marginLeft: 18 }}>{COPY.solution.windowTitle}</div>
       </div>
       <div style={{ padding: 40 }}>
-        <div style={{ ...body(26, t.muted, 700), letterSpacing: "0.08em", textTransform: "uppercase" }}>
+        <div style={{ ...body(26, t.muted, 700), letterSpacing: "0.04em" }}>
           {COPY.solution.moduleLabel}
         </div>
         <div

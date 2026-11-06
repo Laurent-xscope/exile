@@ -34,7 +34,7 @@ export function MacOSToggle({
   };
 
   const activeBg =
-    color === "green" ? "bg-[#34C759] border-[#34C759]" : "bg-accent-600 border-accent-600";
+    color === "green" ? "bg-green-600 border-green-600" : "bg-accent-700 border-accent-700";
 
   return (
     <button
@@ -49,7 +49,7 @@ export function MacOSToggle({
         "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring focus-visible:ring-offset-1",
         checked
           ? activeBg
-          : "bg-[#E5E5EA] dark:bg-[#39393D] border-[#D1D1D6] dark:border-[#48484A]",
+          : "bg-background-tertiary-default border-border-button-default",
         disabled && "opacity-50 cursor-not-allowed",
         className
       )}
@@ -57,8 +57,8 @@ export function MacOSToggle({
       <span
         aria-hidden="true"
         className={cx(
-          "pointer-events-none inline-block size-[18px] rounded-full bg-[#FAFAFA] transition-transform duration-200 ease-out",
-          checked ? "translate-x-[17px]" : "translate-x-[1px]",
+          "pointer-events-none inline-block size-[18px] rounded-full bg-background-primary-default transition-transform duration-200 ease-out",
+          checked ? "translate-x-[17px] rtl:-translate-x-[17px]" : "translate-x-[1px] rtl:-translate-x-[1px]",
           "shadow-[0_2px_4px_rgba(0,0,0,0.2),0_0_1px_rgba(0,0,0,0.15)]"
         )}
       />

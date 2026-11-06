@@ -387,9 +387,18 @@ export function QuizUpload({
       </div>
 
       {error && (
-        <p role="alert" className="rounded-xl border border-border-error-default bg-background-tertiary-error px-3.5 py-2.5 text-caption-1-medium text-text-error-primary">
-          {error}
-        </p>
+        <div role="alert" className="rounded-2xl border border-border-error-default bg-background-tertiary-error p-3.5 space-y-2">
+          <p className="text-caption-1-medium text-text-error-primary">{error}</p>
+          <div className="flex items-center gap-2 pt-1">
+            <button
+              type="button"
+              onClick={submit}
+              className="text-caption-2-medium text-text-error-primary underline hover:opacity-80 cursor-pointer"
+            >
+              {isEn ? "Retry generation" : "Coba buat ulang"}
+            </button>
+          </div>
+        </div>
       )}
 
       <Button variant="primary" onClick={submit} disabled={!canSubmit} className="w-full">

@@ -133,7 +133,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       <ModalBody className="py-2">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[360px]">
           {/* Side navigation */}
-          <nav className="md:col-span-4 flex md:flex-col gap-1 border-b md:border-b-0 md:border-r border-separator-border pb-3 md:pb-0 md:pr-4">
+          <nav className="md:col-span-4 flex md:flex-col gap-1 border-b md:border-b-0 md:border-r border-separator-border pb-3 md:pb-0 md:pr-4 overflow-x-auto no-scrollbar">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -143,7 +143,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   type="button"
                   onClick={() => setActiveTab(item.id)}
                   className={cx(
-                    "flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-body-2-medium transition-colors cursor-pointer text-start select-none w-full",
+                    "flex shrink-0 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-body-2-medium transition-colors cursor-pointer text-start select-none md:w-full",
                     "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                     isActive
                       ? "bg-accent-50 text-accent-800 font-semibold"
@@ -374,7 +374,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4">
                   <Input
                     label="Nama panggilan standar"
-                    placeholder="Contoh: putu aryana"
+                    placeholder="Contoh: dimas arya"
                     hint="Nama ini akan otomatis terisi saat anda bergabung ke ruang kuis."
                     leadingIcon={RiUser3Line}
                     value={settings.defaultNickname}
