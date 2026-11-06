@@ -19,7 +19,7 @@ export const BarChart: React.FC<{
   const { fps } = useVideoConfig();
   const text = tone === "light" ? t.ink : t.cream;
   const track = tone === "light" ? "rgba(20,40,42,0.09)" : "rgba(247,241,227,0.14)";
-  const barMax = width - labelWidth - 110;
+  const barMax = Math.max(60, width - labelWidth - 130);
   return (
     <div style={{ width, display: "flex", flexDirection: "column", gap: 0 }}>
       {data.map((d, i) => {
@@ -37,8 +37,8 @@ export const BarChart: React.FC<{
               opacity: interpolate(s, [0, 0.3], [0, 1], { extrapolateRight: "clamp" }),
             }}
           >
-            <div style={{ ...body(fontSize, text, hot ? 700 : 600), width: labelWidth }}>{d.label}</div>
-            <div style={{ width: barMax, height: 30, borderRadius: 15, background: track, overflow: "hidden" }}>
+            <div style={{ ...body(fontSize, text, hot ? 700 : 600), width: labelWidth, flexShrink: 0 }}>{d.label}</div>
+            <div style={{ width: barMax, height: 30, borderRadius: 15, background: track, overflow: "hidden", flexShrink: 0 }}>
               <div
                 style={{
                   width: `${d.value * s}%`,
@@ -48,7 +48,7 @@ export const BarChart: React.FC<{
                 }}
               />
             </div>
-            <div style={{ ...body(fontSize, hot ? t.danger : text, 700), width: 90, textAlign: "right" }}>
+            <div style={{ ...body(fontSize, hot ? t.danger : text, 700), width: 90, textAlign: "right", flexShrink: 0 }}>
               {value}%
             </div>
           </div>

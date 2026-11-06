@@ -215,9 +215,9 @@ const QuizScreen: React.FC = () => {
   const frame = useCurrentFrame();
   const counts = [2, 14, 7, 1];
   return (
-    <AbsoluteFill style={{ padding: "40px 48px" }}>
-      <div style={{ ...display(42, t.cream, 600), lineHeight: 1.2 }}>{COPY.classroom.question}</div>
-      <div style={{ marginTop: 30, display: "flex", flexDirection: "column", gap: 16 }}>
+    <AbsoluteFill style={{ padding: "36px 44px" }}>
+      <div style={{ ...display(40, t.cream, 600), lineHeight: 1.2 }}>{COPY.classroom.question}</div>
+      <div style={{ marginTop: 24, display: "flex", flexDirection: "column", gap: 14 }}>
         {COPY.classroom.options.map((o, i) => {
           const s = ramp(frame, 28 + i * 6, 70 + i * 6, 0, 1, Easing.out(Easing.cubic));
           const hot = i === COPY.classroom.pickedIndex;
@@ -235,11 +235,12 @@ const QuizScreen: React.FC = () => {
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  flexShrink: 0,
                 }}
               >
                 {"ABCD"[i]}
               </div>
-              <div style={{ ...body(32, t.cream, 700), width: 150 }}>{o}</div>
+              <div style={{ ...body(32, t.cream, 700), width: 220, flexShrink: 0, whiteSpace: "nowrap" }}>{o}</div>
               <div style={{ flex: 1, height: 34, borderRadius: 17, background: "rgba(247,241,227,0.14)", overflow: "hidden" }}>
                 <div
                   style={{
@@ -250,7 +251,7 @@ const QuizScreen: React.FC = () => {
                   }}
                 />
               </div>
-              <div style={{ ...body(32, t.cream, 700), width: 44, textAlign: "right" }}>
+              <div style={{ ...body(32, t.cream, 700), width: 44, textAlign: "right", flexShrink: 0 }}>
                 {Math.round(counts[i] * s)}
               </div>
             </div>
@@ -271,7 +272,7 @@ const ReportScreen: React.FC = () => {
         <SampleTag />
       </div>
       <div style={{ marginTop: 28 }}>
-        <BarChart data={rows} delay={14} width={940} labelWidth={360} rowHeight={112} fontSize={30} tone="dark" />
+        <BarChart data={rows} delay={14} width={940} labelWidth={390} rowHeight={112} fontSize={28} tone="dark" />
       </div>
     </AbsoluteFill>
   );
@@ -400,8 +401,8 @@ const PhoneQuiz: React.FC = () => {
   const sheet = useEnter(48, { damping: 18, stiffness: 120, mass: 0.9 });
   return (
     <AbsoluteFill>
-      <div style={{ ...body(23, t.ink, 700), margin: "62px 22px 0", lineHeight: 1.3 }}>{COPY.classroom.question}</div>
-      <div style={{ margin: "20px 22px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+      <div style={{ ...body(22, t.ink, 700), margin: "58px 18px 0", lineHeight: 1.3 }}>{COPY.classroom.question}</div>
+      <div style={{ margin: "16px 18px 0", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         {COPY.classroom.options.map((o, i) => (
           <PhoneOption
             key={o}
@@ -418,17 +419,17 @@ const PhoneQuiz: React.FC = () => {
           left: 0,
           right: 0,
           bottom: 0,
-          height: 270,
+          height: 275,
           background: t.cream,
           borderTop: `6px solid ${t.danger}`,
-          borderRadius: "30px 30px 0 0",
-          padding: "26px 28px",
-          transform: `translateY(${(1 - sheet) * 280}px)`,
+          borderRadius: "28px 28px 0 0",
+          padding: "22px 24px 28px",
+          transform: `translateY(${(1 - sheet) * 285}px)`,
           boxShadow: "0 -20px 40px rgba(0,0,0,0.12)",
         }}
       >
-        <div style={{ ...display(32, t.danger) }}>{COPY.classroom.feedbackTitle}</div>
-        <div style={{ ...body(23, t.ink, 500), marginTop: 8, lineHeight: 1.4 }}>{COPY.classroom.feedbackBody}</div>
+        <div style={{ ...display(30, t.danger) }}>{COPY.classroom.feedbackTitle}</div>
+        <div style={{ ...body(21, t.ink, 500), marginTop: 8, lineHeight: 1.35 }}>{COPY.classroom.feedbackBody}</div>
       </div>
     </AbsoluteFill>
   );
@@ -445,13 +446,16 @@ const PhoneOption: React.FC<{ label: string; index: number; dim: boolean; pressS
   return (
     <div
       style={{
-        ...body(28, index === 1 ? t.ink : "#fff", 700),
-        height: 98,
-        borderRadius: 22,
+        ...body(20, index === 1 ? t.ink : "#fff", 700),
+        height: 86,
+        padding: "0 8px",
+        borderRadius: 20,
         background: OPTION_COLORS[index],
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        textAlign: "center",
+        whiteSpace: "nowrap",
         boxShadow: "0 8px 0 rgba(0,0,0,0.2)",
         opacity: Math.min(1, s * 2) * (dim ? 0.35 : 1),
         transform: `scale(${(0.7 + 0.3 * s) * pressScale})`,
@@ -489,16 +493,16 @@ const PhoneResult: React.FC = () => {
   const frame = useCurrentFrame();
   const v = ramp(frame, 8, 50, 0, 0.8, Easing.out(Easing.cubic));
   return (
-    <AbsoluteFill style={{ alignItems: "center", paddingTop: 110 }}>
+    <AbsoluteFill style={{ alignItems: "center", paddingTop: 90 }}>
       <div style={{ position: "relative", width: 260, height: 260 }}>
         <Ring theme={t} value={v} />
         <div style={{ ...display(84, t.teal), position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
           {Math.round(v * 100)}
         </div>
       </div>
-      <div style={{ ...display(40, t.ink), marginTop: 24 }}>Kuis selesai!</div>
-      <div style={{ ...body(26, t.muted, 600), marginTop: 10 }}>2 konsep perlu diulang</div>
-      <div style={{ display: "flex", gap: 10, marginTop: 24 }}>
+      <div style={{ ...display(40, t.ink), marginTop: 22 }}>Kuis selesai!</div>
+      <div style={{ ...body(24, t.muted, 600), marginTop: 8 }}>2 konsep perlu diulang</div>
+      <div style={{ display: "flex", gap: 10, marginTop: 20, justifyContent: "center", flexWrap: "wrap", padding: "0 16px" }}>
         {["Mitokondria", "Lisosom"].map((c, i) => (
           <Chip key={c} text={c} delay={30 + i * 6} />
         ))}
@@ -511,7 +515,16 @@ const Chip: React.FC<{ text: string; delay: number }> = ({ text, delay }) => {
   const t = useTheme();
   const s = useEnter(delay);
   return (
-    <div style={{ ...body(21, t.ink, 700), padding: "9px 14px", borderRadius: 999, background: t.gold, transform: `scale(${s})` }}>
+    <div
+      style={{
+        ...body(20, "#fff", 700),
+        padding: "8px 16px",
+        borderRadius: 999,
+        background: t.gold,
+        transform: `scale(${s})`,
+        whiteSpace: "nowrap",
+      }}
+    >
       {text}
     </div>
   );

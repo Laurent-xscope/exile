@@ -216,8 +216,8 @@ const SummaryCard: React.FC = () => {
     <OutputCard index={0} title={COPY.solution.outputs.summary}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         {COPY.solution.glossary.map(([term, def]) => (
-          <div key={term} style={{ ...body(29, t.ink, 500), display: "flex", gap: 12 }}>
-            <span style={{ fontWeight: 700, color: t.teal, minWidth: 190 }}>{term}</span>
+          <div key={term} style={{ ...body(29, t.ink, 500), display: "flex", gap: 14 }}>
+            <span style={{ fontWeight: 700, color: t.teal, minWidth: 205, flexShrink: 0 }}>{term}</span>
             <span>{def}</span>
           </div>
         ))}
@@ -238,16 +238,17 @@ const FlashcardCard: React.FC = () => {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    padding: "0 20px",
   };
   return (
     <OutputCard index={1} title={COPY.solution.outputs.cards}>
       <div style={{ perspective: 900, display: "flex", justifyContent: "center", flex: 1 }}>
-        <div style={{ position: "relative", width: 360, height: 118, transformStyle: "preserve-3d", transform: `rotateY(${flip * 180}deg)` }}>
+        <div style={{ position: "relative", width: 380, height: 118, transformStyle: "preserve-3d", transform: `rotateY(${flip * 180}deg)` }}>
           <div style={{ ...face, background: t.teal }}>
-            <span style={{ ...display(50, t.cream) }}>{COPY.solution.cardFront}</span>
+            <span style={{ ...display(48, t.cream), textAlign: "center", whiteSpace: "nowrap" }}>{COPY.solution.cardFront}</span>
           </div>
           <div style={{ ...face, background: t.gold, transform: "rotateY(180deg)" }}>
-            <span style={{ ...body(32, t.ink, 700) }}>{COPY.solution.cardBack}</span>
+            <span style={{ ...body(32, "#fff", 700), textAlign: "center" }}>{COPY.solution.cardBack}</span>
           </div>
         </div>
       </div>
@@ -269,11 +270,12 @@ const QuizCard: React.FC = () => {
             <div
               key={o}
               style={{
-                ...body(28, correct && pick > 0.5 ? t.ink : t.teal, 700),
+                ...body(24, correct && pick > 0.5 ? "#fff" : t.teal, 700),
                 flex: 1,
                 textAlign: "center",
-                padding: "14px 0",
+                padding: "13px 6px",
                 borderRadius: 14,
+                whiteSpace: "nowrap",
                 background: correct && pick > 0.5 ? t.gold : "rgba(11,59,60,0.08)",
               }}
             >
