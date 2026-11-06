@@ -144,6 +144,7 @@ class SoundEngine {
     }
   }
 
+  // Soft click for tactile button press
   public playClick() {
     this.playTones(() => [
       {
@@ -157,6 +158,7 @@ class SoundEngine {
     ]);
   }
 
+  // Countdown timer tick (woodblock rhythm)
   public playTick() {
     if (!this.countdownTicksEnabled) return;
     this.playTones(() => [
@@ -171,6 +173,7 @@ class SoundEngine {
     ]);
   }
 
+  // Celebratory correct answer chime (harmonic overtone)
   public playCorrect() {
     this.playTones(() => {
       const notes = [523.25, 659.25, 783.99, 1046.5]; // C5, E5, G5, C6 arpeggio
@@ -184,6 +187,7 @@ class SoundEngine {
     });
   }
 
+  // Gentle feedback for incorrect choice
   public playIncorrect() {
     this.playTones(() => {
       const notes = [311.13, 261.63]; // Eb4 down to C4
@@ -197,6 +201,7 @@ class SoundEngine {
     });
   }
 
+  // Streak celebration fanfare based on streak count
   public playStreak(streakCount: number = 3) {
     this.playTones(() => {
       const scale =
@@ -213,6 +218,7 @@ class SoundEngine {
     });
   }
 
+  // Victory fanfare for leaderboard / game completion
   public playVictory() {
     this.playTones(() => {
       const chords = [
