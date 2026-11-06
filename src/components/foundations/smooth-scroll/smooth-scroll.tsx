@@ -16,6 +16,7 @@ import {
   type RefObject,
 } from "react";
 import { RiArrowUpLine } from "@remixicon/react";
+import { Button } from "@/components/base/buttons/button";
 import { cx } from "@/utils/cx";
 
 export interface SmoothScrollOptions {
@@ -622,24 +623,23 @@ export function ScrollToTopButton({
   }, [threshold]);
 
   return (
-    <button
+    <Button
       type="button"
-      onClick={() => scrollToTop()}
+      variant="secondary"
+      iconOnly
+      size="medium"
+      leadingIcon={RiArrowUpLine}
       aria-label={label}
       title={label}
+      onClick={() => scrollToTop()}
       className={cx(
-        "fixed bottom-6 end-6 z-30 inline-flex items-center justify-center size-10 rounded-full",
-        "bg-background-primary-default/90 backdrop-blur-md border border-border-button-default",
-        "text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover",
-        "shadow-card transition-all duration-300 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring cursor-pointer",
+        "fixed bottom-6 end-6 z-30 rounded-full shadow-card transition-all duration-300",
         isVisible
           ? "opacity-100 translate-y-0 pointer-events-auto"
           : "opacity-0 translate-y-3 pointer-events-none",
         className
       )}
       {...props}
-    >
-      <RiArrowUpLine className="size-5" />
-    </button>
+    />
   );
 }
