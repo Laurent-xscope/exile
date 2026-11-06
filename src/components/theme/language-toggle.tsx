@@ -113,7 +113,7 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
       >
         {isID ? <FlagIconID /> : <FlagIconUS />}
         <span className="text-caption-1-semibold tracking-wide font-mono">
-          {isID ? "Id" : "En"}
+          {isID ? "ID" : "EN"}
         </span>
         <RiArrowDownSLine
           className={cx(
