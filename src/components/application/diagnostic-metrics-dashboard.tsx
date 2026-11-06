@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import { useState } from "react";
 import {
   RiBarChartGroupedLine,
   RiTableLine,
-  RiSparklingLine,
+  RiBarChartLine,
   RiCheckLine,
   RiAlertLine,
   RiTimeLine,
@@ -143,7 +143,7 @@ export function DiagnosticMetricsDashboard({
         <div className="p-4 rounded-2xl border border-border-button-default bg-background-secondary-default/50 space-y-1">
           <div className="flex items-center justify-between text-text-tertiary">
             <span className="text-caption-2-medium">Rata-rata penguasaan</span>
-            <RiSparklingLine className="size-4 text-accent-700" />
+            <RiBarChartLine className="size-4 text-accent-700" />
           </div>
           <div className="text-title-2-bold font-mono text-text-primary">78.7%</div>
           <span className="text-caption-2-regular text-emerald-600 dark:text-emerald-400 block">

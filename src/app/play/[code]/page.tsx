@@ -20,9 +20,9 @@ export default function PlayArenaPage({
     <Suspense
       fallback={
         <div className="min-h-screen bg-background-full flex flex-col items-center justify-center text-text-secondary gap-4">
-          <Spinner size="md" aria-label="Menghubungkan ke Game Arena Exile" />
+          <Spinner size="md" aria-label="Menghubungkan ke game arena exile" />
           <p className="text-body-regular text-text-secondary">
-            Menghubungkan ke Game Arena Exile...
+            Menghubungkan ke game arena exile...
           </p>
         </div>
       }

@@ -150,12 +150,6 @@ export const DocumentAnalysisSchema = z.object({
   transcription: z.string().optional(),
 });
 
-export type FlashcardItem = z.infer<typeof FlashcardItemSchema>;
-export type SlideItem = z.infer<typeof SlideItemSchema>;
-export type PedagogicalReport = z.infer<typeof PedagogicalReportSchema>;
-export type DataTableData = z.infer<typeof DataTableSchema>;
-export type InfographicData = z.infer<typeof InfographicSchema>;
-export type StudentPovInsight = z.infer<typeof StudentPovInsightSchema>;
 export type DocumentAnalysis = z.infer<typeof DocumentAnalysisSchema>;
 
 /**

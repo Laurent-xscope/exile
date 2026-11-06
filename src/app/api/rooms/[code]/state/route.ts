@@ -35,7 +35,6 @@ export async function GET(
       );
     }
 
-    // Compute lightweight ETag based on room state version
     const etag = `"${state.status}-${state.currentQuestionIndex}-${state.questionStartedAt || ""}-${state.players.length}-${state.totalSubmissionsCount}-${state.updatedAt || ""}"`;
 
     const clientEtag = req.headers.get("if-none-match");

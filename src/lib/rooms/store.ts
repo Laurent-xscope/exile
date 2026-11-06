@@ -3,7 +3,11 @@ import {
   isDatabaseEnabled,
 } from "@/lib/supabase-admin";
 import type { Question } from "@/types/assessment";
-import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
+import {
+  generateRandomRoomPin,
+  isValidRoomCode,
+  normalizeRoomCode,
+} from "@/lib/rooms/code";
 import {
   calculateResponseScore,
   deriveScoreBreakdown,
@@ -14,7 +18,6 @@ import {
   calculateScoreWithPowerups,
   type PowerupId,
 } from "@/lib/wayground/score-powerups";
-import { generateRandomRoomPin } from "@/lib/rooms/code";
 import {
   shuffleQuestionOptions,
   type QuizDifficultyLevel,
@@ -1118,17 +1121,6 @@ export async function recordAnswerSubmission(params: {
   };
 }
 
-export async function getRoomSubmissions(roomCode: string) {
-  const room = await ensureRoomLoaded(roomCode);
-  if (!room) return [];
-  return room.submissions;
-}
-
-export async function getRoomQuestions(roomCode: string): Promise<Question[]> {
-  const room = await ensureRoomLoaded(roomCode);
-  return room ? room.questions : [];
-}
-
 export interface StoredQuizRecord {
   id: string;
   title: string;
@@ -1203,10 +1195,6 @@ export async function storeQuiz(
   }
 
   return record;
-}
-
-export function getStoredQuiz(quizId: string): StoredQuizRecord | null {
-  return inMemoryQuizzes.get(quizId) || null;
 }
 
 /** Attach a freshly generated question set to a room that has not started yet. */

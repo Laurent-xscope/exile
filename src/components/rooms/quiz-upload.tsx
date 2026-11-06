@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { RiFileTextLine, RiUploadCloud2Line, RiCloseLine } from "@remixicon/react";
 import { toast } from "sonner";
 import { Button } from "@/components/base/buttons/button";

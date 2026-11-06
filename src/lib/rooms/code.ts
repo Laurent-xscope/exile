@@ -1,4 +1,3 @@
-export const ROOM_CODE_LENGTH = 6;
 const ROOM_CODE_PATTERN = /^\d{6}$/;
 
 /** Keep only digits so pasted "PIN 123 456" becomes "123456". */

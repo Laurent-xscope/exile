@@ -1,7 +1,6 @@
 /* Landing-page player chrome. Default export, client-only (mounted via next/dynamic). */
 "use client";
 
-import React from "react";
 import { Player } from "@remotion/player";
 import { ExileVideo } from "./ExileVideo";
 import { DEFAULT_PROPS, FPS, HEIGHT, TOTAL_FRAMES, WIDTH } from "./constants";

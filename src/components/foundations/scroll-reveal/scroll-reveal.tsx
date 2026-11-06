@@ -103,6 +103,13 @@ export function ScrollReveal({
       ? "scroll-reveal-fade"
       : "scroll-reveal";
 
+  const scrollDrivenClass =
+    variant === "scale-up"
+      ? "scroll-driven-scale"
+      : variant === "fade"
+      ? "scroll-driven-fade"
+      : "scroll-driven-reveal";
+
   const dynamicStyle: React.CSSProperties = {
     ...style,
     ...(delay ? { transitionDelay: `${delay}ms` } : {}),
@@ -114,7 +121,7 @@ export function ScrollReveal({
       ref={ref}
       className={cx(
         variantClass,
-        "scroll-driven-reveal",
+        scrollDrivenClass,
         isVisible && "is-visible",
         className
       )}

@@ -1,6 +1,5 @@
 "use client";
 
-import React from "react";
 import { cx } from "@/utils/cx";
 
 interface MacOSToggleProps {

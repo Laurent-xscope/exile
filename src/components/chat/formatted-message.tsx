@@ -18,7 +18,6 @@ interface FormattedMessageProps {
 export function FormattedMessage({ content, className = "" }: FormattedMessageProps) {
   if (!content) return null;
 
-  // Split lines to preserve structured line breaks and lists
   const lines = content.split("\n");
 
   return (
@@ -26,12 +25,10 @@ export function FormattedMessage({ content, className = "" }: FormattedMessagePr
       {lines.map((line, lineIndex) => {
         const trimmed = line.trim();
 
-        // Empty line
         if (!trimmed) {
           return <div key={lineIndex} className="h-1.5" />;
         }
 
-        // Header lines (e.g. ### Title or ## Title)
         if (trimmed.startsWith("### ")) {
           return (
             <h4 key={lineIndex} className="font-semibold text-caption-1-semibold text-text-primary pt-1">
@@ -47,7 +44,6 @@ export function FormattedMessage({ content, className = "" }: FormattedMessagePr
           );
         }
 
-        // Bullet lists (*, -, •)
         const isBullet =
           trimmed.startsWith("* ") || trimmed.startsWith("- ") || trimmed.startsWith("• ");
         if (isBullet) {
@@ -60,7 +56,6 @@ export function FormattedMessage({ content, className = "" }: FormattedMessagePr
           );
         }
 
-        // Numbered lists (e.g. "1. ", "2. ")
         const numberedMatch = trimmed.match(/^(\d+)\.\s+(.*)/);
         if (numberedMatch) {
           const num = numberedMatch[1];
@@ -75,7 +70,6 @@ export function FormattedMessage({ content, className = "" }: FormattedMessagePr
           );
         }
 
-        // Regular paragraph line
         return <div key={lineIndex}>{formatInlineMarkdown(line)}</div>;
       })}
     </div>
@@ -86,17 +80,12 @@ export function FormattedMessage({ content, className = "" }: FormattedMessagePr
  * Parses inline bold (**text**), italic (*text*), and code (`code`)
  */
 function formatInlineMarkdown(text: string): React.ReactNode[] {
-  // Regex splitting by:
-  // 1. `**bold**`
-  // 2. `*italic*`
-  // 3. `` `code` ``
   const tokenRegex = /(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g;
   const parts = text.split(tokenRegex);
 
   return parts.map((part, index) => {
     if (!part) return null;
 
-    // Bold: **text**
     if (part.startsWith("**") && part.endsWith("**") && part.length >= 4) {
       const inner = part.slice(2, -2);
       return (
@@ -106,7 +95,6 @@ function formatInlineMarkdown(text: string): React.ReactNode[] {
       );
     }
 
-    // Italic: *text*
     if (part.startsWith("*") && part.endsWith("*") && part.length >= 2) {
       const inner = part.slice(1, -1);
       return (
@@ -116,7 +104,6 @@ function formatInlineMarkdown(text: string): React.ReactNode[] {
       );
     }
 
-    // Inline code: `code`
     if (part.startsWith("`") && part.endsWith("`") && part.length >= 2) {
       const inner = part.slice(1, -1);
       return (

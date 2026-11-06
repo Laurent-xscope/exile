@@ -3,6 +3,7 @@ import { Archivo_Black, Space_Mono, Work_Sans } from "next/font/google";
 import { Toaster } from "sonner";
 import { DirectionProvider } from "@/components/foundations/direction/direction";
 import { ThemeProvider } from "@/components/theme/theme-provider";
+import { SmoothScrollProvider } from "@/components/foundations/smooth-scroll";
 import { cx } from "@/utils/cx";
 import "./globals.css";
 
@@ -64,20 +65,22 @@ export default function RootLayout({
             enableSystem={false}
             disableTransitionOnChange={false}
           >
-            {children}
-            <Toaster
-              position="top-right"
-              closeButton
-              toastOptions={{
-                style: {
-                  borderRadius: 0,
-                  border: "2px solid var(--vb-ink)",
-                  background: "var(--vb-paper)",
-                  color: "var(--vb-ink)",
-                  boxShadow: "none",
-                },
-              }}
-            />
+            <SmoothScrollProvider>
+              {children}
+              <Toaster
+                position="top-right"
+                closeButton
+                toastOptions={{
+                  style: {
+                    borderRadius: 0,
+                    border: "2px solid var(--vb-ink)",
+                    background: "var(--vb-paper)",
+                    color: "var(--vb-ink)",
+                    boxShadow: "none",
+                  },
+                }}
+              />
+            </SmoothScrollProvider>
           </ThemeProvider>
         </DirectionProvider>
       </body>

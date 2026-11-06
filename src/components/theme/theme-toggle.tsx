@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useSyncExternalStore } from "react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { RiSunLine, RiMoonLine } from "@remixicon/react";
 import { IconButton } from "@/components/base/buttons/icon-button";

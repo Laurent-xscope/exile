@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { RiArrowDownSLine, RiCheckLine } from "@remixicon/react";
 import { useTranslation, Language } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";

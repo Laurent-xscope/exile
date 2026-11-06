@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -165,12 +165,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     () => null
   );
 
-  // Active Tab
   const [activeTab, setActiveTab] = useState<"question" | "leaderboard" | "players" | "copilot">("question");
   const [expandedLeaderboardPlayer, setExpandedLeaderboardPlayer] = useState<string | null>(null);
   const [selectedHostAnswers, setSelectedHostAnswers] = useState<Record<number, string>>({});
 
-  // Host Copilot
   const [copilotMessages, setCopilotMessages] = useState<
     Array<{ role: "user" | "assistant"; content: string }>
   >([

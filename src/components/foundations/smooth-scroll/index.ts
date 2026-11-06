@@ -1,0 +1,26 @@
+export {
+  SmoothScrollProvider,
+  useSmoothScroll,
+  usePrefersReducedMotion,
+  subscribePrefersReducedMotion,
+  getPrefersReducedMotionSnapshot,
+  SmoothScrollLink,
+  ScrollProgressBar,
+  ScrollToTopButton,
+  calculateScrollTarget,
+  calculateScrollProgress,
+  getEffectiveScrollBehavior,
+  easeOutQuart,
+  calculateScrollDuration,
+  isInsideModal,
+  isInternalAnchorLink,
+  animateScroll,
+} from "./smooth-scroll";
+export type {
+  SmoothScrollOptions,
+  SmoothScrollProviderProps,
+  SmoothScrollContextValue,
+  SmoothScrollLinkProps,
+  ScrollProgressBarProps,
+  ScrollToTopButtonProps,
+} from "./smooth-scroll";

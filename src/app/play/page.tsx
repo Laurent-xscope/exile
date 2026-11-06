@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -27,7 +27,6 @@ interface ActiveRoomItem {
   status: "waiting" | "active" | "question_active" | "showing_leaderboard" | "finished";
   totalQuestions: number;
   playerCount: number;
-  difficulty: "mudah" | "sedang" | "sulit" | "campuran";
 }
 
 export default function PlayJoinPage() {
@@ -50,7 +49,6 @@ export default function PlayJoinPage() {
         setActiveRooms(data.rooms);
       }
     } catch {
-      // ignore network error
     } finally {
       if (showLoading) {
         setLoadingRooms(false);
@@ -71,14 +69,14 @@ export default function PlayJoinPage() {
     fetchActiveRooms(true);
 
     const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      if (document.visibilityState === "hidden") {
         return;
       }
       fetchActiveRooms(false);
     }, 30_000);
 
     const handleVisibilityChange = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+      if (document.visibilityState === "visible") {
         fetchActiveRooms(false);
       }
     };

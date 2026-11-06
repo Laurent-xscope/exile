@@ -64,7 +64,3 @@ export function clearHostToken(roomCode: string): void {
   }
 }
 
-export function hostAuthHeaders(roomCode: string): Record<string, string> {
-  const token = getHostToken(roomCode);
-  return token ? { "x-host-token": token } : {};
-}

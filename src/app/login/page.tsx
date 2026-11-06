@@ -45,14 +45,12 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const params = new URLSearchParams(window.location.search);
-      const nextParam = params.get("next");
-      if (nextParam && nextParam.startsWith("/")) {
-        // The query string is only available after hydration.
-        // eslint-disable-next-line react-hooks/set-state-in-effect
-        setNextPath(nextParam);
-      }
+    const params = new URLSearchParams(window.location.search);
+    const nextParam = params.get("next");
+    if (nextParam && nextParam.startsWith("/")) {
+      // The query string is only available after hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setNextPath(nextParam);
     }
   }, []);
 
@@ -78,7 +76,7 @@ export default function LoginPage() {
       const res = await signInWithPassword(email, password);
       setSubmitting(false);
       if (res.success) {
-        toast.success("Berhasil masuk ke Studio Pengajar.");
+        toast.success("Berhasil masuk ke studio pengajar.");
         router.replace(nextPath);
       }
     } else {
@@ -94,9 +92,8 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true);
     try {
-      const origin = typeof window !== "undefined" ? window.location.origin : "";
       await signInWithGoogle(
-        `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
+        `${window.location.origin}/auth/callback?next=${encodeURIComponent(nextPath)}`
       );
     } catch {
       setGoogleLoading(false);

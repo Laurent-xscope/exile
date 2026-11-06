@@ -841,7 +841,6 @@ export default function StudioPage() {
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const docTextareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // Initial state starts completely empty — no forced template
   const [docText, setDocText] = useState<string>("");
   const [processing, setProcessing] = useState<boolean>(false);
   const [reasoningElapsedSec, setReasoningElapsedSec] = useState<number>(0);
@@ -850,7 +849,6 @@ export default function StudioPage() {
     (DocumentAnalysis & { quizId?: string }) | null
   >(null);
 
-  // Studio Artifact Tab Navigation & Craft Selection
   const [activeTab, setActiveTab] = useState<StudioArtifactTab>("flashcards");
   const [selectedArtifacts, setSelectedArtifacts] = useState<
     StudioCraftableArtifact[]
@@ -868,7 +866,6 @@ export default function StudioPage() {
     });
   };
 
-  // Student POV Simulator Toggle
   const [studentPovActive, setStudentPovActive] = useState<boolean>(false);
 
   // Adaptive Quiz Difficulty Slider (1 = Dasar, 2 = Sedang, 3 = Menantang HOTS)
@@ -877,7 +874,6 @@ export default function StudioPage() {
   const [showDistractorRationale, setShowDistractorRationale] = useState<boolean>(true);
   const [expandedQuestionExplanations, setExpandedQuestionExplanations] = useState<Record<string, boolean>>({});
 
-  // 3D Flashcards State
   const [flashcardIndex, setFlashcardIndex] = useState<number>(0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
   const [showFlashcardHint, setShowFlashcardHint] = useState<boolean>(false);
@@ -888,7 +884,6 @@ export default function StudioPage() {
   const [cardFocusInput, setCardFocusInput] = useState<string>("");
   const [generatingMoreCards, setGeneratingMoreCards] = useState<boolean>(false);
 
-  // Slides, MindMap, Table & Continuous Artifact Expansion State
   const [activeSlideIndex, setActiveSlideIndex] = useState<number>(0);
   const [collapsedBranches, setCollapsedBranches] = useState<Record<string, boolean>>({});
   const [selectedMindMapNode, setSelectedMindMapNode] = useState<MindMapNode | null>(null);
@@ -896,7 +891,6 @@ export default function StudioPage() {
   const [artifactExpandInput, setArtifactExpandInput] = useState<Record<string, string>>({});
   const [expandingArtifact, setExpandingArtifact] = useState<StudioCraftableArtifact | null>(null);
 
-  // File Upload State
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const [uploadedFileBase64, setUploadedFileBase64] = useState<string>("");
   const [uploadedMimeType, setUploadedMimeType] = useState<string>("");
@@ -904,10 +898,8 @@ export default function StudioPage() {
   const [isTranscribing, setIsTranscribing] = useState<boolean>(false);
   const [transcriptionStatus, setTranscriptionStatus] = useState<string>("");
 
-  // Room Launching State
   const [launchingRoom, setLaunchingRoom] = useState<boolean>(false);
 
-  // AI topic-to-quiz state
   const [aiQuizTopic, setAiQuizTopic] = useState("");
   const [aiQuizCount, setAiQuizCount] = useState(5);
   const [aiQuizDifficulty, setAiQuizDifficulty] = useState<QuizDifficultyLevel>("sedang");
@@ -920,14 +912,12 @@ export default function StudioPage() {
   const [aiQuizAnswers, setAiQuizAnswers] = useState<Record<number, string>>({});
   const [instantQuiz, setInstantQuiz] = useState<InstantQuizRun | null>(null);
 
-  // Persistent Notebook History (PDF + AI Artifacts + Answers)
   const [currentNotebookId, setCurrentNotebookId] = useState<string>("nb-session");
   const [historyEntries, setHistoryEntries] = useState<StudioHistoryEntry[]>(() =>
     loadStudioHistory()
   );
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
 
-  // Sync remote history when user logs in or on mount
   useEffect(() => {
     if (!user) return;
     let isCancelled = false;
@@ -1059,7 +1049,6 @@ export default function StudioPage() {
     setIsHistoryOpen(false);
   };
 
-  // Copilot Multi-turn Context Chat & Multimodal Screenshot State
   const [chatMessages, setChatMessages] = useState<
     Array<{
       role: "user" | "assistant";
@@ -1082,7 +1071,6 @@ export default function StudioPage() {
     name: string;
   } | null>(null);
 
-  // Teacher name resolution
   const teacherName = useMemo(() => {
     return (
       user?.user_metadata?.full_name ||
@@ -1092,7 +1080,6 @@ export default function StudioPage() {
     );
   }, [user, settings.defaultNickname]);
 
-  // Filtered Quiz based on Difficulty Slider
   const displayedQuestions: Question[] = useMemo(() => {
     if (!processedDoc) return [];
     if (quizDifficulty === 1) {
@@ -1113,7 +1100,6 @@ export default function StudioPage() {
     );
   }, [processedDoc, quizDifficulty]);
 
-  // Multimodal file upload handler for Source Document
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1123,7 +1109,6 @@ export default function StudioPage() {
     const mime = file.type || "text/plain";
     setUploadedMimeType(mime);
 
-    // Support Word .docx via server extraction
     if (file.name.toLowerCase().endsWith(".docx")) {
       setUploadedFileType("text");
       setUploadedFileBase64("");
@@ -1183,14 +1168,12 @@ export default function StudioPage() {
         const dataUrl = typeof event.target?.result === "string" ? event.target.result : "";
         setUploadedFileBase64(dataUrl);
 
-        // Ingest and transcribe directly via AI Multimodal API (Zero local/browser OCR dependency)
         await transcribeUploadedFile(dataUrl, file.name, detectedType, mime);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  // Multimodal Vision direct transcription (AI multimodal, zero local/browser OCR dependency)
   const transcribeUploadedFile = async (
     base64Data: string,
     fileName: string,
@@ -1260,7 +1243,6 @@ export default function StudioPage() {
     }
   };
 
-  // Copilot Image Screenshot Handler
   const handleCopilotImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -1285,7 +1267,6 @@ export default function StudioPage() {
     return `${String(mins).padStart(2, "0")}:${String(s).padStart(2, "0")}s`;
   };
 
-  // Process Document with AI Reasoning & On-Demand Synthesis
   const handleProcessDocument = async () => {
     if (!docText.trim() && !uploadedFileBase64) {
       toast.error(
@@ -1352,7 +1333,6 @@ export default function StudioPage() {
         throw new Error("Format hasil analisis dokumen tidak valid.");
       }
 
-      // If multimodal transcription is available and current docText is blank or placeholder, enrich it
       if (data.transcription && (!docText.trim() || docText.startsWith("Lampiran berkas:"))) {
         setDocText(data.transcription);
       }
@@ -1430,7 +1410,6 @@ export default function StudioPage() {
     }
   };
 
-  // Launch live classroom room
   const handleLaunchRoom = async () => {
     setLaunchingRoom(true);
     soundEffects.playClick();
@@ -1612,7 +1591,6 @@ export default function StudioPage() {
     });
   };
 
-  // Send Copilot Chat Message with Multimodal Screenshot Support
   const handleSendChatMessage = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if ((!chatInput.trim() && !copilotAttachedImage) || chatLoading) return;

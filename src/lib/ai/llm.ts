@@ -37,10 +37,6 @@ function config() {
   return { baseUrl, apiKey, model };
 }
 
-export function isAIConfigured(): boolean {
-  return Boolean(process.env.AI_BASE_URL && process.env.AI_API_KEY);
-}
-
 interface CompletionResponse {
   choices?: Array<{
     message?: { content?: string | null; tool_calls?: ToolCall[] };

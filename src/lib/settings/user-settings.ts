@@ -4,22 +4,16 @@ import { useSyncExternalStore } from "react";
 import { soundEffects } from "@/lib/audio/sounds";
 
 export interface ExileSettings {
-  // Language
   language: "id" | "en";
-  // Theme
   theme: "system" | "light" | "dark";
-  // Audio
   soundEnabled: boolean;
   soundVolume: number; // 0 - 100
   countdownTicks: boolean;
-  // Quiz defaults
   defaultQuestionTimeSec: number; // 15, 20, 30, 45
   streakBonusEnabled: boolean;
   shuffleQuestions: boolean;
-  // Student profile
   defaultNickname: string;
   defaultAvatar: string;
-  // Accessibility
   highContrast: boolean;
   compactDensity: boolean;
 }

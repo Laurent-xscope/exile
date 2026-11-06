@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
@@ -26,16 +26,21 @@ import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 import { useExileSettings } from "@/lib/settings/user-settings";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";
-
-function pickRandom<T>(items: T[]): T {
-  return items[Math.floor(Math.random() * items.length)];
-}
 import { ScrollReveal } from "@/components/foundations/scroll-reveal/scroll-reveal";
+import {
+  ScrollProgressBar,
+  ScrollToTopButton,
+  SmoothScrollLink,
+} from "@/components/foundations/smooth-scroll";
 import {
   CURRICULUM_CARDS_POOL,
   CurriculumCardItem,
 } from "@/lib/curriculum/curriculum-cards-pool";
 import { cx } from "@/utils/cx";
+
+function pickRandom<T>(items: T[]): T {
+  return items[Math.floor(Math.random() * items.length)];
+}
 
 const ExileProductDemo = dynamic(
   () => import("@/components/remotion/ExileProductDemo"),
@@ -81,13 +86,8 @@ export default function LandingPage() {
   const [pinInput, setPinInput] = useState("");
   const [creatingQuickRoom, setCreatingQuickRoom] = useState(false);
 
-  // ---------------------------------------------------------------------------
-  // Curriculum Flashcard System (20-Card Pool with 30s Fair Rotation)
-  // ---------------------------------------------------------------------------
   const [selectedCategory, setSelectedCategory] = useState<CategoryFilter>("all");
   const [currentCardId, setCurrentCardId] = useState<string>(CURRICULUM_CARDS_POOL[0].id);
-  const [history, setHistory] = useState<string[]>([CURRICULUM_CARDS_POOL[0].id]);
-  const [historyIndex, setHistoryIndex] = useState<number>(0);
   const [categoryTurn, setCategoryTurn] = useState<number>(0);
 
   const [isFlipped, setIsFlipped] = useState(false);
@@ -98,8 +98,6 @@ export default function LandingPage() {
     selectedCategory,
     categoryTurn,
     currentCardId,
-    history,
-    historyIndex,
   });
 
   useEffect(() => {
@@ -107,31 +105,16 @@ export default function LandingPage() {
       selectedCategory,
       categoryTurn,
       currentCardId,
-      history,
-      historyIndex,
     };
-  }, [selectedCategory, categoryTurn, currentCardId, history, historyIndex]);
+  }, [selectedCategory, categoryTurn, currentCardId]);
 
   const handleNextCard = useCallback(() => {
     const {
       selectedCategory: activeCat,
       categoryTurn: turn,
       currentCardId: activeId,
-      history: hist,
-      historyIndex: hIndex,
     } = stateRef.current;
 
-    // If navigating forward within previously visited history
-    if (hIndex < hist.length - 1) {
-      const nextId = hist[hIndex + 1];
-      setHistoryIndex(hIndex + 1);
-      setCurrentCardId(nextId);
-      setIsFlipped(false);
-      setShowHint(false);
-      return;
-    }
-
-    // Pick a fair random card across categories
     let pool: CurriculumCardItem[];
     let nextTurn = turn;
 
@@ -149,8 +132,6 @@ export default function LandingPage() {
     const picked = pickRandom(selectionSet);
 
     setCurrentCardId(picked.id);
-    setHistory([...hist.slice(0, hIndex + 1), picked.id]);
-    setHistoryIndex(hIndex + 1);
     setIsFlipped(false);
     setShowHint(false);
   }, []);
@@ -168,11 +149,8 @@ export default function LandingPage() {
     const picked = pickRandom(pool);
 
     setCurrentCardId(picked.id);
-    setHistory((prev) => [...prev.slice(0, historyIndex + 1), picked.id]);
-    setHistoryIndex((prev) => prev + 1);
   };
 
-  // 30-second rotation (with pause on hover)
   const isTimerPaused = isHovered;
 
   useEffect(() => {
@@ -189,7 +167,7 @@ export default function LandingPage() {
     CURRICULUM_CARDS_POOL.find((c) => c.id === currentCardId) ||
     CURRICULUM_CARDS_POOL[0];
 
-  const handleStudentJoin = (e: React.FormEvent) => {
+  const handleStudentJoin = (e: FormEvent) => {
     e.preventDefault();
     const cleanPin = normalizeRoomCode(pinInput);
 
@@ -214,7 +192,7 @@ export default function LandingPage() {
         user?.user_metadata?.full_name ||
         user?.email?.split("@")[0] ||
         settings.defaultNickname ||
-        (isEn ? "Exile Educator" : "Pengajar Exile");
+        (isEn ? "Exile educator" : "Pengajar exile");
 
       const res = await fetch("/api/rooms/create", {
         method: "POST",
@@ -247,10 +225,33 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-background-full text-text-primary flex flex-col justify-between">
-      {/* Masthead */}
+      <ScrollProgressBar />
+
       <header className="border-b-2 border-ink bg-background-full sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <ExileLogo size={32} showText />
+          <div className="flex items-center gap-6">
+            <ExileLogo size={32} showText />
+            <nav aria-label={isEn ? "Page navigation" : "Navigasi halaman"} className="hidden md:flex items-center gap-5">
+              <SmoothScrollLink
+                href="#demo-remotion"
+                className="text-caption-1-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                {isEn ? "Video demo" : "Demo video"}
+              </SmoothScrollLink>
+              <SmoothScrollLink
+                href="#uji-cepat"
+                className="text-caption-1-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                {isEn ? "3d cards" : "Kartu 3d"}
+              </SmoothScrollLink>
+              <SmoothScrollLink
+                href="#tentang"
+                className="text-caption-1-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                {isEn ? "About" : "Tentang"}
+              </SmoothScrollLink>
+            </nav>
+          </div>
 
           <div className="flex items-center gap-2">
             <LanguageToggle />
@@ -261,7 +262,6 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* Cover story */}
       <section className="py-12 sm:py-24 border-b-2 border-ink">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           <div className="lg:col-span-8 space-y-8">
@@ -296,10 +296,16 @@ export default function LandingPage() {
                   isEn ? "Quick host live room" : "Buat ruang kuis instan"
                 )}
               </Button>
+
+              <SmoothScrollLink
+                href="#demo-remotion"
+                className="inline-flex items-center justify-center gap-2 h-10 px-4 rounded-xl border border-border-button-default bg-background-primary-default hover:bg-background-secondary-hover text-caption-1-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                <span>{isEn ? "Watch demo" : "Lihat demo"}</span>
+              </SmoothScrollLink>
             </div>
           </div>
 
-          {/* Sidebar: student join */}
           <aside className="lg:col-span-4 space-y-6">
             <div className="border-2 border-ink bg-background-full p-6 space-y-4">
               <span className="vb-overline text-text-secondary block">
@@ -336,20 +342,17 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Remotion Showcase Section */}
       <section id="demo-remotion" className="py-16 sm:py-24 border-b-2 border-ink bg-background-full">
         <ScrollReveal variant="scale-up" delay={50} className="max-w-7xl mx-auto px-4 sm:px-6 space-y-6">
           <ExileProductDemo />
         </ScrollReveal>
       </section>
 
-      {/* Interactive 3D Flashcard Section (20-Card Pool with 30s Fair Rotation) */}
       <section
         id="uji-cepat"
         className="py-16 sm:py-24 border-b-2 border-ink bg-background-full"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 space-y-8">
-          {/* Centered Header & Pedagogical Introduction */}
           <ScrollReveal variant="slide-up" className="flex flex-col items-center text-center space-y-3 max-w-3xl mx-auto">
             <h2 className="text-display-4-semibold sm:text-display-3-semibold text-text-primary">
               {isEn ? "Curriculum concepts & 3D interactive cards" : "Kartu konsep kurikulum & flashcard 3D"}
@@ -361,7 +364,6 @@ export default function LandingPage() {
             </p>
           </ScrollReveal>
 
-          {/* Centered Category Filter Pills */}
           <div className="flex flex-wrap items-center justify-center gap-2 max-w-4xl mx-auto">
             {CATEGORY_TABS.map((tab) => {
               const isActive = selectedCategory === tab.id;
@@ -393,14 +395,12 @@ export default function LandingPage() {
             })}
           </div>
 
-          {/* Centered & Perfectly Proportioned Interactive 3D Flashcard Container */}
           <ScrollReveal variant="scale-up" delay={80} className="max-w-2xl mx-auto w-full">
             <div
               className="bg-background-primary-default border border-border-button-default rounded-3xl p-4 sm:p-6 space-y-4 shadow-sm"
               onMouseEnter={() => setIsHovered(true)}
               onMouseLeave={() => setIsHovered(false)}
             >
-              {/* 3D Flip Canvas */}
               <div
                 role="button"
                 tabIndex={0}
@@ -426,12 +426,10 @@ export default function LandingPage() {
                     transform: isFlipped ? "rotateY(180deg)" : "rotateY(0deg)",
                   }}
                 >
-                  {/* FRONT SIDE (Question + Pedagogical Hint) */}
                   <div
                     className="absolute inset-0 backface-hidden rounded-2xl border border-border-button-default bg-background-secondary-default p-6 sm:p-8 flex flex-col justify-between shadow-xs transition-colors"
                     style={{ backfaceVisibility: "hidden" }}
                   >
-                    {/* Top Row: Meta Badge & Flip Action Button */}
                     <div className="flex items-center justify-between gap-3 pb-3 border-b border-separator-border">
                       <span className="px-3 py-1 rounded-full bg-background-primary-default border border-border-button-default text-caption-1-semibold text-text-primary">
                         {isEn ? currentCard.topicEn : currentCard.topic}
@@ -450,13 +448,11 @@ export default function LandingPage() {
                       </button>
                     </div>
 
-                    {/* Middle Area: Clean Centered Question & Pedagogical Clue */}
                     <div className="my-auto py-4 flex flex-col items-center text-center space-y-5">
                       <p className="text-title-2-semibold sm:text-title-1-semibold text-text-primary leading-snug max-w-xl">
                         {isEn ? currentCard.frontQuestionEn : currentCard.frontQuestion}
                       </p>
 
-                      {/* Pedagogical Hint Toggle Box */}
                       <div className="w-full flex flex-col items-center">
                         <button
                           type="button"
@@ -499,7 +495,6 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* Bottom Row: Centered Helpful Prompt */}
                     <div className="pt-3 border-t border-separator-border text-center text-caption-1-medium text-text-tertiary">
                       <span>
                         {isEn
@@ -509,7 +504,6 @@ export default function LandingPage() {
                     </div>
                   </div>
 
-                  {/* BACK SIDE (Core Principle + Mechanism + Real World Scenario) */}
                   <div
                     className="absolute inset-0 backface-hidden rounded-2xl border border-border-button-default bg-background-secondary-default p-6 sm:p-8 flex flex-col justify-between shadow-xs transition-colors"
                     style={{
@@ -517,7 +511,6 @@ export default function LandingPage() {
                       transform: "rotateY(180deg)",
                     }}
                   >
-                    {/* Top Row: Meta Badge & Flip Back Button */}
                     <div className="flex items-center justify-between gap-3 pb-3 border-b border-separator-border">
                       <div className="flex items-center gap-2">
                         <span className="px-3 py-1 rounded-full bg-background-primary-default border border-border-button-default text-caption-1-semibold text-text-primary">
@@ -541,7 +534,6 @@ export default function LandingPage() {
                       </button>
                     </div>
 
-                    {/* Middle Area: Clean Pedagogical Explanation */}
                     <div className="space-y-3.5 my-auto py-2 overflow-y-auto max-h-[300px] pe-1 text-start">
                       <div>
                         <span className="text-caption-2-semibold tracking-wider text-text-tertiary block mb-1">
@@ -571,7 +563,6 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    {/* Bottom Row: Centered Prompt */}
                     <div className="pt-3 border-t border-separator-border text-center text-caption-1-medium text-text-tertiary">
                       <span>
                         {isEn ? "Click card to flip back to question" : "Klik kartu untuk kembali ke pertanyaan"}
@@ -585,14 +576,15 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="border-t-2 border-ink py-6 bg-background-full">
+      <footer id="tentang" className="border-t-2 border-ink py-6 bg-background-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-center">
           <p className="text-[13px] text-text-secondary">
             © 2026 Exile — {isEn ? "Interactive educational assessment engine" : "Platform asesmen pendidikan & literasi"}
           </p>
         </div>
       </footer>
+
+      <ScrollToTopButton label={isEn ? "Scroll to top" : "Kembali ke atas"} />
     </div>
   );
 }

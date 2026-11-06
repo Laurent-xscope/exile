@@ -309,7 +309,6 @@ Balas HANYA objek JSON valid:
       return NextResponse.json({ success: true, artifact, newRows: normalizedRows });
     }
 
-    // artifact === "report"
     const data = await chatJSON(
       [
         {

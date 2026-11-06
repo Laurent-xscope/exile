@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import {
   RiSettings3Line,
@@ -87,7 +87,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     "audio" | "quiz" | "display" | "profile"
   >("audio");
 
-  // Sync accessibility classes with document root
   useEffect(() => {
     if (!mounted || typeof document === "undefined") return;
     const root = document.documentElement;

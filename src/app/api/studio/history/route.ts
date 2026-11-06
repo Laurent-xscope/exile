@@ -4,7 +4,7 @@ import { checkRateLimit } from "@/lib/security/rate-limiter";
 import { createSupabaseServerClient } from "@/lib/supabase-server";
 import type { StudioHistoryEntry } from "@/lib/studio/history-store";
 
-const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024; // 2MB cap
+const MAX_PAYLOAD_BYTES = 2 * 1024 * 1024;
 
 const StudioHistoryEntrySchema = z
   .object({

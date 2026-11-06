@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -24,8 +24,6 @@ import {
 } from "@remixicon/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
-
-const nowMs = () => Date.now();
 import { soundEffects } from "@/lib/audio/sounds";
 import { useExileSettings } from "@/lib/settings/user-settings";
 import { useTranslation } from "@/lib/i18n/use-translation";
@@ -42,6 +40,8 @@ import { Spinner } from "@/components/base/spinner/spinner";
 import { ScrollFade, useScrollFade } from "@/components/foundations/scroll-fade/scroll-fade";
 import { FormattedMessage } from "@/components/chat/formatted-message";
 import { cx } from "@/utils/cx";
+
+const nowMs = () => Date.now();
 
 interface Option {
   label: string;
@@ -146,7 +146,6 @@ export default function PlayArenaClient({
   const isMuted = !settings.soundEnabled;
   const finishedCelebrated = useRef(false);
 
-  // Student Copilot Drawer
   const [showCopilot, setShowCopilot] = useState(false);
   const [copilotMessages, setCopilotMessages] = useState<
     Array<{ role: "user" | "assistant"; content: string }>
@@ -161,7 +160,6 @@ export default function PlayArenaClient({
   const [copilotInput, setCopilotInput] = useState("");
   const [copilotLoading, setCopilotLoading] = useState(false);
 
-  // Telemetry breakdown for student
   const [answeredHistory, setAnsweredHistory] = useState<
     Array<{ questionOrder: number; concept: string; isCorrect: boolean; score: number }>
   >([]);
@@ -185,7 +183,6 @@ export default function PlayArenaClient({
       if (res.ok && data.success) {
         setRoomState(data);
 
-        // Check our player's status
         if (data.players && playerId) {
           const me = data.players.find((p: { id: string }) => p.id === playerId);
           if (me?.status) {
@@ -351,8 +348,7 @@ export default function PlayArenaClient({
 
       const isCorrect = Boolean(submitData.submission?.isCorrect);
       const scoreAwarded = Number(submitData.submission?.scoreAwarded ?? 0);
-      const correctOpt =
-        submitData.correctAnswer || submitData.submission?.correctAnswer || "A";
+      const correctOpt = submitData.correctAnswer || "A";
 
       if (chosenPowerup) {
         setUsedPowerups((prev) =>
@@ -450,11 +446,12 @@ export default function PlayArenaClient({
             }),
           });
           const explainData = await explainRes.json();
-          const explanationText = explainData.feedback
-            ? `${explainData.feedback}${explainData.quickTip ? ` Tips: ${explainData.quickTip}` : ""}`
-            : explainData.explanation?.explanation ||
-              submitData.explanation ||
-              "Perhatikan kembali analisis opsi jawaban pada materi ini.";
+          const explanationText =
+            explainData.feedback ||
+            submitData.explanation ||
+            (isEn
+              ? "Review the answer options for this topic."
+              : "Perhatikan kembali analisis opsi jawaban pada materi ini.");
 
           setLastSubmissionResult({
             isCorrect: false,
@@ -463,7 +460,6 @@ export default function PlayArenaClient({
             microFeedback: explanationText,
           });
         } catch {
-          // keep initial microFeedback
         }
       }
     } catch (err: unknown) {
@@ -604,7 +600,7 @@ export default function PlayArenaClient({
               className={cx(
                 "cursor-pointer px-3 py-1.5 rounded-xl border text-caption-1-medium flex items-center gap-1.5 transition shadow-card",
                 showCopilot
-                  ? "bg-accent-700 text-white border-accent-700"
+                  ? "bg-accent-700 text-text-white border-accent-700"
                   : "bg-background-primary-default hover:bg-background-primary-hover border-border-button-default text-text-primary"
               )}
             >
@@ -816,7 +812,7 @@ export default function PlayArenaClient({
                     className={cx(
                       "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
                       activePowerup === "time_freeze"
-                        ? "border-accent-700 bg-accent-700 text-white"
+                        ? "border-accent-700 bg-accent-700 text-text-white"
                         : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                     )}
                   >
@@ -830,7 +826,7 @@ export default function PlayArenaClient({
                     className={cx(
                       "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
                       activePowerup === "double_jeopardy"
-                        ? "border-accent-700 bg-accent-700 text-white"
+                        ? "border-accent-700 bg-accent-700 text-text-white"
                         : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                     )}
                   >
@@ -844,7 +840,7 @@ export default function PlayArenaClient({
                     className={cx(
                       "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl border px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40",
                       activePowerup === "immunity"
-                        ? "border-accent-700 bg-accent-700 text-white"
+                        ? "border-accent-700 bg-accent-700 text-text-white"
                         : "border-border-button-default bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                     )}
                   >
@@ -891,11 +887,11 @@ export default function PlayArenaClient({
                         className={cx(
                           "size-7 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0 border transition-colors",
                           isCorrectCard
-                            ? "bg-emerald-600 text-white border-emerald-600"
+                            ? "bg-emerald-600 text-text-white border-emerald-600"
                             : isWrongSelectedCard
-                              ? "bg-rose-600 text-white border-rose-600"
+                              ? "bg-rose-600 text-text-white border-rose-600"
                               : isSelected
-                                ? "bg-accent-700 text-white border-accent-700"
+                                ? "bg-accent-700 text-text-white border-accent-700"
                                 : "bg-questionnaire-key-background text-text-primary border-border-button-default"
                         )}
                       >
@@ -933,8 +929,8 @@ export default function PlayArenaClient({
                     className={cx(
                       "size-10 rounded-xl flex items-center justify-center shrink-0 border",
                       lastSubmissionResult?.isCorrect
-                        ? "bg-emerald-600 text-white border-emerald-600"
-                        : "bg-rose-600 text-white border-rose-600"
+                        ? "bg-emerald-600 text-text-white border-emerald-600"
+                        : "bg-rose-600 text-text-white border-rose-600"
                     )}
                   >
                     {lastSubmissionResult?.isCorrect ? (
@@ -976,7 +972,7 @@ export default function PlayArenaClient({
                 </div>
 
                 <div className="flex items-center justify-center gap-2 text-caption-1-medium text-text-secondary pt-1">
-                  <span className="size-2 rounded-full bg-neutral-400" />
+                  <span className="size-2 rounded-full bg-text-tertiary" />
                   <span>
                     {isEn
                       ? "Waiting for educator to open next question..."
@@ -1256,7 +1252,7 @@ export default function PlayArenaClient({
                 disabled={copilotLoading || !copilotInput.trim()}
                 leadingIcon={RiSendPlaneLine}
               >
-                Kirim
+                {isEn ? "Send" : "Kirim"}
               </Button>
             </form>
           </motion.div>
