@@ -7,7 +7,7 @@ export type Language = "id" | "en";
 export const DICTIONARY = {
   id: {
     nav: {
-      badge: "Bali digifest 2026",
+      badge: "Platform ajar interaktif",
       tagline: "Pembelajaran tertutup & evaluasi budaya",
       hostBtn: "Dasbor guru",
       studentBtn: "Gabung siswa",
@@ -204,7 +204,7 @@ export const DICTIONARY = {
   },
   en: {
     nav: {
-      badge: "Bali digifest 2026",
+      badge: "Platform ajar interaktif",
       tagline: "Closed-loop learning & cultural evaluation",
       hostBtn: "Teacher cockpit",
       studentBtn: "Join as student",
@@ -321,7 +321,7 @@ export const DICTIONARY = {
       textEditorLabel: "Direct lesson notes & text",
       textEditorClear: "Clear text",
       textEditorPlaceholder: "Type or paste chapter notes, syllabus, or worksheet text here...",
-      createBtn: "Buat artifak",
+      createBtn: "Create artifacts",
       creatingBtn: "Processing",
       copilotTitle: "Exile copilot",
       copilotSubtitle: "Guidance & assistance",

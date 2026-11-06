@@ -78,7 +78,7 @@ export async function POST(req: Request) {
       id: `card-${Date.now()}-${idx + 1}`,
       front: c.front.trim(),
       back: c.back.trim(),
-      tag: (c.tag || "Konsep Inti").trim(),
+      tag: (c.tag || "Konsep inti").trim(),
       hint: c.hint?.trim() || undefined,
     }));
 

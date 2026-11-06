@@ -18,7 +18,7 @@ export const QuestionSchema = z.object({
   options: z.array(OptionSchema).length(4, "Must provide exactly 4 options (A, B, C, D)"),
   correctAnswer: z.enum(["A", "B", "C", "D"]),
   explanation: z.string().min(3, "Explanation must be provided"),
-  conceptTag: z.string().min(1).optional().default("Konsep Inti"),
+  conceptTag: z.string().min(1).optional().default("Konsep inti"),
   culturalContext: z.string().optional(),
 });
 

@@ -29,7 +29,7 @@ const spaceMono = Space_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.exile.web.id"),
-  title: "Exile — Closed-Loop Learning & Formative Assessment",
+  title: "Exile — Closed-loop learning & formative assessment",
   description:
     "Platform evaluasi formatif terstruktur untuk guru dan siswa. Menyusun bahan ajar, kartu latihan 3d, dan kuis kelas real-time dengan penguatan pemahaman konsep.",
   icons: {

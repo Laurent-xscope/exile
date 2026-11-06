@@ -20,9 +20,9 @@ export default function TeacherHostPage({
     <Suspense
       fallback={
         <div className="min-h-screen bg-background-full flex flex-col items-center justify-center text-text-secondary gap-4">
-          <Spinner size="md" aria-label="Menghubungkan ke Ruang Guru Exile" />
+          <Spinner size="md" aria-label="Menghubungkan ke ruang pengajar Exile" />
           <p className="text-body-regular text-text-secondary">
-            Menghubungkan ke Ruang Guru Exile...
+            Menghubungkan ke ruang pengajar Exile...
           </p>
         </div>
       }

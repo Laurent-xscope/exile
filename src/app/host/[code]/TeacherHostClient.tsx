@@ -490,7 +490,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             <Link
               href="/"
               className="flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors"
-              aria-label={isEn ? "Back to Home" : "Kembali ke Beranda"}
+              aria-label={isEn ? "Back to home" : "Kembali ke beranda"}
             >
               <RiArrowLeftLine className="size-5" />
             </Link>

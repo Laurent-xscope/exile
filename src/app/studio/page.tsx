@@ -28,7 +28,6 @@ import {
   RiUploadCloud2Line,
   RiRefreshLine,
   RiPlayCircleLine,
-  RiEyeLine,
   RiFileCopyLine,
   RiCopilotFill,
   RiPresentationLine,
@@ -873,8 +872,6 @@ export default function StudioPage() {
     });
   };
 
-  const [studentPovActive, setStudentPovActive] = useState<boolean>(false);
-
   const [quizDifficulty, setQuizDifficulty] = useState<number>(2);
   const [testedAnswers, setTestedAnswers] = useState<Record<string, string>>({});
   const [showDistractorRationale, setShowDistractorRationale] = useState<boolean>(true);
@@ -1606,7 +1603,6 @@ export default function StudioPage() {
           documentContext: docText || undefined,
           documentTitle: processedDoc?.title || undefined,
           currentTab: activeTab,
-          studentPov: studentPovActive,
           image: attachedImagePayload
             ? {
                 base64: attachedImagePayload.base64,
@@ -2035,37 +2031,6 @@ export default function StudioPage() {
 
       {/* Notebook workspace */}
       <main className="mx-auto max-w-[1500px] px-4 pt-4 sm:px-6">
-        {/* Student POV Banner Alert when active */}
-        <AnimatePresence>
-          {studentPovActive && (
-            <motion.div
-              initial={{ opacity: 0, y: -10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="mb-6 p-4 rounded-2xl border border-amber-500/30 bg-amber-500/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-caption-1-regular text-text-primary"
-            >
-              <div className="flex items-start gap-3">
-                <RiEyeLine className="size-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-                <div>
-                  <strong className="font-semibold block text-amber-700 dark:text-amber-300">
-                    {t.studio.studentPovBannerTitle}
-                  </strong>
-                  <span>
-                    {t.studio.studentPovBannerDesc}
-                  </span>
-                </div>
-              </div>
-              <button
-                type="button"
-                onClick={() => setStudentPovActive(false)}
-                className="text-caption-2-medium text-amber-700 dark:text-amber-300 hover:underline shrink-0 cursor-pointer self-end sm:self-auto"
-              >
-                {t.studio.studentPovBannerBack}
-              </button>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
         <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
           {/* ========================================================================= */}
           {/* SOURCES RAIL: Redesigned material input + artifact checklist + Create     */}
@@ -2695,7 +2660,7 @@ export default function StudioPage() {
             ) : (
               /* Artifact Content Panels with Framer Motion Entrance */
               <motion.div
-                key={activeTab + (studentPovActive ? "-student" : "-teacher")}
+                key={activeTab}
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
@@ -2732,13 +2697,6 @@ export default function StudioPage() {
                         </span>
                       )}
                     </div>
-                  </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    {studentPovActive && (
-                      <Chip variant="caption" color="yellow">
-                        Simulasi siswa
-                      </Chip>
-                    )}
                   </div>
                 </div>
 
@@ -3409,17 +3367,15 @@ export default function StudioPage() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2">
-                          {!studentPovActive && (
-                            <button
-                              type="button"
-                              onClick={() => setShowDistractorRationale(!showDistractorRationale)}
-                              className="text-caption-2-regular text-text-tertiary hover:text-text-primary underline cursor-pointer"
-                            >
-                              {showDistractorRationale
-                                ? (isEn ? "Hide distractor breakdown" : "Sembunyikan analisis pengecoh")
-                                : (isEn ? "Show distractor breakdown" : "Tampilkan analisis pengecoh")}
-                            </button>
-                          )}
+                          <button
+                            type="button"
+                            onClick={() => setShowDistractorRationale(!showDistractorRationale)}
+                            className="text-caption-2-regular text-text-tertiary hover:text-text-primary underline cursor-pointer"
+                          >
+                            {showDistractorRationale
+                              ? (isEn ? "Hide distractor breakdown" : "Sembunyikan analisis pengecoh")
+                              : (isEn ? "Show distractor breakdown" : "Tampilkan analisis pengecoh")}
+                          </button>
                         </div>
                       </div>
 

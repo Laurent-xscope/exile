@@ -154,7 +154,7 @@
   --gradient-button-primary-active: linear-gradient(#dc2626, #dc2626);
 
   --color-success: #16a34a;
-  --color-warning: #ca8a04;
+  --color-warning: #d97706;
   --color-error: #ef4444;
   --color-info: #0a0a0a;
 }
@@ -450,9 +450,9 @@ samp {
   --color-amber-100: #fefce8;
   --color-amber-200: #fef08a;
   --color-amber-300: #fde047;
-  --color-amber-400: #ca8a04;
-  --color-amber-500: #ca8a04;
-  --color-amber-600: #ca8a04;
+  --color-amber-400: #d97706;
+  --color-amber-500: #d97706;
+  --color-amber-600: #d97706;
   --color-amber-700: #a16207;
   --color-amber-800: #854d0e;
   --color-amber-900: #713f12;
@@ -461,9 +461,9 @@ samp {
   --color-yellow-100: #fefce8;
   --color-yellow-200: #fef08a;
   --color-yellow-300: #fde047;
-  --color-yellow-400: #ca8a04;
-  --color-yellow-500: #ca8a04;
-  --color-yellow-600: #ca8a04;
+  --color-yellow-400: #d97706;
+  --color-yellow-500: #d97706;
+  --color-yellow-600: #d97706;
   --color-yellow-700: #a16207;
   --color-yellow-800: #854d0e;
   --color-yellow-900: #713f12;
@@ -472,9 +472,9 @@ samp {
   --color-orange-100: #fefce8;
   --color-orange-200: #fef08a;
   --color-orange-300: #fde047;
-  --color-orange-400: #ca8a04;
-  --color-orange-500: #ca8a04;
-  --color-orange-600: #ca8a04;
+  --color-orange-400: #d97706;
+  --color-orange-500: #d97706;
+  --color-orange-600: #d97706;
   --color-orange-700: #a16207;
   --color-orange-800: #854d0e;
   --color-orange-900: #713f12;

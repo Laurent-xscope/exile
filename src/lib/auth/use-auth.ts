@@ -169,7 +169,7 @@ export function useAuth(): AuthState {
         msg.includes("provider is not enabled")
       ) {
         msg =
-          "Google OAuth belum diaktifkan di Supabase Dashboard (Authentication > Providers > Google). Masukkan Client ID & Secret Google Anda.";
+          "Layanan masuk Google sedang tidak aktif. Silakan masuk menggunakan email dan kata sandi.";
       }
       toast.error(msg);
       throw err;

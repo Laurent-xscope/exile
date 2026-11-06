@@ -335,7 +335,7 @@ export function QuizUpload({
                 className={cx(
                   "py-2 px-2 rounded-xl border text-caption-1-medium font-mono transition cursor-pointer",
                   timePerQuestionSec === sec
-                    ? "border-accent-600 bg-accent-700 text-white"
+                    ? "border-accent-600 bg-accent-700 text-text-white"
                     : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
                 )}
               >
@@ -360,7 +360,7 @@ export function QuizUpload({
               className={cx(
                 "py-2 px-2.5 rounded-xl border text-caption-1-medium transition cursor-pointer",
                 streakBonus
-                  ? "border-accent-600 bg-accent-700 text-white"
+                  ? "border-accent-600 bg-accent-700 text-text-white"
                   : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
               )}
             >
@@ -376,7 +376,7 @@ export function QuizUpload({
               className={cx(
                 "py-2 px-2.5 rounded-xl border text-caption-1-medium transition cursor-pointer",
                 !streakBonus
-                  ? "border-accent-600 bg-accent-700 text-white"
+                  ? "border-accent-600 bg-accent-700 text-text-white"
                   : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
               )}
             >

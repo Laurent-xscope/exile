@@ -167,7 +167,7 @@ const inputStyles = sortCx({
 });
 
 /** The field shell's state for a render-prop className. */
-export interface InputFieldState {
+interface InputFieldState {
   isFocusWithin: boolean;
   isHovered: boolean;
   isDisabled: boolean;
@@ -178,7 +178,7 @@ export interface InputFieldState {
  * The field shell's classes for a state. InputBase uses it, and so do fields
  * whose editable part isn't an <input> (Time Field's segments).
  */
-export function inputFieldClassName(
+function inputFieldClassName(
   { isFocusWithin, isHovered, isDisabled, isInvalid }: InputFieldState,
   size: InputSize = "medium",
   hasAddon = false,

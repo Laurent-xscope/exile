@@ -8,7 +8,7 @@ import { checkRateLimit } from "@/lib/security/rate-limiter";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
 
 const JoinRoomSchema = z.object({
-  roomCode: z.string().min(1, "Room code Pin is required"),
+  roomCode: z.string().min(1, "Room code pin is required"),
   nickname: z.string().min(1, "Nickname is required").max(30, "Nickname too long"),
   avatar: z.string().optional().default("garuda"),
   playerToken: z.string().optional(),
