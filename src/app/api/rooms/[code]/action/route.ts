@@ -12,6 +12,7 @@ import {
   toggleAutoApprove,
   updateRoomSettings,
   validateHostToken,
+  recordHeartbeat,
 } from "@/lib/rooms/store";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
@@ -30,6 +31,7 @@ const ActionSchema = z.object({
     "approve_all_players",
     "toggle_auto_approve",
     "update_room_settings",
+    "heartbeat",
   ]),
   playerId: z.string().optional(),
   selectedOption: z.string().optional(),
@@ -232,6 +234,11 @@ export async function POST(
 
         const updatedDetails = await getTeacherRoomDetails(roomCode);
         return NextResponse.json({ success: true, details: updatedDetails });
+      }
+
+      case "heartbeat": {
+        await recordHeartbeat(roomCode, { playerId });
+        return NextResponse.json({ success: true });
       }
 
       default:

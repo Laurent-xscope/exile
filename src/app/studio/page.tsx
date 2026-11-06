@@ -44,7 +44,6 @@ import {
   RiDownloadLine,
   RiHistoryLine,
   RiDeleteBinLine,
-  RiSaveLine,
   RiAddLine,
 } from "@remixicon/react";
 import Image from "next/image";
@@ -75,6 +74,9 @@ import {
   loadStudioHistory,
   saveStudioHistoryEntry,
   deleteStudioHistoryEntry,
+  fetchRemoteStudioHistory,
+  syncStudioHistoryEntry,
+  deleteRemoteStudioHistoryEntry,
   type StudioHistoryEntry,
 } from "@/lib/studio/history-store";
 import {
@@ -83,6 +85,7 @@ import {
 } from "@/lib/quiz/scoring";
 import type { ScoreResult } from "@/lib/quiz/scoring";
 import { confidenceLevel } from "@/lib/wayground/flashcards";
+import type { QuizDifficultyLevel } from "@/lib/rooms/store";
 
 type StudioArtifactTab =
   | "summary"
@@ -907,6 +910,7 @@ export default function StudioPage() {
   // AI topic-to-quiz state
   const [aiQuizTopic, setAiQuizTopic] = useState("");
   const [aiQuizCount, setAiQuizCount] = useState(5);
+  const [aiQuizDifficulty, setAiQuizDifficulty] = useState<QuizDifficultyLevel>("sedang");
   const [aiQuizLoading, setAiQuizLoading] = useState(false);
   const [aiQuiz, setAiQuiz] = useState<{
     quizId: string;
@@ -918,8 +922,28 @@ export default function StudioPage() {
 
   // Persistent Notebook History (PDF + AI Artifacts + Answers)
   const [currentNotebookId, setCurrentNotebookId] = useState<string>("nb-session");
-  const [historyEntries, setHistoryEntries] = useState<StudioHistoryEntry[]>([]);
+  const [historyEntries, setHistoryEntries] = useState<StudioHistoryEntry[]>(() =>
+    loadStudioHistory()
+  );
   const [isHistoryOpen, setIsHistoryOpen] = useState<boolean>(false);
+
+  // Sync remote history when user logs in or on mount
+  useEffect(() => {
+    if (!user) return;
+    let isCancelled = false;
+    fetchRemoteStudioHistory()
+      .then((merged) => {
+        if (!isCancelled) {
+          setHistoryEntries(merged);
+        }
+      })
+      .catch((err) => {
+        console.warn("Failed to load remote studio history on auth:", err);
+      });
+    return () => {
+      isCancelled = true;
+    };
+  }, [user]);
 
   useEffect(() => {
     const hasMeaningfulContent =
@@ -935,7 +959,7 @@ export default function StudioPage() {
       docText.trim().split(/\r?\n/)[0]?.slice(0, 60) ||
       "Notebook materi";
 
-    saveStudioHistoryEntry({
+    const entry: StudioHistoryEntry = {
       id: currentNotebookId,
       title,
       fileName: uploadedFileName || "materi-ajar.txt",
@@ -948,8 +972,25 @@ export default function StudioPage() {
       testedAnswers,
       masteredCards,
       updatedAt: new Date().toISOString(),
-    });
+    };
+
+    saveStudioHistoryEntry(entry);
+
+    if (!user) return;
+
+    const timer = setTimeout(() => {
+      syncStudioHistoryEntry(entry)
+        .then((synced) => {
+          setHistoryEntries(synced);
+        })
+        .catch((err) => {
+          console.warn("Failed to sync studio history to server:", err);
+        });
+    }, 1500);
+
+    return () => clearTimeout(timer);
   }, [
+    user,
     currentNotebookId,
     processedDoc,
     aiQuiz,
@@ -961,44 +1002,6 @@ export default function StudioPage() {
     testedAnswers,
     masteredCards,
   ]);
-
-  const handleSaveToHistory = () => {
-    soundEffects.playClick();
-    if (!processedDoc && !aiQuiz && !docText.trim()) {
-      toast.error(
-        isEn
-          ? "Nothing to save yet. Upload a pdf or enter material first."
-          : "Belum ada materi atau jawaban untuk disimpan."
-      );
-      return;
-    }
-    const title =
-      processedDoc?.title ||
-      aiQuiz?.quiz.title ||
-      uploadedFileName ||
-      docText.trim().split(/\r?\n/)[0]?.slice(0, 60) ||
-      "Notebook materi";
-    const updated = saveStudioHistoryEntry({
-      id: currentNotebookId,
-      title,
-      fileName: uploadedFileName || "materi-ajar.txt",
-      fileType: uploadedFileType,
-      docText,
-      processedDoc,
-      aiQuiz,
-      selectedArtifacts,
-      activeTab,
-      testedAnswers,
-      masteredCards,
-      updatedAt: new Date().toISOString(),
-    });
-    setHistoryEntries(updated);
-    toast.success(
-      isEn
-        ? "Saved to history."
-        : "Dokumen & jawaban berhasil disimpan ke riwayat."
-    );
-  };
 
   const handleLoadHistoryEntry = (entry: StudioHistoryEntry) => {
     soundEffects.playClick();
@@ -1027,6 +1030,15 @@ export default function StudioPage() {
     soundEffects.playClick();
     const updated = deleteStudioHistoryEntry(id);
     setHistoryEntries(updated);
+    if (user) {
+      deleteRemoteStudioHistoryEntry(id)
+        .then((latest) => {
+          setHistoryEntries(latest);
+        })
+        .catch((err) => {
+          console.warn("Failed to delete remote studio history entry:", err);
+        });
+    }
     toast.success(isEn ? "Removed from history." : "Dihapus dari riwayat.");
   };
 
@@ -1489,6 +1501,7 @@ export default function StudioPage() {
           grade: "Fase D (SMP Kelas 7-9)",
           contextText: docText.trim().length > 20 ? docText.trim() : undefined,
           questionCount: aiQuizCount,
+          difficulty: aiQuizDifficulty,
         }),
       });
       const data = await res.json();
@@ -1986,16 +1999,26 @@ export default function StudioPage() {
 
             <div className="hidden h-5 w-px bg-separator-border sm:block" />
 
-            <Button
-              type="button"
-              variant="secondary"
-              size="small"
-              onClick={handleSaveToHistory}
-              leadingIcon={RiSaveLine}
-              aria-label={isEn ? "Save" : "Simpan"}
+            <div
+              className="hidden items-center gap-1.5 px-2 py-1 text-caption-2-medium text-text-tertiary sm:flex"
+              title={
+                user
+                  ? (isEn ? "Auto-saved" : "Tersimpan otomatis")
+                  : (isEn ? "Sign in to sync" : "Masuk untuk sinkronkan ke akun")
+              }
+              aria-live="polite"
             >
-              <span className="hidden md:inline">{isEn ? "Save" : "Simpan"}</span>
-            </Button>
+              {user ? (
+                <RiCheckLine className="size-3.5 text-foreground-icon-secondary" aria-hidden="true" />
+              ) : (
+                <span className="size-1.5 rounded-full bg-border-button-default" aria-hidden="true" />
+              )}
+              <span className="max-w-[130px] truncate md:max-w-none">
+                {user
+                  ? (isEn ? "Auto-saved" : "Tersimpan otomatis")
+                  : (isEn ? "Sign in to sync" : "Masuk untuk sinkronkan ke akun")}
+              </span>
+            </div>
 
             <Button
               type="button"
@@ -2003,7 +2026,16 @@ export default function StudioPage() {
               size="small"
               onClick={() => {
                 soundEffects.playClick();
-                setHistoryEntries(loadStudioHistory());
+                if (user) {
+                  fetchRemoteStudioHistory()
+                    .then((latest) => setHistoryEntries(latest))
+                    .catch((err) => {
+                      console.warn("Failed to refresh remote history:", err);
+                      setHistoryEntries(loadStudioHistory());
+                    });
+                } else {
+                  setHistoryEntries(loadStudioHistory());
+                }
                 setIsHistoryOpen(true);
               }}
               leadingIcon={RiHistoryLine}
@@ -4399,6 +4431,62 @@ export default function StudioPage() {
                   <span>3</span>
                   <span>8</span>
                   <span>15</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-caption-1-medium text-text-secondary">
+                    {isEn ? "Difficulty" : "Tingkat kesulitan"}
+                  </span>
+                  <span className="rounded-lg border border-border-button-default bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+                    {aiQuizDifficulty === "mudah"
+                      ? isEn
+                        ? "Easy"
+                        : "Mudah"
+                      : aiQuizDifficulty === "sedang"
+                        ? isEn
+                          ? "Medium"
+                          : "Sedang"
+                        : aiQuizDifficulty === "sulit"
+                          ? isEn
+                            ? "Hard"
+                            : "Sulit"
+                          : isEn
+                            ? "Mixed"
+                            : "Campuran"}
+                  </span>
+                </div>
+                <div className="grid grid-cols-4 gap-1 rounded-xl border border-border-button-default bg-background-secondary-default p-1">
+                  {(
+                    [
+                      { id: "mudah", labelId: "Mudah", labelEn: "Easy" },
+                      { id: "sedang", labelId: "Sedang", labelEn: "Medium" },
+                      { id: "sulit", labelId: "Sulit", labelEn: "Hard" },
+                      { id: "campuran", labelId: "Campuran", labelEn: "Mixed" },
+                    ] as const
+                  ).map((lvl) => {
+                    const active = aiQuizDifficulty === lvl.id;
+                    return (
+                      <button
+                        key={lvl.id}
+                        type="button"
+                        disabled={aiQuizLoading}
+                        onClick={() => {
+                          soundEffects.playClick();
+                          setAiQuizDifficulty(lvl.id);
+                        }}
+                        className={cx(
+                          "rounded-lg px-1.5 py-1 text-center text-caption-1-medium transition-colors cursor-pointer",
+                          active
+                            ? "bg-accent-700 text-text-white font-semibold shadow-2xs"
+                            : "text-text-secondary hover:text-text-primary hover:bg-background-tertiary-default"
+                        )}
+                      >
+                        {isEn ? lvl.labelEn : lvl.labelId}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 

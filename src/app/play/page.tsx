@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -39,8 +39,10 @@ export default function PlayJoinPage() {
   const [activeRooms, setActiveRooms] = useState<ActiveRoomItem[]>([]);
   const [loadingRooms, setLoadingRooms] = useState(true);
 
-  const fetchActiveRooms = async () => {
-    setLoadingRooms(true);
+  const fetchActiveRooms = useCallback(async (showLoading = true) => {
+    if (showLoading) {
+      setLoadingRooms(true);
+    }
     try {
       const res = await fetch("/api/rooms/list", { cache: "no-store" });
       const data = await res.json().catch(() => ({}));
@@ -50,9 +52,11 @@ export default function PlayJoinPage() {
     } catch {
       // ignore network error
     } finally {
-      setLoadingRooms(false);
+      if (showLoading) {
+        setLoadingRooms(false);
+      }
     }
-  };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -64,8 +68,28 @@ export default function PlayJoinPage() {
       setHasAutofillLink(true);
       /* eslint-enable react-hooks/set-state-in-effect */
     }
-    fetchActiveRooms();
-  }, []);
+    fetchActiveRooms(true);
+
+    const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+        return;
+      }
+      fetchActiveRooms(false);
+    }, 30_000);
+
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        fetchActiveRooms(false);
+      }
+    };
+
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, [fetchActiveRooms]);
 
   const handleJoined = (result: JoinedRoomResult) => {
     router.push(`/play/${result.roomCode}`);
@@ -132,7 +156,7 @@ export default function PlayJoinPage() {
             </span>
             <button
               type="button"
-              onClick={fetchActiveRooms}
+              onClick={() => fetchActiveRooms(true)}
               disabled={loadingRooms}
               className="inline-flex cursor-pointer items-center gap-1 rounded-lg px-2 py-1 text-caption-2-medium text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
             >

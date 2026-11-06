@@ -10,6 +10,7 @@ const BodySchema = z.object({
   grade: z.string().optional(),
   contextText: z.string().optional(),
   questionCount: z.coerce.number().int().min(1).max(20).optional().default(5),
+  difficulty: z.enum(["mudah", "sedang", "sulit", "campuran"]).optional(),
 });
 
 export async function POST(req: Request) {
@@ -20,7 +21,7 @@ export async function POST(req: Request) {
   if (!parsed.success) {
     return NextResponse.json({ error: "Permintaan tidak valid" }, { status: 400 });
   }
-  const { topic, grade, contextText, questionCount } = parsed.data;
+  const { topic, grade, contextText, questionCount, difficulty } = parsed.data;
 
   try {
     const sourcePrompt = contextText && contextText.trim().length > 20
@@ -30,6 +31,7 @@ export async function POST(req: Request) {
     const quiz = await generateQuizFromText({
       text: sourcePrompt,
       questionCount,
+      difficulty,
     });
     const stored = await storeQuiz({
       id: crypto.randomUUID(),

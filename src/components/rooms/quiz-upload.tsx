@@ -37,8 +37,8 @@ const DIFFICULTY_OPTIONS: Array<{
     id: "mudah",
     labelId: "Mudah",
     labelEn: "Easy",
-    descId: "Konsep dasar & ingatan",
-    descEn: "Core concepts & recall",
+    descId: "Pemahaman konsep inti",
+    descEn: "Core concept understanding",
   },
   {
     id: "sedang",

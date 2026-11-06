@@ -150,6 +150,163 @@ async function loadQuestionsForQuiz(quizId: string): Promise<Question[]> {
 
 const inMemoryRooms = new Map<string, GameRoomRecord>();
 
+export const ROOM_IDLE_TIMEOUT_MS = 30 * 60 * 1000;
+
+export function getRoomLastActivityTime(room: {
+  updatedAt?: string | null;
+  createdAt?: string | null;
+  players?: Map<string, { lastSeenAt?: string | null }> | Iterable<{ lastSeenAt?: string | null }> | null;
+  submissions?: { createdAt?: string | null }[] | null;
+}): number {
+  let latest = Date.parse(room.updatedAt || room.createdAt || "") || 0;
+
+  if (room.players) {
+    const playersIterable =
+      room.players instanceof Map
+        ? room.players.values()
+        : typeof (room.players as Iterable<{ lastSeenAt?: string | null }>)[Symbol.iterator] === "function"
+        ? (room.players as Iterable<{ lastSeenAt?: string | null }>)
+        : [];
+    for (const p of playersIterable) {
+      if (p?.lastSeenAt) {
+        const t = Date.parse(p.lastSeenAt);
+        if (Number.isFinite(t) && t > latest) {
+          latest = t;
+        }
+      }
+    }
+  }
+
+  if (Array.isArray(room.submissions)) {
+    for (const s of room.submissions) {
+      if (s?.createdAt) {
+        const t = Date.parse(s.createdAt);
+        if (Number.isFinite(t) && t > latest) {
+          latest = t;
+        }
+      }
+    }
+  }
+
+  return latest;
+}
+
+export function isIdleRoom(
+  room: {
+    status?: string | null;
+    updatedAt?: string | null;
+    createdAt?: string | null;
+    players?: Map<string, { lastSeenAt?: string | null }> | Iterable<{ lastSeenAt?: string | null }> | null;
+    submissions?: { createdAt?: string | null }[] | null;
+  },
+  now: number = Date.now(),
+  timeoutMs: number = ROOM_IDLE_TIMEOUT_MS
+): boolean {
+  if (room.status === "finished") {
+    return false;
+  }
+  const lastActivity = getRoomLastActivityTime(room);
+  if (!lastActivity) {
+    return false;
+  }
+  return now - lastActivity >= timeoutMs;
+}
+
+let lastDbIdleSweep = 0;
+const DB_IDLE_SWEEP_THROTTLE_MS = 10_000;
+
+export async function closeIdleRooms(options?: {
+  now?: number;
+  forceDb?: boolean;
+}): Promise<string[]> {
+  const now = options?.now ?? Date.now();
+  const closedCodes: string[] = [];
+
+  for (const [code, room] of inMemoryRooms.entries()) {
+    if (room.status !== "finished" && isIdleRoom(room, now)) {
+      room.status = "finished";
+      const nowIso = new Date(now).toISOString();
+      room.updatedAt = nowIso;
+      room.lastSyncedAt = now;
+      closedCodes.push(code);
+    }
+  }
+
+  try {
+    if (
+      isDatabaseEnabled() &&
+      (options?.forceDb || closedCodes.length > 0 || now - lastDbIdleSweep >= DB_IDLE_SWEEP_THROTTLE_MS)
+    ) {
+      lastDbIdleSweep = now;
+      const cutoffIso = new Date(now - ROOM_IDLE_TIMEOUT_MS).toISOString();
+      await withTimeout(
+        db()
+          .from("game_rooms")
+          .update({
+            status: "finished",
+            updated_at: new Date(now).toISOString(),
+          })
+          .neq("status", "finished")
+          .lt("updated_at", cutoffIso),
+        2500
+      );
+    }
+  } catch (err) {
+    console.warn("[RoomStore] closeIdleRooms Supabase sync omitted:", err);
+  }
+
+  return closedCodes;
+}
+
+export async function recordHeartbeat(
+  roomCode: string,
+  options?: { playerId?: string }
+): Promise<boolean> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room || room.status === "finished") return false;
+
+  const nowIso = new Date().toISOString();
+  room.updatedAt = nowIso;
+  room.lastSyncedAt = Date.now();
+
+  if (options?.playerId) {
+    const player = room.players.get(options.playerId);
+    if (player) {
+      player.lastSeenAt = nowIso;
+      player.isConnected = true;
+    }
+  }
+
+  const client = getSupabaseAdmin();
+  if (client) {
+    try {
+      await withTimeout(
+        Promise.all([
+          client
+            .from("game_rooms")
+            .update({ updated_at: nowIso })
+            .match({ room_code: roomCode }),
+          options?.playerId
+            ? client
+                .from("players")
+                .update({ last_seen_at: nowIso, is_connected: true })
+                .match({ room_code: roomCode, id: options.playerId })
+            : Promise.resolve(null),
+        ]),
+        1500
+      );
+    } catch (err) {
+      console.warn("[RoomStore] recordHeartbeat sync failed:", err);
+    }
+  }
+
+  return true;
+}
+
+export function _resetInMemoryRoomsForTesting(): void {
+  inMemoryRooms.clear();
+}
+
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export function isValidUuid(val?: string | null): boolean {
   return Boolean(val && UUID_REGEX.test(val));
@@ -328,9 +485,27 @@ export async function createGameRoom(params: {
 }
 
 export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord | null> {
+  await closeIdleRooms();
+
   const cached = inMemoryRooms.get(roomCode) || null;
-  if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 750) {
-    return cached;
+  if (cached) {
+    if (cached.status !== "finished" && isIdleRoom(cached)) {
+      cached.status = "finished";
+      cached.updatedAt = new Date().toISOString();
+      cached.lastSyncedAt = Date.now();
+      if (isDatabaseEnabled()) {
+        withTimeout(
+          db()
+            .from("game_rooms")
+            .update({ status: "finished", updated_at: cached.updatedAt })
+            .match({ room_code: roomCode }),
+          1500
+        ).catch(() => {});
+      }
+    }
+    if (cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 750) {
+      return cached;
+    }
   }
 
   try {
@@ -466,6 +641,21 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
       lastSyncedAt: Date.now(),
     };
 
+    if (restoredRoom.status !== "finished" && isIdleRoom(restoredRoom)) {
+      restoredRoom.status = "finished";
+      restoredRoom.updatedAt = new Date().toISOString();
+      restoredRoom.lastSyncedAt = Date.now();
+      if (isDatabaseEnabled()) {
+        withTimeout(
+          db()
+            .from("game_rooms")
+            .update({ status: "finished", updated_at: restoredRoom.updatedAt })
+            .match({ room_code: roomCode }),
+          1500
+        ).catch(() => {});
+      }
+    }
+
     inMemoryRooms.set(roomCode, restoredRoom);
     return restoredRoom;
   } catch (err) {
@@ -482,6 +672,8 @@ export async function joinGameRoom(params: {
 }): Promise<{ player: PlayerRecord; room: GameRoomRecord } | null> {
   const roomCode = normalizeRoomCode(params.roomCode);
   if (!isValidRoomCode(roomCode)) return null;
+
+  await closeIdleRooms();
 
   const room = await ensureRoomLoaded(roomCode);
 
@@ -510,23 +702,31 @@ export async function joinGameRoom(params: {
     if (!keepsToken) {
       throw new PlayerIdentityConflictError();
     }
+    const nowIso = new Date().toISOString();
     existingPlayer.isConnected = true;
-    existingPlayer.lastSeenAt = new Date().toISOString();
+    existingPlayer.lastSeenAt = nowIso;
     if (existingPlayer.status === "rejected") {
       existingPlayer.status = initialStatus;
     }
+    room.updatedAt = nowIso;
     room.lastSyncedAt = Date.now();
     try {
       if (db) {
         await withTimeout(
-          db
-            .from("players")
-            .update({
-              player_token: existingPlayer.token,
-              is_connected: true,
-              last_seen_at: existingPlayer.lastSeenAt,
-            })
-            .match({ room_code: roomCode, id: existingPlayer.id }),
+          Promise.all([
+            db
+              .from("players")
+              .update({
+                player_token: existingPlayer.token,
+                is_connected: true,
+                last_seen_at: existingPlayer.lastSeenAt,
+              })
+              .match({ room_code: roomCode, id: existingPlayer.id }),
+            db
+              .from("game_rooms")
+              .update({ updated_at: nowIso })
+              .match({ room_code: roomCode }),
+          ]),
           1500
         );
       }
@@ -537,6 +737,7 @@ export async function joinGameRoom(params: {
   }
 
   const playerId = crypto.randomUUID();
+  const nowIso = new Date().toISOString();
   const newPlayer: PlayerRecord = {
     id: playerId,
     roomCode,
@@ -545,32 +746,39 @@ export async function joinGameRoom(params: {
     score: 0,
     streak: 0,
     isConnected: true,
-    lastSeenAt: new Date().toISOString(),
+    lastSeenAt: nowIso,
     status: initialStatus,
     token: crypto.randomUUID(),
   };
 
   room.players.set(playerId, newPlayer);
-  room.updatedAt = new Date().toISOString();
+  room.updatedAt = nowIso;
   room.lastSyncedAt = Date.now();
 
   try {
     if (db) {
-      const insertRes = await withTimeout(
-        db.from("players").insert({
-          id: playerId,
-          room_code: roomCode,
-          nickname: newPlayer.nickname,
-          avatar: newPlayer.avatar,
-          score: 0,
-          streak: 0,
-          is_connected: true,
-          status: newPlayer.status,
-          player_token: newPlayer.token,
-        }),
+      const insertResults = await withTimeout(
+        Promise.all([
+          db.from("players").insert({
+            id: playerId,
+            room_code: roomCode,
+            nickname: newPlayer.nickname,
+            avatar: newPlayer.avatar,
+            score: 0,
+            streak: 0,
+            is_connected: true,
+            status: newPlayer.status,
+            player_token: newPlayer.token,
+          }),
+          db
+            .from("game_rooms")
+            .update({ updated_at: nowIso })
+            .match({ room_code: roomCode }),
+        ]),
         1500
       );
 
+      const insertRes = insertResults ? insertResults[0] : null;
       if (insertRes?.error) {
         if (insertRes.error.code === "23505") {
           room.players.delete(playerId);
@@ -607,6 +815,7 @@ export async function validatePlayerToken(
 }
 
 export async function getGameRoomState(roomCode: string) {
+  await closeIdleRooms();
   const room = await ensureRoomLoaded(roomCode);
 
   if (!room) {
@@ -937,6 +1146,7 @@ export async function recordAnswerSubmission(params: {
     }
 
     const nowIso = new Date().toISOString();
+    player.lastSeenAt = nowIso;
     room.updatedAt = nowIso;
     await withTimeout(
       db
@@ -946,9 +1156,11 @@ export async function recordAnswerSubmission(params: {
       1500
     );
   } else {
+    const nowIso = new Date().toISOString();
     player.score = Math.max(0, player.score + scoreAwarded);
     player.streak = nextStreak;
-    room.updatedAt = new Date().toISOString();
+    player.lastSeenAt = nowIso;
+    room.updatedAt = nowIso;
   }
 
   room.submissions.push(submission);
@@ -1184,10 +1396,12 @@ export interface ActiveRoomSummary {
 }
 
 export async function listActiveRooms(): Promise<ActiveRoomSummary[]> {
+  await closeIdleRooms();
+
   const map = new Map<string, ActiveRoomSummary>();
 
   for (const room of inMemoryRooms.values()) {
-    if (room.status !== "finished") {
+    if (room.status !== "finished" && !isIdleRoom(room)) {
       const approvedCount = Array.from(room.players.values()).filter(
         (p) => (p.status || "approved") === "approved"
       ).length;
@@ -1205,7 +1419,7 @@ export async function listActiveRooms(): Promise<ActiveRoomSummary[]> {
 
   try {
     if (isDatabaseEnabled()) {
-      const cutoff = new Date(Date.now() - 6 * 60 * 60 * 1000).toISOString();
+      const cutoff = new Date(Date.now() - ROOM_IDLE_TIMEOUT_MS).toISOString();
       const res = await withTimeout(
         db()
           .from("game_rooms")
@@ -1250,9 +1464,14 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
   isFinished: boolean;
   currentQuestionIndex: number;
 }> {
+  await closeIdleRooms();
   const room = await ensureRoomLoaded(roomCode);
-  if (!room) {
-    return { success: false, isFinished: false, currentQuestionIndex: 0 };
+  if (!room || room.status === "finished") {
+    return {
+      success: false,
+      isFinished: true,
+      currentQuestionIndex: room?.currentQuestionIndex ?? 0,
+    };
   }
   const isPlaceholder = !isDatabaseEnabled();
 
@@ -1376,6 +1595,7 @@ export async function setRoomStatus(
 }
 
 export async function getTeacherRoomDetails(roomCode: string) {
+  await closeIdleRooms();
   const room = await ensureRoomLoaded(roomCode);
   if (!room) return null;
 
@@ -1500,16 +1720,29 @@ export async function approvePlayer(roomCode: string, playerId: string): Promise
   const player = room.players.get(playerId);
   if (!player) return false;
   player.status = "approved";
-  room.updatedAt = new Date().toISOString();
+  const nowIso = new Date().toISOString();
+  room.updatedAt = nowIso;
   room.lastSyncedAt = Date.now();
 
   const db = getSupabaseAdmin();
   if (db) {
-    const { error } = await db
-      .from("players")
-      .update({ status: "approved" })
-      .match({ room_code: roomCode, id: playerId });
-    if (error) console.error("[RoomStore] approvePlayer sync failed:", error.message);
+    try {
+      await withTimeout(
+        Promise.all([
+          db
+            .from("players")
+            .update({ status: "approved" })
+            .match({ room_code: roomCode, id: playerId }),
+          db
+            .from("game_rooms")
+            .update({ updated_at: nowIso })
+            .match({ room_code: roomCode }),
+        ]),
+        1500
+      );
+    } catch (err) {
+      console.error("[RoomStore] approvePlayer sync failed:", err);
+    }
   }
   return true;
 }
@@ -1520,16 +1753,29 @@ export async function rejectPlayer(roomCode: string, playerId: string): Promise<
   const player = room.players.get(playerId);
   if (!player) return false;
   player.status = "rejected";
-  room.updatedAt = new Date().toISOString();
+  const nowIso = new Date().toISOString();
+  room.updatedAt = nowIso;
   room.lastSyncedAt = Date.now();
 
   const db = getSupabaseAdmin();
   if (db) {
-    const { error } = await db
-      .from("players")
-      .update({ status: "rejected" })
-      .match({ room_code: roomCode, id: playerId });
-    if (error) console.error("[RoomStore] rejectPlayer sync failed:", error.message);
+    try {
+      await withTimeout(
+        Promise.all([
+          db
+            .from("players")
+            .update({ status: "rejected" })
+            .match({ room_code: roomCode, id: playerId }),
+          db
+            .from("game_rooms")
+            .update({ updated_at: nowIso })
+            .match({ room_code: roomCode }),
+        ]),
+        1500
+      );
+    } catch (err) {
+      console.error("[RoomStore] rejectPlayer sync failed:", err);
+    }
   }
   return true;
 }
@@ -1544,17 +1790,32 @@ export async function approveAllPlayers(roomCode: string): Promise<number> {
       count++;
     }
   }
-  room.updatedAt = new Date().toISOString();
+  const nowIso = new Date().toISOString();
+  room.updatedAt = nowIso;
   room.lastSyncedAt = Date.now();
 
   const db = getSupabaseAdmin();
-  if (db && count > 0) {
-    const { error } = await db
-      .from("players")
-      .update({ status: "approved" })
-      .eq("room_code", roomCode)
-      .eq("status", "pending");
-    if (error) console.error("[RoomStore] approveAllPlayers sync failed:", error.message);
+  if (db) {
+    try {
+      await withTimeout(
+        Promise.all([
+          count > 0
+            ? db
+                .from("players")
+                .update({ status: "approved" })
+                .eq("room_code", roomCode)
+                .eq("status", "pending")
+            : Promise.resolve(null),
+          db
+            .from("game_rooms")
+            .update({ updated_at: nowIso })
+            .match({ room_code: roomCode }),
+        ]),
+        1500
+      );
+    } catch (err) {
+      console.error("[RoomStore] approveAllPlayers sync failed:", err);
+    }
   }
   return count;
 }

@@ -19,20 +19,56 @@ const GeneratedSchema = z.object({
     .min(1),
 });
 
-const SYSTEM = `Kamu membuat soal pilihan ganda yang jelas dan akurat untuk pembelajaran.
+const SYSTEM = `Kamu adalah pakar asesmen pendidikan dan kurikulum yang merancang soal asesmen pilihan ganda berkualitas tinggi untuk pembelajaran aktif.
 
-Aturan:
-- Jika diberikan bahan ajar lengkap, soal harus bisa dijawab dari isi bahan tersebut. Jika hanya diberikan topik atau instruksi tentang apa yang akan dipelajari, susun soal dari fakta keilmuan yang akurat sesuai topik/instruksi itu.
-- Sesuaikan kompleksitas soal dengan tingkat kesulitan yang diminta oleh pengajar (mudah, sedang, sulit, atau campuran).
-- Satu pertanyaan menguji satu konsep penting. Tulis kalimat biasa, jelas, dan lugas.
-- Empat pilihan, satu benar. Pilihan salah harus masuk akal tetapi jelas salah, dan panjangnya mirip dengan pilihan yang benar.
-- Sertakan penjelasan alasan mengapa tiap opsi salah pada "distractorRationales" (4 string, untuk opsi benar tulis "Jawaban benar").
-- Letak jawaban benar (answerIndex 0, 1, 2, 3) wajib bervariasi secara acak dan tidak boleh selalu berada di indeks 0.
-- "explanation": satu atau dua kalimat yang menjelaskan mengapa jawaban itu benar.
-- "topic": 2-4 kata subtopik konsep yang diuji.
-- Jangan menulis "A." atau "B." di dalam teks pilihan.
-- Pakai bahasa yang sama dengan masukan pengguna.
-- Balas hanya JSON: {"title": string, "questions": [{"question": string, "options": [4 string], "answerIndex": 0-3, "explanation": string, "distractorRationales": [4 string], "topic": string}]}`;
+Pedoman Langkah Pembuatan Soal (Step-by-Step Assessment Design):
+1. Analisis Sumber & Topik: Identifikasi konsep-konsep esensial dari bahan ajar atau instruksi topik yang diberikan. Pastikan seluruh soal berakar pada fakta ilmiah dan materi yang akurat.
+2. Penentuan Tingkat Kesulitan:
+   - MUDAH (Comprehension): TIDAK BOLEH berupa hafalan definisi kata demi kata atau pengecoh konyol/asal-asalan. Soal mudah tetap menuntut pemahaman makna dari satu konsep spesifik dalam konteks wajar. Keempat opsi harus berada dalam kategori semantik dan panjang yang setara.
+   - SEDANG (Application & Cause-Effect): Menuntut penerapan konsep pada situasi nyata, analisis hubungan sebab-akibat, atau pemecahan masalah satu-dua langkah. Pengecoh mewakili miskonsepsi umum peserta didik.
+   - SULIT / HOTS (High-Order Thinking): Analisis kritis terhadap studi kasus, pemecahan masalah multi-langkah, evaluasi trade-off, atau prediksi akibat ketika suatu variabel dalam sistem diubah.
+   - CAMPURAN (Progressive): Bagi tingkat kesulitan secara bertahap: awal mudah (pemahaman konsep), tengah sedang (aplikasi/sebab-akibat), akhir sulit (analisis kritis HOTS).
+3. Struktur Pertanyaan (Stem): Tuliskan pokok soal dengan kalimat yang lugas, tidak ambigu, dan tidak menyisipkan petunjuk ke arah jawaban benar. Hindari bentuk negatif ganda (misal: "Kecuali yang bukan...").
+4. Kualitas Opsi & Pengecoh (Distractors):
+   - Wajib tepat 4 opsi per soal.
+   - Hanya ada 1 opsi yang paling tepat/benar.
+   - 3 opsi pengecoh harus masuk akal, tidak konyol, tidak saling bertentangan secara sepele, dan memiliki panjang kalimat yang setara dengan opsi benar.
+   - DILARANG menggunakan opsi "Semua benar", "Semua salah", "A dan B benar", atau sejenisnya.
+   - DILARANG menyertakan awalan label huruf seperti "A.", "B.", "C.", atau "D." di dalam teks opsi.
+5. Keseimbangan Indeks Jawaban:
+   - Letak jawaban benar ("answerIndex": 0, 1, 2, atau 3) WAJIB didistribusikan secara acak dan seimbang, tidak boleh monoton atau berkumpul di indeks tertentu.
+6. Rasionalisasi Pedagogis:
+   - "explanation": 1-2 kalimat padat yang menjelaskan mengapa opsi kunci tersebut benar berdasarkan prinsip ilmiah/materi.
+   - "distractorRationales": Tepat 4 string berurutan sesuai urutan opsi. Untuk opsi yang benar tulis "Jawaban benar" (atau "Correct answer" bila bahasa Inggris). Untuk opsi salah, jelaskan secara spesifik kekeliruan pemahamannya.
+   - "topic": 2-4 kata penanda subtopik konsep spesifik yang diuji.
+7. Format Luaran (Strict JSON Only):
+   - Gunakan bahasa yang sama dengan instruksi/materi pengguna (Bahasa Indonesia secara default).
+   - Keluaran WAJIB berupa objek JSON valid tanpa teks pengantar, tanpa penutup percakapan, dan tanpa karakter tambahan di luar JSON.
+
+Contoh Struktur JSON (Few-shot Example):
+{
+  "title": "Kuis Siklus Air dan Ekosistem",
+  "questions": [
+    {
+      "question": "Ketika tutupan vegetasi di lereng bukit berkurang drastis akibat penebangan, bagaimanakah perubahan pada pergerakan air tanah dan limpasan permukaan (surface runoff)?",
+      "options": [
+        "Infiltrasi air tanah meningkat karena air langsung menyerap tanpa terhalang daun",
+        "Limpasan permukaan meningkat tajam sehingga laju pengisian air tanah justru menurun",
+        "Laju transpirasi lingkungan bertambah sehingga air tanah tersedot lebih cepat",
+        "Kapasitas retensi tanah bertambah karena tanah langsung terkena sinar matahari"
+      ],
+      "answerIndex": 1,
+      "explanation": "Tanpa vegetasi, air hujan tidak terserap maksimal ke pori-pori tanah (infiltrasi menurun) dan sebagian besar menjadi limpasan permukaan yang berisiko erosi.",
+      "distractorRationales": [
+        "Infiltrasi justru menurun drastis karena pori-pori tanah memadat tanpa akar tumbuhan.",
+        "Jawaban benar",
+        "Transpirasi justru berkurang signifikan karena jumlah tanaman berkurang drastis.",
+        "Sinar matahari langsung justru membuat tanah kering dan retak sehingga menurunkan kemampuan retensi air."
+      ],
+      "topic": "Infiltrasi dan limpasan"
+    }
+  ]
+}`;
 
 export interface GeneratedQuiz {
   title: string;
@@ -43,13 +79,13 @@ const LABELS = ["A", "B", "C", "D"] as const;
 
 const DIFFICULTY_GUIDE: Record<QuizDifficultyLevel, string> = {
   mudah:
-    "Tingkat kesulitan: MUDAH — fokus pada pengenalan konsep dasar, definisi inti, dan pemahaman langsung dari materi.",
+    "Tingkat kesulitan: MUDAH — fokus pada pemahaman konsep inti (bukan sekadar hafalan definisi kata). Siswa menguji pemahaman satu konsep dalam konteks nyata dengan 3 pengecoh logis yang setara kategori dan panjangnya.",
   sedang:
-    "Tingkat kesulitan: SEDANG — fokus pada penerapan konsep, hubungan sebab-akibat, dan contoh nyata dari materi.",
+    "Tingkat kesulitan: SEDANG — fokus pada penerapan konsep, hubungan sebab-akibat, dan analisis kasus terarah. Pengecoh mencerminkan kekeliruan logika atau miskonsepsi umum.",
   sulit:
-    "Tingkat kesulitan: SULIT (HOTS) — fokus pada analisis kritis, evaluasi kasus, perbandingan mendalam, dan pemecahan masalah kompleks.",
+    "Tingkat kesulitan: SULIT (HOTS) — fokus pada penalaran tingkat tinggi, studi kasus multi-langkah, evaluasi trade-off atau dilema, dan sintesis kesimpulan dari situasi yang kompleks.",
   campuran:
-    "Tingkat kesulitan: CAMPURAN — susun soal secara bertahap dari mudah di awal, sedang di tengah, hingga sulit (analisis/HOTS) di akhir.",
+    "Tingkat kesulitan: CAMPURAN (PROGRESIF) — susun urutan soal secara bertahap: bagian awal mudah (pemahaman konsep), bagian tengah sedang (aplikasi/sebab-akibat), dan bagian akhir sulit (analisis HOTS).",
 };
 
 /** Heuristic Fallback Generator: Membuat soal otomatis dari bahan jika AI down */
