@@ -21,7 +21,6 @@ import {
   RiCopilotFill,
   RiSendPlaneLine,
   RiUserSharedLine,
-  RiToggleLine,
   RiCheckboxCircleLine,
   RiTimeLine,
   RiFullscreenLine,
@@ -42,6 +41,7 @@ import { Button } from "@/components/base/buttons/button";
 import { IconButton } from "@/components/base/buttons/icon-button";
 import { Chip } from "@/components/base/badges/chip";
 import { Badge } from "@/components/base/badges/badge";
+import { MacOSToggle } from "@/components/base/toggle/macos-toggle";
 import { Avatar } from "@/components/base/avatar/avatar";
 import { ProgressTrack } from "@/components/base/progress/progress";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/base/tabs/tabs";
@@ -385,27 +385,46 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     }
   };
 
-  const handleToggleAutoApprove = async () => {
+  const handleToggleAutoApprove = async (nextValue?: boolean) => {
     soundEffects.playClick();
+    const targetValue =
+      typeof nextValue === "boolean"
+        ? nextValue
+        : !(state?.autoApproveStudents ?? true);
+
+    setState((prev) => (prev ? { ...prev, autoApproveStudents: targetValue } : prev));
+
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
         headers: hostHeaders(),
         body: JSON.stringify({
           action: "toggle_auto_approve",
-          autoApprove: !(state?.autoApproveStudents ?? true),
+          autoApprove: targetValue,
         }),
       });
       const data = await res.json();
       if (res.ok) {
         const modeLabel = data.autoApprove
-          ? "Siswa otomatis masuk tanpa verifikasi"
-          : "Verifikasi manual diaktifkan";
+          ? isEn
+            ? "Auto-admission active: Students join instantly"
+            : "Siswa otomatis masuk tanpa verifikasi"
+          : isEn
+            ? "Manual review active: Students require teacher approval"
+            : "Verifikasi manual diaktifkan";
         toast.success(modeLabel);
         await fetchRoomState();
+      } else {
+        setState((prev) => (prev ? { ...prev, autoApproveStudents: !targetValue } : prev));
+        toast.error(data.error || "Gagal mengubah mode penerimaan");
       }
     } catch {
-      toast.error("Gagal mengubah pengaturan persetujuan");
+      setState((prev) => (prev ? { ...prev, autoApproveStudents: !targetValue } : prev));
+      toast.error(
+        isEn
+          ? "Failed to change admission control setting"
+          : "Gagal mengubah pengaturan persetujuan"
+      );
     }
   };
 
@@ -1003,31 +1022,36 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-6"
               >
                 {/* Admission Control Mode Bar */}
-                <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <span className="text-body-semibold text-text-primary block">
-                      Kontrol penerimaan siswa
+                      {isEn ? "Student admission control" : "Kontrol penerimaan siswa"}
                     </span>
                     <p className="text-caption-1-regular text-text-secondary">
                       {isAutoApprove
-                        ? "Siswa langsung masuk secara otomatis tanpa persetujuan."
-                        : "Siswa yang bergabung harus diverifikasi dan disetujui satu per satu oleh guru."}
+                        ? isEn
+                          ? "Students join automatically without requiring host approval."
+                          : "Siswa langsung masuk secara otomatis tanpa persetujuan."
+                        : isEn
+                          ? "Students who join must be individually reviewed and approved by the teacher."
+                          : "Siswa yang bergabung harus diverifikasi dan disetujui satu per satu oleh guru."}
                     </p>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleToggleAutoApprove}
-                    className={cx(
-                      "cursor-pointer px-3.5 py-1.5 rounded-xl border text-caption-1-medium flex items-center gap-2 transition outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring shrink-0",
-                      isAutoApprove
-                        ? "bg-accent-700/10 text-accent-700 border-accent-700/30"
-                        : "bg-amber-500/10 text-amber-700 dark:text-amber-400 border-amber-500/30"
-                    )}
-                  >
-                    <RiToggleLine className="size-4" aria-hidden />
-                    <span>{isAutoApprove ? "Mode: masuk otomatis" : "Mode: verifikasi manual"}</span>
-                  </button>
+                  <div className="flex items-center gap-3 shrink-0 self-start sm:self-center">
+                    <span
+                      onClick={() => handleToggleAutoApprove(!isAutoApprove)}
+                      className="cursor-pointer select-none text-caption-1-medium text-text-secondary hover:text-text-primary transition-colors"
+                    >
+                      {isEn ? "Admit automatically" : "Siswa masuk otomatis"}
+                    </span>
+                    <MacOSToggle
+                      checked={isAutoApprove}
+                      onChange={handleToggleAutoApprove}
+                      label={isEn ? "Admit automatically" : "Siswa masuk otomatis"}
+                      color="green"
+                    />
+                  </div>
                 </div>
 
                 {/* Pending Approval Section */}
