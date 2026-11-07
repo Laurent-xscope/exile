@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { listActiveRooms } from "@/lib/rooms/store";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
 
 export async function GET(req: Request) {
@@ -8,17 +7,9 @@ export async function GET(req: Request) {
     return rateLimit.errorResponse;
   }
 
-  try {
-    const rooms = await listActiveRooms();
-    return NextResponse.json(
-      { success: true, rooms },
-      { headers: { "Cache-Control": "no-store" } }
-    );
-  } catch (err) {
-    console.error("[rooms/list error]", err);
-    return NextResponse.json(
-      { success: false, rooms: [] },
-      { status: 500 }
-    );
-  }
+  // Quiz rooms are private by design; public directory listing is disabled to prevent room sharing without a pin.
+  return NextResponse.json(
+    { success: true, rooms: [] },
+    { headers: { "Cache-Control": "no-store" } }
+  );
 }
