@@ -8,7 +8,6 @@ import {
   RiBookOpenLine,
   RiTrophyLine,
   RiGroupLine,
-  RiFileCopyLine,
   RiArrowLeftLine,
   RiArrowRightLine,
   RiCheckLine,
@@ -25,6 +24,7 @@ import {
   RiTimeLine,
   RiFullscreenLine,
   RiFullscreenExitLine,
+  RiAlertLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -39,6 +39,7 @@ import { soundEffects } from "@/lib/audio/sounds";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/base/buttons/button";
 import { IconButton } from "@/components/base/buttons/icon-button";
+import { InputBase } from "@/components/base/input/input";
 import { Chip } from "@/components/base/badges/chip";
 import { Badge } from "@/components/base/badges/badge";
 import { MacOSToggle } from "@/components/base/toggle/macos-toggle";
@@ -47,10 +48,16 @@ import { ProgressTrack } from "@/components/base/progress/progress";
 import { Tabs, TabList, Tab, TabPanel } from "@/components/base/tabs/tabs";
 import { Spinner } from "@/components/base/spinner/spinner";
 import {
+  Modal,
+  ModalHeader,
+  ModalFooter,
+} from "@/components/base/modal/modal";
+import {
   ScrollFade,
   useScrollFade,
 } from "@/components/foundations/scroll-fade/scroll-fade";
 import { QuizUpload } from "@/components/rooms/quiz-upload";
+import { TelegramSpoilerPin } from "@/components/rooms/telegram-spoiler-pin";
 import { FormattedMessage } from "@/components/chat/formatted-message";
 import { cx } from "@/utils/cx";
 
@@ -156,6 +163,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const [quizStarted, setQuizStarted] = useState(false);
   const [gameFinished, setGameFinished] = useState(false);
   const [replacingMaterial, setReplacingMaterial] = useState(false);
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [leavingRoom, setLeavingRoom] = useState(false);
+  const [approvingPlayerId, setApprovingPlayerId] = useState<string | null>(null);
+  const [rejectingPlayerId, setRejectingPlayerId] = useState<string | null>(null);
 
   const hostToken = useSyncExternalStore(
     () => () => {},
@@ -181,6 +192,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
   const leaderboardFade = useScrollFade();
   const playersFade = useScrollFade();
+  const copilotFade = useScrollFade();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleFullscreen = () => {
@@ -196,7 +208,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   };
 
   useEffect(() => {
-    if (authLoading) return;
+    if (authLoading || leavingRoom) return;
     // Check localStorage hostToken to avoid false-positive student tab lockout
     const hasValidHostToken = Boolean(hostToken || getHostToken(roomCode));
     if (!hasValidHostToken) {
@@ -207,7 +219,33 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
       );
       router.replace(`/play/${roomCode}`);
     }
-  }, [authLoading, hostToken, roomCode, router, isEn]);
+  }, [authLoading, hostToken, roomCode, router, isEn, leavingRoom]);
+
+  // Guard hardware / browser back navigation and accidental tab closure
+  useEffect(() => {
+    if (gameFinished || state?.status === "finished" || leavingRoom) return;
+
+    window.history.pushState({ hostRoom: roomCode }, "");
+
+    const handlePopState = (e: PopStateEvent) => {
+      e.preventDefault();
+      window.history.pushState({ hostRoom: roomCode }, "");
+      setShowLeaveModal(true);
+    };
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [gameFinished, state?.status, roomCode, leavingRoom]);
 
   const hostHeaders = () => {
     const token = getHostToken(roomCode);
@@ -328,8 +366,49 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     }
   };
 
+  const handleConfirmLeave = async () => {
+    soundEffects.playClick();
+    setLeavingRoom(true);
+    try {
+      await fetch(`/api/rooms/${roomCode}/action`, {
+        method: "POST",
+        headers: hostHeaders(),
+        body: JSON.stringify({ action: "abandon_room" }),
+      });
+      clearHostToken(roomCode);
+      toast.info(isEn ? "Classroom closed" : "Ruang kelas telah ditutup");
+      router.push("/");
+    } catch {
+      toast.error(isEn ? "Failed to close classroom" : "Gagal menutup ruang kelas");
+      setLeavingRoom(false);
+    }
+  };
+
   const handleApprovePlayer = async (playerId: string) => {
     soundEffects.playClick();
+    setApprovingPlayerId(playerId);
+
+    // Optimistically update local UI state immediately
+    setState((prev) => {
+      if (!prev) return prev;
+      const target = prev.pendingPlayers?.find((p) => p.id === playerId);
+      if (!target) return prev;
+      const nextPending = prev.pendingPlayers?.filter((p) => p.id !== playerId) || [];
+      const updatedTarget: PlayerItem = { ...target, status: "approved" };
+      const nextApproved = [...(prev.approvedPlayers || []), updatedTarget];
+      return {
+        ...prev,
+        pendingPlayers: nextPending,
+        approvedPlayers: nextApproved,
+        players: prev.players.map((p) => (p.id === playerId ? { ...p, status: "approved" } : p)),
+        stats: {
+          ...prev.stats,
+          pendingCount: Math.max(0, nextPending.length),
+          totalPlayers: Math.max(prev.stats?.totalPlayers || 0, nextApproved.length),
+        },
+      };
+    });
+
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
@@ -338,32 +417,64 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
       });
       const data = await res.json();
       if (res.ok) {
-        toast.success("Siswa disetujui bergabung ke ruangan");
-        await fetchRoomState();
+        toast.success(
+          isEn ? "Student approved to join" : "Siswa disetujui bergabung ke ruangan"
+        );
+        if (data.details) {
+          setState((prev) => (prev ? { ...prev, ...data.details } : prev));
+        }
       } else {
-        throw new Error(data.error || "Gagal menyetujui siswa");
+        await fetchRoomState();
+        throw new Error(data.error || (isEn ? "Failed to approve student" : "Gagal menyetujui siswa"));
       }
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : "Gagal menyetujui";
+      await fetchRoomState();
+      const msg = err instanceof Error ? err.message : isEn ? "Failed to approve" : "Gagal menyetujui";
       toast.error(msg);
+    } finally {
+      setApprovingPlayerId(null);
     }
   };
 
   const handleRejectPlayer = async (playerId: string) => {
     soundEffects.playClick();
+    setRejectingPlayerId(playerId);
+
+    // Optimistically update local UI state immediately
+    setState((prev) => {
+      if (!prev) return prev;
+      const nextPending = prev.pendingPlayers?.filter((p) => p.id !== playerId) || [];
+      return {
+        ...prev,
+        pendingPlayers: nextPending,
+        players: prev.players.map((p) => (p.id === playerId ? { ...p, status: "rejected" } : p)),
+        stats: {
+          ...prev.stats,
+          pendingCount: Math.max(0, nextPending.length),
+        },
+      };
+    });
+
     try {
       const res = await fetch(`/api/rooms/${roomCode}/action`, {
         method: "POST",
         headers: hostHeaders(),
         body: JSON.stringify({ action: "reject_player", playerId }),
       });
-      await res.json();
+      const data = await res.json();
       if (res.ok) {
-        toast.info("Akses siswa ditolak");
+        toast.info(isEn ? "Student admission rejected" : "Akses siswa ditolak");
+        if (data.details) {
+          setState((prev) => (prev ? { ...prev, ...data.details } : prev));
+        }
+      } else {
         await fetchRoomState();
       }
     } catch {
-      toast.error("Gagal menolak akses");
+      await fetchRoomState();
+      toast.error(isEn ? "Failed to reject admission" : "Gagal menolak akses");
+    } finally {
+      setRejectingPlayerId(null);
     }
   };
 
@@ -461,12 +572,6 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     }
   };
 
-  const copyPin = () => {
-    navigator.clipboard.writeText(roomCode);
-    soundEffects.playClick();
-    toast.success("Pin disalin ke papan klip");
-  };
-
   const copyShareLink = () => {
     if (typeof window !== "undefined") {
       const url = `${window.location.origin}/play/${roomCode}`;
@@ -506,13 +611,15 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
       <header className="border-b border-separator-border bg-background-primary-default/95 sticky top-0 z-40 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3 min-w-0">
-            <Link
-              href="/"
-              className="flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors"
-              aria-label={isEn ? "Back to home" : "Kembali ke beranda"}
+            <button
+              type="button"
+              onClick={() => setShowLeaveModal(true)}
+              className="flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              aria-label={isEn ? "Leave classroom" : "Tinggalkan ruang kelas"}
+              title={isEn ? "Leave classroom" : "Tinggalkan ruang kelas"}
             >
               <RiArrowLeftLine className="size-5" />
-            </Link>
+            </button>
 
             <div className="min-w-0">
               <div className="flex items-center gap-2 flex-wrap">
@@ -545,21 +652,15 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               title={isEn ? "Copy direct invitation link for students" : "Salin tautan langsung untuk siswa"}
             >
               <RiUserSharedLine className="size-4 text-accent-700" aria-hidden />
-              <span>{isEn ? "Share link" : "Bagikan link"}</span>
+              <span>{isEn ? "Share link" : "Bagikan tautan"}</span>
             </button>
 
-            <button
-              type="button"
-              onClick={copyPin}
-              className="cursor-pointer flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-background-primary-default hover:bg-background-primary-hover border border-border-button-default shadow-card transition outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
-              title={isEn ? "Copy room pin" : "Salin pin ruangan"}
-            >
-              <div className="text-start">
-                <span className="text-[10px] text-text-secondary block leading-none">{isEn ? "Room pin" : "Pin ruang"}</span>
-                <bdi className="font-mono text-body-bold text-text-primary">{roomCode}</bdi>
-              </div>
-              <RiFileCopyLine className="size-4 text-foreground-icon-secondary shrink-0" aria-hidden />
-            </button>
+            <TelegramSpoilerPin
+              pin={roomCode}
+              size="md"
+              isEn={isEn}
+              label={isEn ? "Room pin" : "Pin ruang"}
+            />
 
             <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-background-primary-default border border-border-button-default shadow-card">
               <RiGroupLine className="size-4 text-foreground-icon-secondary" aria-hidden />
@@ -613,11 +714,11 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="space-y-1">
+                <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="relative flex size-2.5">
-                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-amber-500 opacity-50" />
-                      <span className="relative inline-flex rounded-full size-2.5 bg-amber-500" />
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-accent-700 opacity-50" />
+                      <span className="relative inline-flex rounded-full size-2.5 bg-accent-700" />
                     </span>
                     <span className="text-body-semibold text-text-primary">
                       {isEn ? "Classroom lobby waiting for students" : "Lobi ruangan menunggu siswa"}
@@ -626,11 +727,11 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       {totalApproved} {isEn ? "students ready" : "siswa siap"}
                     </span>
                   </div>
-                  <p className="text-caption-1-regular text-text-secondary">
-                    {isEn
-                      ? `Share pin ${roomCode} with students. Click start quiz to begin question 1.`
-                      : `Bagikan pin ${roomCode} kepada siswa. Klik mulai kuis untuk membuka pertanyaan 1.`}
-                  </p>
+                  <div className="flex items-center gap-2 flex-wrap text-caption-1-regular text-text-secondary">
+                    <span>{isEn ? "Share pin" : "Bagikan pin"}</span>
+                    <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} />
+                    <span>{isEn ? "with students. Click start quiz to begin question 1." : "kepada siswa. Klik mulai kuis untuk membuka soal 1."}</span>
+                  </div>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
@@ -656,31 +757,84 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-4 rounded-3xl bg-amber-500/10 border border-amber-500/30 shadow-card flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+              className="p-5 rounded-3xl bg-background-secondary-default border border-border-button-default shadow-card flex flex-col gap-4"
             >
-              <div className="flex items-center gap-3">
-                <div className="size-9 rounded-xl bg-amber-500/20 text-amber-700 dark:text-amber-400 flex items-center justify-center shrink-0">
-                  <RiTimeLine className="size-5" aria-hidden />
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="size-9 rounded-xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center shrink-0">
+                    <RiTimeLine className="size-5" aria-hidden />
+                  </div>
+                  <div>
+                    <h4 className="text-body-semibold text-text-primary">
+                      {totalPending} {isEn ? "students waiting for approval" : "siswa menunggu persetujuan"}
+                    </h4>
+                    <p className="text-caption-1-regular text-text-secondary">
+                      {isEn
+                        ? "Approve students individually below or admit all at once."
+                        : "Setujui siswa satu per satu di bawah ini atau masukkan mereka sekaligus."}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <h4 className="text-body-semibold text-text-primary">
-                    {totalPending} siswa menunggu persetujuan
-                  </h4>
-                  <p className="text-caption-1-regular text-text-secondary">
-                    Periksa nama siswa di tab daftar siswa atau klik setujui semua untuk memasukkan mereka sekaligus.
-                  </p>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <Button
+                    variant="primary"
+                    size="small"
+                    leadingIcon={RiCheckDoubleLine}
+                    onClick={handleApproveAllPlayers}
+                    disabled={actionLoading}
+                  >
+                    {isEn ? `Approve all (${totalPending})` : `Setujui semua (${totalPending})`}
+                  </Button>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
-                <Button
-                  variant="primary"
-                  size="small"
-                  leadingIcon={RiCheckDoubleLine}
-                  onClick={handleApproveAllPlayers}
-                >
-                  Setujui semua ({totalPending})
-                </Button>
+              {/* Individual pending student approval cards */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2 border-t border-separator-border">
+                {pendingPlayersList.map((p) => (
+                  <div
+                    key={p.id}
+                    className="p-3 rounded-2xl bg-background-primary-default border border-border-button-default shadow-2xs flex items-center justify-between gap-2"
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />
+                      <span className="text-body-medium text-text-primary font-medium truncate" title={p.nickname}>
+                        {p.nickname}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <Button
+                        variant="ghost"
+                        size="small"
+                        leadingIcon={rejectingPlayerId === p.id ? undefined : RiCloseLine}
+                        onClick={() => handleRejectPlayer(p.id)}
+                        disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
+                        aria-label={isEn ? "Reject student" : "Tolak siswa"}
+                        title={isEn ? "Reject student" : "Tolak siswa"}
+                      >
+                        {rejectingPlayerId === p.id ? (
+                          <Spinner size="xs" aria-label="Menolak" />
+                        ) : (
+                          isEn ? "Reject" : "Tolak"
+                        )}
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="small"
+                        leadingIcon={approvingPlayerId === p.id ? undefined : RiCheckLine}
+                        onClick={() => handleApprovePlayer(p.id)}
+                        disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
+                      >
+                        {approvingPlayerId === p.id ? (
+                          <Spinner size="xs" aria-label="Menyetujui" />
+                        ) : (
+                          isEn ? "Approve" : "Setujui"
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
               </div>
             </motion.div>
           )}
@@ -784,8 +938,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             "p-4 rounded-2xl border transition relative overflow-hidden space-y-2 text-start cursor-pointer",
                             selectedOnHost
                               ? option.isCorrect
-                                ? "bg-emerald-500/15 border-emerald-500"
-                                : "bg-rose-500/10 border-border-error-default"
+                                ? "bg-accent-700/10 border-accent-700/50"
+                                : "bg-background-tertiary-error border-border-error-default"
                               : "bg-background-secondary-default border-border-button-default hover:border-border-button-hover"
                           )}
                         >
@@ -798,8 +952,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                 "pointer-events-none absolute inset-y-0 start-0 transition-all duration-300",
                                 selectedOnHost
                                   ? option.isCorrect
-                                    ? "bg-emerald-500/15"
-                                    : "bg-rose-500/15"
+                                    ? "bg-accent-700/15"
+                                    : "bg-background-tertiary-error"
                                   : "bg-text-primary/5"
                               )}
                             />
@@ -812,8 +966,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                   "size-6 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0",
                                   selectedOnHost
                                     ? option.isCorrect
-                                      ? "bg-emerald-600 text-white"
-                                      : "bg-rose-600 text-white"
+                                      ? "bg-accent-700 text-text-white"
+                                      : "bg-accent-destructive text-text-white"
                                     : "bg-background-tertiary-default text-text-primary"
                                 )}
                               >
@@ -829,8 +983,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                 "inline-flex items-center px-2 py-0.5 rounded-md text-caption-2-medium tabular-nums shrink-0",
                                 selectedOnHost
                                   ? option.isCorrect
-                                    ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30"
-                                    : "bg-rose-500/15 text-text-error-primary border border-border-error-default"
+                                    ? "bg-accent-700/15 text-accent-700 border border-accent-700/25"
+                                    : "bg-background-tertiary-error text-text-error-primary border border-border-error-default"
                                   : "bg-background-tertiary-default text-text-secondary"
                               )}
                             >
@@ -870,9 +1024,9 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-8 text-center shadow-card space-y-2">
                   <p className="text-body-regular text-text-secondary">
                     {state?.status === "finished"
-                      ? "Sesi kuis telah diselesaikan. Anda dapat membuka Laporan Kelas di panel kanan."
+                      ? "Sesi kuis telah diselesaikan. Anda dapat membuka laporan kelas di panel kanan."
                       : hasQuestions
-                        ? "Belum ada soal yang aktif. Klik Mulai Kuis untuk mengaktifkan soal pertama."
+                        ? "Belum ada soal yang aktif. Klik mulai kuis untuk mengaktifkan soal pertama."
                         : "Belum ada soal. Unggah materi untuk membuat kuis."}
                   </p>
                 </div>
@@ -1062,7 +1216,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         <span className="text-body-semibold text-text-primary">
                           Menunggu persetujuan
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
                           {totalPending} siswa
                         </span>
                       </div>
@@ -1080,7 +1234,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       {pendingPlayersList.map((p) => (
                         <div
                           key={p.id}
-                          className="p-3.5 rounded-2xl bg-amber-500/5 border border-amber-500/25 flex items-center justify-between gap-3"
+                          className="p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />
@@ -1095,23 +1249,34 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           </div>
 
                           <div className="flex items-center gap-2 shrink-0">
-                            <button
-                              type="button"
+                            <Button
+                              variant="ghost"
+                              size="small"
+                              leadingIcon={rejectingPlayerId === p.id ? undefined : RiCloseLine}
                               onClick={() => handleRejectPlayer(p.id)}
-                              className="cursor-pointer size-8 rounded-lg flex items-center justify-center bg-background-primary-default border border-border-button-default text-text-tertiary hover:text-text-error-primary transition"
-                              title="Tolak siswa"
+                              disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
+                              aria-label={isEn ? "Reject student" : "Tolak siswa"}
+                              title={isEn ? "Reject student" : "Tolak siswa"}
                             >
-                              <RiCloseLine className="size-4" />
-                            </button>
-                            <button
-                              type="button"
+                              {rejectingPlayerId === p.id ? (
+                                <Spinner size="xs" aria-label="Menolak" />
+                              ) : (
+                                isEn ? "Reject" : "Tolak"
+                              )}
+                            </Button>
+                            <Button
+                              variant="primary"
+                              size="small"
+                              leadingIcon={approvingPlayerId === p.id ? undefined : RiCheckLine}
                               onClick={() => handleApprovePlayer(p.id)}
-                              className="cursor-pointer px-3 py-1 rounded-lg bg-accent-700 text-white text-caption-2-medium flex items-center gap-1 hover:bg-accent-700/90 transition shadow-2xs"
-                              title="Setujui siswa"
+                              disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
                             >
-                              <RiCheckLine className="size-3.5" />
-                              <span>Setujui</span>
-                            </button>
+                              {approvingPlayerId === p.id ? (
+                                <Spinner size="xs" aria-label="Menyetujui" />
+                              ) : (
+                                isEn ? "Approve" : "Setujui"
+                              )}
+                            </Button>
                           </div>
                         </div>
                       ))}
@@ -1160,11 +1325,14 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       />
                     </div>
                   ) : (
-                    <p className="text-body-regular text-text-secondary py-6 text-center">
-                      Belum ada siswa yang masuk. Bagikan pin{" "}
-                      <bdi className="font-mono font-semibold text-text-primary">{roomCode}</bdi>{" "}
-                      ke siswa.
-                    </p>
+                    <div className="flex flex-col items-center justify-center gap-2 py-6 text-center text-body-regular text-text-secondary">
+                      <p>
+                        {isEn
+                          ? "No students have joined yet. Share this pin with students:"
+                          : "Belum ada siswa yang masuk. Bagikan pin ini ke siswa:"}
+                      </p>
+                      <TelegramSpoilerPin pin={roomCode} size="md" isEn={isEn} />
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -1221,31 +1389,40 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 </div>
 
                 {/* Copilot Chat Log */}
-                <div className="space-y-3 max-h-80 overflow-y-auto p-3 rounded-2xl bg-background-secondary-default border border-border-button-default">
-                  {copilotMessages.map((msg, i) => (
-                    <div
-                      key={i}
-                      className={cx(
-                        "p-3.5 rounded-2xl text-body-2-regular max-w-[85%] whitespace-pre-wrap leading-relaxed",
-                        msg.role === "user"
-                          ? "ms-auto bg-background-primary-default border border-border-button-default text-text-primary"
-                          : "me-auto bg-background-primary-default border border-accent-700/20 text-text-primary shadow-2xs"
-                      )}
-                    >
-                      {msg.role === "assistant" && (
-                        <span className="text-[11px] font-semibold text-accent-700 block mb-1">
-                          Exile copilot
-                        </span>
-                      )}
-                      <FormattedMessage content={msg.content} />
-                    </div>
-                  ))}
-                  {copilotLoading && (
-                    <div className="p-3 rounded-2xl me-auto bg-background-primary-default border border-accent-700/20 flex items-center gap-2 text-caption-1-medium text-text-secondary">
-                      <Spinner size="xs" />
-                      <span>Copilot sedang menganalisis kelas...</span>
-                    </div>
-                  )}
+                <div className="relative min-h-0">
+                  <div
+                    onScroll={copilotFade.onScroll}
+                    className="space-y-3 max-h-80 overflow-y-auto p-3 rounded-2xl bg-background-secondary-default border border-border-button-default"
+                  >
+                    {copilotMessages.map((msg, i) => (
+                      <div
+                        key={i}
+                        className={cx(
+                          "p-3.5 rounded-2xl text-body-2-regular max-w-[85%] whitespace-pre-wrap leading-relaxed",
+                          msg.role === "user"
+                            ? "ms-auto bg-background-primary-default border border-border-button-default text-text-primary"
+                            : "me-auto bg-background-primary-default border border-accent-700/20 text-text-primary shadow-2xs"
+                        )}
+                      >
+                        {msg.role === "assistant" && (
+                          <span className="text-[11px] font-semibold text-accent-700 block mb-1">
+                            Exile copilot
+                          </span>
+                        )}
+                        <FormattedMessage content={msg.content} />
+                      </div>
+                    ))}
+                    {copilotLoading && (
+                      <div className="p-3 rounded-2xl me-auto bg-background-primary-default border border-accent-700/20 flex items-center gap-2 text-caption-1-medium text-text-secondary">
+                        <Spinner size="xs" />
+                        <span>Copilot sedang menganalisis kelas...</span>
+                      </div>
+                    )}
+                  </div>
+                  <ScrollFade
+                    progress={copilotFade.progress}
+                    surfaceClassName="from-background-primary-default"
+                  />
                 </div>
 
                 {/* Input box */}
@@ -1256,12 +1433,16 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   }}
                   className="flex items-center gap-2"
                 >
-                  <input
-                    type="text"
+                  <InputBase
+                    aria-label={isEn ? "Ask copilot" : "Tanyakan ke copilot"}
                     value={copilotInput}
                     onChange={(e) => setCopilotInput(e.target.value)}
-                    placeholder="Tanyakan ke copilot (misal: 'Pilihkan 1 siswa untuk menjelaskan...')"
-                    className="flex-1 px-4 py-2.5 rounded-xl bg-background-secondary-default border border-border-button-default text-body-regular text-text-primary placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus-ring transition"
+                    placeholder={
+                      isEn
+                        ? "Ask copilot anything about this class..."
+                        : "Tanyakan ke copilot (misal: 'Pilihkan 1 siswa untuk menjelaskan...')"
+                    }
+                    className="flex-1"
                   />
                   <Button
                     type="submit"
@@ -1269,7 +1450,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     disabled={copilotLoading || !copilotInput.trim()}
                     leadingIcon={RiSendPlaneLine}
                   >
-                    Kirim
+                    {isEn ? "Send" : "Kirim"}
                   </Button>
                 </form>
               </motion.div>
@@ -1359,8 +1540,11 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             </span>
             <ul className="space-y-1.5 list-disc list-inside text-caption-1-regular text-text-secondary">
               <li>
-                Siswa dapat langsung masuk melalui tautan undangan atau memasukkan pin{" "}
-                <bdi className="font-mono font-semibold text-text-primary">{roomCode}</bdi> di{" "}
+                {isEn ? "Students can join using room pin " : "Siswa dapat langsung masuk menggunakan pin "}
+                <span className="inline-flex items-center align-middle mx-1">
+                  <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} />
+                </span>
+                {" "}{isEn ? "at " : "di "}
                 <Link href="/play" className="underline font-medium text-text-primary">
                   /play
                 </Link>
@@ -1376,6 +1560,49 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
           </div>
         </div>
       </div>
+
+      {/* Confirmation Modal when Teacher Leaves Classroom */}
+      <Modal
+        isOpen={showLeaveModal}
+        onOpenChange={setShowLeaveModal}
+        role="alertdialog"
+        size="md"
+        aria-label={isEn ? "Confirm leave classroom" : "Konfirmasi tinggalkan ruang kelas"}
+      >
+        <ModalHeader
+          tone="danger"
+          icon={RiAlertLine}
+          title={isEn ? "Leave and close classroom?" : "Tinggalkan dan tutup kelas?"}
+          description={
+            isEn
+              ? "Leaving will permanently end this classroom session and shut down the room. All connected and waiting students will be disconnected and notified that the classroom was abandoned."
+              : "Meninggalkan ruangan akan menutup dan membubarkan sesi kelas secara permanen. Seluruh siswa yang sedang menunggu atau bergabung akan terputus dan menerima informasi bahwa ruangan kelas telah ditutup oleh pengajar."
+          }
+        />
+        <ModalFooter className="sm:justify-between border-t border-separator-border pt-4 mt-4">
+          <Button
+            variant="secondary"
+            onClick={() => setShowLeaveModal(false)}
+            disabled={leavingRoom}
+          >
+            {isEn ? "Stay in room" : "Tetap di kelas"}
+          </Button>
+          <Button
+            variant="danger"
+            onClick={handleConfirmLeave}
+            disabled={leavingRoom}
+          >
+            {leavingRoom ? (
+              <span className="flex items-center gap-2">
+                <Spinner size="xs" aria-label="Menutup" />
+                <span>{isEn ? "Closing room..." : "Menutup kelas..."}</span>
+              </span>
+            ) : (
+              isEn ? "Leave and close room" : "Tinggalkan dan tutup kelas"
+            )}
+          </Button>
+        </ModalFooter>
+      </Modal>
 
     </main>
   );

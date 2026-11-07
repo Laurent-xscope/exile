@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
   joinGameRoom,
+  getGameRoomState,
   PlayerIdentityConflictError,
 } from "@/lib/rooms/store";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
@@ -62,6 +63,17 @@ export async function POST(req: Request) {
     });
 
     if (!result) {
+      const roomState = await getGameRoomState(normalizedCode);
+      if (roomState?.isAbandoned) {
+        return NextResponse.json(
+          {
+            success: false,
+            isAbandoned: true,
+            error: "Ruang kelas ini telah ditutup oleh pengajar.",
+          },
+          { status: 404 }
+        );
+      }
       return NextResponse.json(
         {
           success: false,

@@ -73,6 +73,7 @@ export interface GameRoomRecord {
   status: "waiting" | "active" | "question_active" | "showing_leaderboard" | "finished";
   currentQuestionIndex: number;
   questionStartTime?: string;
+  isAbandoned?: boolean;
   settings: {
     timePerQuestionSec: number;
     streakBonus: boolean;
@@ -80,6 +81,7 @@ export interface GameRoomRecord {
     autoApproveStudents: boolean;
     difficulty?: QuizDifficultyLevel;
     questionsSnapshot?: Question[];
+    abandoned?: boolean;
   };
   questions: Question[];
   players: Map<string, PlayerRecord>;
@@ -826,6 +828,7 @@ export async function getGameRoomState(roomCode: string) {
       difficulty: room.settings.difficulty || "sedang",
     },
     totalSubmissionsCount: room.submissions.length,
+    isAbandoned: Boolean(room.isAbandoned || room.settings?.abandoned),
     updatedAt: room.updatedAt,
   };
 }
@@ -1522,6 +1525,44 @@ export async function setRoomStatus(
   return true;
 }
 
+export async function abandonRoom(roomCode: string): Promise<boolean> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room) return false;
+  room.status = "finished";
+  room.isAbandoned = true;
+  if (!room.settings) {
+    room.settings = {
+      timePerQuestionSec: 20,
+      streakBonus: true,
+      autoApproveStudents: true,
+    };
+  }
+  room.settings.abandoned = true;
+  const nowIso = new Date().toISOString();
+  room.updatedAt = nowIso;
+  room.lastSyncedAt = Date.now();
+
+  try {
+    if (isDatabaseEnabled()) {
+      await withTimeout(
+        db()
+          .from("game_rooms")
+          .update({
+            status: "finished",
+            updated_at: nowIso,
+            settings: room.settings,
+          })
+          .match({ room_code: roomCode }),
+        1500
+      );
+    }
+  } catch (err) {
+    console.warn("[RoomStore] Supabase abandon sync omitted:", err);
+  }
+
+  return true;
+}
+
 export async function getTeacherRoomDetails(roomCode: string) {
   await closeIdleRooms();
   const room = await ensureRoomLoaded(roomCode);
@@ -1639,6 +1680,7 @@ export async function getTeacherRoomDetails(roomCode: string) {
     players: playersList,
     pendingPlayers: pendingList,
     approvedPlayers: approvedList,
+    isAbandoned: Boolean(room.isAbandoned || room.settings?.abandoned),
   };
 }
 

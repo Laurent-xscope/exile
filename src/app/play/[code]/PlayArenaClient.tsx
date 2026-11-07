@@ -21,6 +21,7 @@ import {
   RiShieldFlashLine,
   RiFlashlightLine,
   RiSnowflakeLine,
+  RiAlertLine,
 } from "@remixicon/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -28,6 +29,7 @@ import { soundEffects } from "@/lib/audio/sounds";
 import { useExileSettings } from "@/lib/settings/user-settings";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { markStudentTabForRoom } from "@/lib/rooms/host-token";
+import { TelegramSpoilerPin } from "@/components/rooms/telegram-spoiler-pin";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { LanguageToggle } from "@/components/theme/language-toggle";
 import { InputBase } from "@/components/base/input/input";
@@ -72,6 +74,7 @@ interface RoomState {
   roomCode: string;
   hostName: string;
   status: "waiting" | "active" | "question_active" | "showing_leaderboard" | "finished";
+  isAbandoned?: boolean;
   currentQuestionIndex: number;
   totalQuestions: number;
   currentQuestion: Question | null;
@@ -146,6 +149,7 @@ export default function PlayArenaClient({
   const { settings, updateSetting } = useExileSettings();
   const isMuted = !settings.soundEnabled;
   const finishedCelebrated = useRef(false);
+  const [isClassroomAbandoned, setIsClassroomAbandoned] = useState(false);
 
   const [showCopilot, setShowCopilot] = useState(false);
   const [copilotMessages, setCopilotMessages] = useState<
@@ -179,15 +183,44 @@ export default function PlayArenaClient({
     try {
       const res = await fetch(`/api/rooms/${roomCode}/state`);
       if (res.status === 304) return;
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+
+      if (res.status === 404 || data?.isAbandoned) {
+        setIsClassroomAbandoned(true);
+        setShowCopilot(false);
+        finishedCelebrated.current = true;
+        setLoading(false);
+        return;
+      }
 
       if (res.ok && data.success) {
+        if (data.isAbandoned) {
+          setIsClassroomAbandoned(true);
+          setShowCopilot(false);
+          finishedCelebrated.current = true;
+          setLoading(false);
+          return;
+        }
+
         setRoomState(data);
 
         if (data.players && playerId) {
           const me = data.players.find((p: { id: string }) => p.id === playerId);
           if (me?.status) {
-            setMyStatus(me.status);
+            setMyStatus((prevStatus) => {
+              if (prevStatus === "pending" && me.status === "approved") {
+                toast.success(
+                  isEn ? "Approved by teacher!" : "Disetujui oleh pengajar!"
+                );
+                soundEffects.playCorrect();
+              } else if (prevStatus === "pending" && me.status === "rejected") {
+                toast.error(
+                  isEn ? "Admission denied by teacher" : "Akses ditolak oleh pengajar"
+                );
+                soundEffects.playIncorrect();
+              }
+              return me.status;
+            });
           }
         }
 
@@ -224,7 +257,7 @@ export default function PlayArenaClient({
           setLastQuestionStartedAt(data.questionStartedAt || null);
         }
 
-        if (data.status === "finished" && !finishedCelebrated.current) {
+        if (data.status === "finished" && !data.isAbandoned && !finishedCelebrated.current) {
           finishedCelebrated.current = true;
           confetti({
             particleCount: 50,
@@ -242,6 +275,7 @@ export default function PlayArenaClient({
   };
 
   useEffect(() => {
+    if (isClassroomAbandoned) return;
     // First poll runs after mount; subsequent polls are the realtime mechanism.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchState();
@@ -249,10 +283,11 @@ export default function PlayArenaClient({
     return () => clearInterval(interval);
     // Polling is the real-time mechanism; state is fetched by room code.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [roomCode, lastQuestionId, lastQuestionStartedAt, playerId]);
+  }, [roomCode, lastQuestionId, lastQuestionStartedAt, playerId, isClassroomAbandoned]);
 
   const isQuestionActive =
-    roomState?.status === "active" || roomState?.status === "question_active";
+    !isClassroomAbandoned &&
+    (roomState?.status === "active" || roomState?.status === "question_active");
   const isTimeUp = isQuestionActive && !hasAnsweredCurrentQ && timeLeft <= 0;
 
   useEffect(() => {
@@ -587,15 +622,17 @@ export default function PlayArenaClient({
                 </span>
 
                 {/* Admission Status Indicator */}
-                {myStatus === "pending" ? (
+                {myStatus === "pending" && (
                   <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-secondary border border-border-button-default">
                     <RiTimeLine className="size-3" />
                     <span>{isEn ? "Awaiting approval" : "Menunggu persetujuan"}</span>
                   </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
-                    <RiCheckLine className="size-3" />
-                    <span>{isEn ? "Verified" : "Terverifikasi"}</span>
+                )}
+
+                {myStatus === "rejected" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-error text-text-error-primary border border-border-error-default">
+                    <RiCloseLine className="size-3" />
+                    <span>{isEn ? "Admission denied" : "Akses ditolak"}</span>
                   </span>
                 )}
 
@@ -608,7 +645,8 @@ export default function PlayArenaClient({
               </div>
 
               <div className="flex items-center gap-2 text-caption-1-medium text-text-secondary mt-0.5">
-                <span>Pin: <bdi className="font-mono">{roomCode}</bdi></span>
+                <span>Pin:</span>
+                <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} copyable={false} />
                 <span>•</span>
                 <span>{isEn ? `Rank #${myRank}` : `Peringkat #${myRank}`}</span>
               </div>
@@ -641,21 +679,78 @@ export default function PlayArenaClient({
               aria-label={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
               title={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
             />
-            <div className="px-3 py-1.5 rounded-xl bg-background-secondary-default border border-border-button-default text-end shadow-card">
-              <span className="text-[10px] text-text-secondary block leading-none">
-                {isEn ? "Total score" : "Total nilai"}
-              </span>
-              <span className="text-body-semibold text-text-primary tabular-nums">
-                {myScore.toLocaleString()}
-              </span>
+            {/* Redesigned Total Score Stat Badge */}
+            <div
+              className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-background-secondary-default border border-border-button-default shadow-xs text-text-primary select-none transition-colors"
+              title={
+                isEn
+                  ? `Total score: ${myScore.toLocaleString()} points`
+                  : `Total skor: ${myScore.toLocaleString()} poin`
+              }
+            >
+              <div className="size-6 rounded-lg bg-accent-700/10 text-accent-700 flex items-center justify-center shrink-0">
+                <RiTrophyLine className="size-3.5" aria-hidden="true" />
+              </div>
+              <div className="flex flex-col text-start justify-center min-w-0">
+                <span className="text-caption-2-medium text-text-secondary leading-none">
+                  {isEn ? "Total score" : "Total skor"}
+                </span>
+                <span className="font-mono text-caption-1-semibold text-text-primary tabular-nums leading-tight mt-0.5">
+                  {myScore.toLocaleString()}{" "}
+                  <span className="font-sans text-caption-2-regular text-text-tertiary">
+                    {isEn ? "pts" : "poin"}
+                  </span>
+                </span>
+              </div>
             </div>
           </div>
         </div>
       </header>
 
       <div className="max-w-2xl mx-auto px-4 py-8 w-full flex-1 flex flex-col justify-center">
+        {/* ABANDONED CLASSROOM NOTICE */}
+        {isClassroomAbandoned && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-10 px-6 bg-background-primary-default border border-border-error-default rounded-3xl shadow-card space-y-5"
+          >
+            <div className="size-14 mx-auto rounded-2xl bg-background-tertiary-error text-text-error-primary border border-border-error-default flex items-center justify-center shadow-card">
+              <RiAlertLine className="size-7" aria-hidden />
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption-1-medium bg-background-tertiary-error text-text-error-primary border border-border-error-default">
+                <RiAlertLine className="size-3.5" aria-hidden />
+                <span>{isEn ? "Room closed" : "Ruangan ditutup"}</span>
+              </span>
+
+              <h2 className="text-title-2-semibold text-text-primary">
+                {isEn ? "Classroom was closed by the teacher" : "Ruang kelas telah ditutup oleh pengajar"}
+              </h2>
+
+              <p className="text-body-regular text-text-secondary max-w-md mx-auto">
+                {isEn
+                  ? "The teacher has left and ended this classroom session. All waiting and participating students have been disconnected. Please check with your teacher for a new room pin."
+                  : "Guru telah meninggalkan ruangan dan menutup sesi kelas ini. Seluruh siswa yang sedang menunggu atau bergabung telah dikeluarkan. Silakan hubungi pengajar Anda untuk kode pin yang baru."}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <ButtonLink
+                href="/play"
+                variant="primary"
+                size="medium"
+                leadingIcon={RiArrowLeftLine}
+              >
+                {isEn ? "Back to enter pin" : "Kembali ke beranda kuis"}
+              </ButtonLink>
+            </div>
+          </motion.div>
+        )}
+
         {/* PENDING APPROVAL WAITING SCREEN */}
-        {myStatus === "pending" && (
+        {!isClassroomAbandoned && myStatus === "pending" && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -700,8 +795,49 @@ export default function PlayArenaClient({
           </motion.div>
         )}
 
+        {/* REJECTED ADMISSION SCREEN */}
+        {!isClassroomAbandoned && myStatus === "rejected" && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-10 px-6 bg-background-primary-default border border-border-error-default rounded-3xl shadow-card space-y-5"
+          >
+            <div className="size-14 mx-auto rounded-2xl bg-background-tertiary-error text-text-error-primary border border-border-error-default flex items-center justify-center shadow-card">
+              <RiCloseLine className="size-7" aria-hidden="true" />
+            </div>
+
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption-1-medium bg-background-tertiary-error text-text-error-primary border border-border-error-default">
+                <RiCloseLine className="size-3.5" aria-hidden="true" />
+                <span>{isEn ? "Admission denied" : "Akses ditolak"}</span>
+              </span>
+
+              <h2 className="text-title-2-semibold text-text-primary">
+                {isEn ? "Admission denied by teacher" : "Akses masuk ditolak oleh pengajar"}
+              </h2>
+
+              <p className="text-body-regular text-text-secondary max-w-md mx-auto">
+                {isEn
+                  ? "The educator did not approve your request to join this classroom. Please check with your teacher if this was in error."
+                  : "Pengajar tidak menyetujui permintaan kamu untuk bergabung ke ruang kelas ini. Silakan hubungi pengajar jika ini merupakan kekeliruan."}
+              </p>
+            </div>
+
+            <div className="pt-2">
+              <ButtonLink
+                href="/play"
+                variant="primary"
+                size="medium"
+                leadingIcon={RiArrowLeftLine}
+              >
+                {isEn ? "Back to enter pin" : "Kembali ke beranda kuis"}
+              </ButtonLink>
+            </div>
+          </motion.div>
+        )}
+
         {/* LOBBY: WAITING FOR TEACHER TO START */}
-        {myStatus !== "pending" && roomState?.status === "waiting" && (
+        {!isClassroomAbandoned && myStatus === "approved" && roomState?.status === "waiting" && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -752,7 +888,7 @@ export default function PlayArenaClient({
         )}
 
         {/* ACTIVE QUESTION SCREEN */}
-        {myStatus !== "pending" && isQuestionActive && roomState?.currentQuestion && (
+        {!isClassroomAbandoned && myStatus === "approved" && isQuestionActive && roomState?.currentQuestion && (
           <div className="space-y-5">
             <div className="space-y-2.5">
               <div className="flex items-center justify-between gap-2">
@@ -1007,7 +1143,7 @@ export default function PlayArenaClient({
         )}
 
         {/* LEADERBOARD VIEW */}
-        {myStatus !== "pending" && roomState?.status === "showing_leaderboard" && (
+        {!isClassroomAbandoned && myStatus === "approved" && roomState?.status === "showing_leaderboard" && (
           <motion.div
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1073,7 +1209,7 @@ export default function PlayArenaClient({
         )}
 
         {/* FINISHED TELEMETRY & RESULTS VIEW */}
-        {myStatus !== "pending" && roomState?.status === "finished" && (
+        {!isClassroomAbandoned && myStatus === "approved" && roomState?.status === "finished" && (
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}

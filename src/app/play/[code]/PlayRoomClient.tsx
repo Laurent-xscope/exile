@@ -19,6 +19,7 @@ import {
   JoinRoomForm,
   type JoinedRoomResult,
 } from "@/components/rooms/join-room-form";
+import { TelegramSpoilerPin } from "@/components/rooms/telegram-spoiler-pin";
 import { useTranslation } from "@/lib/i18n/use-translation";
 import { loadSettings } from "@/lib/settings/user-settings";
 import {
@@ -115,6 +116,16 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
 
         setPreview(data);
 
+        if (data.isAbandoned) {
+          setEntryError(
+            isEn
+              ? "This classroom was closed by the teacher."
+              : "Ruang kelas ini telah ditutup oleh pengajar."
+          );
+          setPhase("error");
+          return;
+        }
+
         if (data.status === "finished") {
           setEntryError(
             isEn
@@ -210,6 +221,29 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
     };
   }, [code, isEn]);
 
+  useEffect(() => {
+    if (phase !== "join") return;
+    const interval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/rooms/${code}/state`, { cache: "no-store" });
+        const data = await res.json().catch(() => ({}));
+        if (res.status === 404 || data?.isAbandoned) {
+          setEntryError(
+            isEn
+              ? "This classroom was closed by the teacher."
+              : "Ruang kelas ini telah ditutup oleh pengajar."
+          );
+          setPhase("error");
+        } else if (res.ok && data.success) {
+          setPreview(data);
+        }
+      } catch {
+        // ignore background poll errors
+      }
+    }, 2500);
+    return () => clearInterval(interval);
+  }, [phase, code, isEn]);
+
   const handleJoined = (result: JoinedRoomResult) => {
     setIdentity({
       playerId: result.playerId,
@@ -284,9 +318,9 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
             {entryError}
           </p>
           {code && (
-            <p className="mt-3 font-mono text-caption-1-medium text-text-tertiary">
-              Pin {code}
-            </p>
+            <div className="mt-3 flex items-center justify-center">
+              <TelegramSpoilerPin pin={code} size="sm" isEn={isEn} copyable={false} />
+            </div>
           )}
           <ButtonLink
             href="/play"
@@ -334,9 +368,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
             <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-caption-1-medium text-text-secondary">
               <span className="inline-flex items-center gap-1.5">
                 <RiHashtag className="size-3.5" aria-hidden />
-                <bdi className="font-mono font-semibold text-text-primary">
-                  {code}
-                </bdi>
+                <TelegramSpoilerPin pin={code} size="sm" isEn={isEn} copyable={false} />
               </span>
               <span className="inline-flex items-center gap-1.5">
                 <RiBookOpenLine className="size-3.5" aria-hidden />

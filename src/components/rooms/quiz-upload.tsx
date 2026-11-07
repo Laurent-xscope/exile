@@ -5,6 +5,7 @@ import { RiFileTextLine, RiUploadCloud2Line, RiCloseLine } from "@remixicon/reac
 import { toast } from "sonner";
 import { Button } from "@/components/base/buttons/button";
 import { Spinner } from "@/components/base/spinner/spinner";
+import { MacOSToggle } from "@/components/base/toggle/macos-toggle";
 import type { QuizDifficultyLevel } from "@/lib/quiz/options";
 import { cx } from "@/utils/cx";
 
@@ -349,39 +350,20 @@ export function QuizUpload({
           <span className="text-caption-1-semibold text-text-primary block">
             {isEn ? "Streak bonus" : "Bonus beruntun"}
           </span>
-          <div className="grid grid-cols-2 gap-1.5">
-            <button
-              type="button"
-              disabled={busy}
-              onClick={() => {
-                setStreakBonus(true);
-                onSettingsChange?.({ streakBonus: true });
+          <div className="flex h-10 items-center justify-between px-3 rounded-xl border border-border-button-default bg-background-secondary-default">
+            <span className="text-caption-1-medium text-text-secondary select-none">
+              {streakBonus ? (isEn ? "Active" : "Aktif") : isEn ? "Off" : "Nonaktif"}
+            </span>
+            <MacOSToggle
+              checked={streakBonus}
+              onChange={(next) => {
+                setStreakBonus(next);
+                onSettingsChange?.({ streakBonus: next });
               }}
-              className={cx(
-                "py-2 px-2.5 rounded-xl border text-caption-1-medium transition cursor-pointer",
-                streakBonus
-                  ? "border-accent-600 bg-accent-700 text-text-white"
-                  : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
-              )}
-            >
-              {isEn ? "Active" : "Aktif"}
-            </button>
-            <button
-              type="button"
+              label={isEn ? "Streak bonus" : "Bonus beruntun"}
+              color="green"
               disabled={busy}
-              onClick={() => {
-                setStreakBonus(false);
-                onSettingsChange?.({ streakBonus: false });
-              }}
-              className={cx(
-                "py-2 px-2.5 rounded-xl border text-caption-1-medium transition cursor-pointer",
-                !streakBonus
-                  ? "border-accent-600 bg-accent-700 text-text-white"
-                  : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
-              )}
-            >
-              {isEn ? "Off" : "Nonaktif"}
-            </button>
+            />
           </div>
         </div>
       </div>

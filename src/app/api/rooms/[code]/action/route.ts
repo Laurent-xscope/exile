@@ -13,6 +13,7 @@ import {
   updateRoomSettings,
   validateHostToken,
   recordHeartbeat,
+  abandonRoom,
 } from "@/lib/rooms/store";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
@@ -25,6 +26,7 @@ const ActionSchema = z.object({
     "show_leaderboard",
     "resume_quiz",
     "finish_game",
+    "abandon_room",
     "simulate_answer",
     "approve_player",
     "reject_player",
@@ -140,6 +142,13 @@ export async function POST(
         return NextResponse.json({ success: true, state, details });
       }
 
+      case "abandon_room": {
+        await abandonRoom(roomCode);
+        const state = await getGameRoomState(roomCode);
+        const details = await getTeacherRoomDetails(roomCode);
+        return NextResponse.json({ success: true, isAbandoned: true, state, details });
+      }
+
       case "approve_player": {
         if (!playerId) {
           return NextResponse.json({ error: "playerId wajib diisi" }, { status: 400 });
@@ -147,7 +156,7 @@ export async function POST(
         await approvePlayer(roomCode, playerId);
         const details = await getTeacherRoomDetails(roomCode);
         const state = await getGameRoomState(roomCode);
-        return NextResponse.json({ success: true, details, state });
+        return NextResponse.json({ success: true, ...details, details, state });
       }
 
       case "reject_player": {
@@ -157,14 +166,14 @@ export async function POST(
         await rejectPlayer(roomCode, playerId);
         const details = await getTeacherRoomDetails(roomCode);
         const state = await getGameRoomState(roomCode);
-        return NextResponse.json({ success: true, details, state });
+        return NextResponse.json({ success: true, ...details, details, state });
       }
 
       case "approve_all_players": {
         const approvedCount = await approveAllPlayers(roomCode);
         const details = await getTeacherRoomDetails(roomCode);
         const state = await getGameRoomState(roomCode);
-        return NextResponse.json({ success: true, approvedCount, details, state });
+        return NextResponse.json({ success: true, approvedCount, ...details, details, state });
       }
 
       case "toggle_auto_approve": {
@@ -174,7 +183,7 @@ export async function POST(
         );
         const details = await getTeacherRoomDetails(roomCode);
         const state = await getGameRoomState(roomCode);
-        return NextResponse.json({ success: true, autoApprove, details, state });
+        return NextResponse.json({ success: true, autoApprove, ...details, details, state });
       }
 
       case "update_room_settings": {
