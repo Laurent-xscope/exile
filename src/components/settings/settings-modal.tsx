@@ -355,7 +355,6 @@ export function SettingsButton({ className = "" }: { className?: string }) {
         size="medium"
         onClick={() => setIsOpen(true)}
         aria-label="Buka pengaturan"
-        title="Pengaturan"
         className={className}
       />
 

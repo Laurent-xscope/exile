@@ -168,6 +168,8 @@ export function LetterpressCard3D({
             transform: "translateZ(1.5px)",
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
+            visibility: flipped ? "hidden" : "visible",
+            pointerEvents: flipped ? "none" : "auto",
           }}
           className={cx(
             "absolute inset-0 rounded-2xl overflow-hidden [clip-path:inset(0_round_1rem)] [isolation:isolate] vb-letterpress-surface",
@@ -189,10 +191,10 @@ export function LetterpressCard3D({
             }}
           />
 
-          {/* SVG micro-grain texture */}
+          {/* SVG micro-grain texture (Desktop sm+ only to ensure high-performance 60fps on mobile) */}
           <svg
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 size-full rounded-2xl overflow-hidden opacity-[0.05] mix-blend-overlay"
+            className="hidden sm:block pointer-events-none absolute inset-0 size-full rounded-2xl overflow-hidden opacity-[0.05] mix-blend-overlay"
           >
             <filter id={frontFilterId}>
               <feTurbulence
@@ -234,6 +236,8 @@ export function LetterpressCard3D({
             transform: "rotateY(180deg) translateZ(1.5px)",
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
+            visibility: flipped ? "visible" : "hidden",
+            pointerEvents: flipped ? "auto" : "none",
           }}
           className={cx(
             "absolute inset-0 rounded-2xl overflow-hidden [clip-path:inset(0_round_1rem)] [isolation:isolate] vb-letterpress-surface",
@@ -255,10 +259,10 @@ export function LetterpressCard3D({
             }}
           />
 
-          {/* SVG micro-grain texture */}
+          {/* SVG micro-grain texture (Desktop sm+ only to ensure high-performance 60fps on mobile) */}
           <svg
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 size-full rounded-2xl overflow-hidden opacity-[0.05] mix-blend-overlay"
+            className="hidden sm:block pointer-events-none absolute inset-0 size-full rounded-2xl overflow-hidden opacity-[0.05] mix-blend-overlay"
           >
             <filter id={backFilterId}>
               <feTurbulence

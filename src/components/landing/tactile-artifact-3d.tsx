@@ -1275,17 +1275,17 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     camera.position.set(0, initialCamY, initialCamZ);
     camera.lookAt(0, -0.32, 0);
 
-    // 2. WebGL Renderer with device-based pixel ratio cap (clamped to 1.5 on mobile to avoid heating)
+    // 2. WebGL Renderer with device-based pixel ratio cap (clamped to 1.0 on mobile to ensure silky 60fps & no heat)
+    const isMobileDevice = (typeof window !== "undefined" ? window.innerWidth : width) < 1024;
     const getTargetPixelRatio = () => {
-      const isMobile = (typeof window !== "undefined" ? window.innerWidth : width) < 768;
-      const maxPR = isMobile ? 1.5 : 2.0;
+      const maxPR = isMobileDevice ? 1.0 : 1.75;
       return Math.min(window.devicePixelRatio || 1, maxPR);
     };
 
     let renderer: THREE.WebGLRenderer;
     try {
       renderer = new THREE.WebGLRenderer({
-        antialias: true,
+        antialias: !isMobileDevice,
         alpha: true,
         powerPreference: "high-performance",
       });
@@ -1299,8 +1299,12 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
     renderer.toneMappingExposure = 1.08;
     renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    renderer.shadowMap.enabled = !isMobileDevice;
+    if (!isMobileDevice) {
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+    }
+    renderer.domElement.style.maxWidth = "100%";
+    renderer.domElement.style.display = "block";
     container.appendChild(renderer.domElement);
 
     const handleContextLost = (e: Event) => {
@@ -1318,7 +1322,6 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     scene.environment = envMap;
 
     // 4. Lights with Soft Shadows (512x512 on mobile to prevent GPU throttling)
-    const isMobileDevice = (typeof window !== "undefined" ? window.innerWidth : width) < 768;
     const isDarkInitial = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
     const keyLight = new THREE.DirectionalLight(0xffffff, isDarkInitial ? 2.5 : 1.95);
     keyLight.position.set(4.5, 6.5, 5);
@@ -1603,6 +1606,13 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
 
     // 8. Passive Window Scroll Tracking (Hero Runway)
     const handleScroll = () => {
+      const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
+      if (isMobile) {
+        // On mobile: the card must always stay facing forward (front face) by default!
+        // Prevent auto-flipping on page scroll so the user never sees it backwards/upside-down.
+        scrollProgressRef.current = 0;
+        return;
+      }
       const heroEl = document.querySelector("section");
       if (heroEl) {
         const rect = heroEl.getBoundingClientRect();
@@ -1956,13 +1966,13 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     return (
       <div
         className={cx(
-          "flex flex-col items-center w-full select-none gap-2 sm:gap-3 max-w-[340px] sm:max-w-[440px] lg:max-w-[480px] mx-auto",
+          "flex flex-col items-center w-full select-none gap-2 sm:gap-3 max-w-full sm:max-w-[440px] lg:max-w-[480px] mx-auto",
           className
         )}
       >
         {/* Subject switcher pill bar */}
-        <div className="flex justify-center px-2 sm:px-4 w-full">
-          <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full">
+        <div className="flex justify-center px-1.5 sm:px-4 w-full pt-1.5 sm:pt-0">
+          <div className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full overflow-x-auto scrollbar-none">
             {TACTILE_SUBJECTS.map((subj) => {
               const isActive = subj.id === activeSubjectId;
               return (
@@ -2008,13 +2018,13 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
   return (
     <div
       className={cx(
-        "flex flex-col items-center w-full select-none gap-2 sm:gap-3 max-w-[340px] sm:max-w-none mx-auto",
+        "flex flex-col items-center w-full select-none gap-2 sm:gap-3 max-w-full sm:max-w-none mx-auto",
         className
       )}
     >
       {/* Subject switcher pill bar */}
-      <div className="flex justify-center px-2 sm:px-4 w-full">
-        <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full">
+      <div className="flex justify-center px-1.5 sm:px-4 w-full pt-1.5 sm:pt-0">
+        <div className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full overflow-x-auto scrollbar-none">
           {TACTILE_SUBJECTS.map((subj) => {
             const isActive = subj.id === activeSubjectId;
             return (
@@ -2053,7 +2063,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
         onLostPointerCapture={handleLostPointerCapture}
         role="img"
         aria-label="Artifak 3d interaktif kurikulum"
-        className="relative w-full max-w-[340px] sm:max-w-none h-[480px] sm:h-[560px] cursor-grab active:cursor-grabbing select-none flex items-center justify-center touch-pan-y outline-none mx-auto"
+        className="relative w-full max-w-full sm:max-w-none h-[440px] sm:h-[540px] cursor-grab active:cursor-grabbing select-none flex items-center justify-center touch-pan-y outline-none mx-auto"
       />
     </div>
   );

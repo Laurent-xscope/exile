@@ -117,7 +117,7 @@ export function ExileLogo({
             setShowCredits(true);
           }
         }}
-        title="Klik untuk melihat kredit tim"
+        aria-label="Kredit tim exile"
         className={cx(
           "inline-flex items-center gap-2.5 select-none cursor-pointer transition-transform active:scale-98 rounded-xl outline-none focus:outline-none focus-visible:outline-none",
           className

@@ -29,7 +29,6 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   return (
     <IconButton
       aria-label={isDark ? "Switch to light mode" : "Switch to dark mode"}
-      title={isDark ? "Light" : "Dark"}
       className={className}
       icon={isDark ? RiSunLine : RiMoonLine}
       onClick={() => setTheme(isDark ? "light" : "dark")}

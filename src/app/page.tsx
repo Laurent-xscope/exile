@@ -473,9 +473,9 @@ export default function LandingPage() {
 
       <SettingsModal isOpen={showSettings} onClose={() => setShowSettings(false)} />
 
-      <main className="flex-1">
+      <main className="flex-1 overflow-x-clip">
         {/* SECTION 1: ASYMMETRIC EDITORIAL HERO + OPEN 3D STUDY DESK */}
-        <section className="relative pt-6 sm:pt-16 pb-12 sm:pb-24 border-b border-separator-border/60 lg:min-h-[155vh]">
+        <section className="relative pt-6 sm:pt-16 pb-12 sm:pb-24 border-b border-separator-border/60 lg:min-h-[155vh] overflow-x-clip">
           <div className="mx-auto max-w-[1160px] px-4 sm:px-6 lg:sticky lg:top-20 space-y-6 sm:space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
               {/* Left Column: Editorial Display Typography & CTAs */}
@@ -605,7 +605,7 @@ export default function LandingPage() {
               </div>
 
               {/* Right Column / Stage: Open Scroll-Reactive 3D Study Desk */}
-              <div className="lg:col-span-7 w-full min-h-[380px] sm:min-h-[540px] flex items-center justify-center overflow-hidden sm:overflow-visible">
+              <div className="lg:col-span-7 w-full min-h-[440px] sm:min-h-[540px] flex items-center justify-center">
                 <TactileArtifact3D className="w-full" />
               </div>
             </div>
