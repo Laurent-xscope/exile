@@ -146,7 +146,7 @@ export function Pagination({
                   cell,
                   "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border-focus-ring",
                   item === page
-                    ? "border border-border-button-default bg-background-primary-default text-text-primary shadow-xs"
+                    ? "bg-background-primary-default text-text-primary shadow-xs"
                     : "text-text-secondary hover:bg-background-secondary-hover hover:text-text-primary",
                 )}
               >

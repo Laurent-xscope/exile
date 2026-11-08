@@ -10,7 +10,7 @@ export default function ExileProductDemo() {
   const { t } = useTranslation();
 
   return (
-    <div className="w-full bg-background-primary-default border border-border-button-default rounded-3xl p-5 md:p-6 shadow-card space-y-4">
+    <div className="w-full bg-background-primary-default rounded-3xl p-5 md:p-6 shadow-card space-y-4">
       <div className="space-y-1">
         <h3 className="text-title-2-semibold text-text-primary tracking-tight">
           {t?.trailer?.title || "Exile"}
@@ -19,7 +19,7 @@ export default function ExileProductDemo() {
           {t?.trailer?.subtitle || "A debut: exile.web.id"}
         </p>
       </div>
-      <div className="relative w-full rounded-2xl overflow-hidden border border-border-button-default bg-black aspect-[16/9]">
+      <div className="relative w-full rounded-2xl overflow-hidden bg-black aspect-[16/9]">
         <Player
           component={ExileVideo}
           inputProps={DEFAULT_PROPS}

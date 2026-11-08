@@ -43,10 +43,10 @@ const styles = sortCx({
     lg: "size-9 text-[18px] leading-6 font-semibold",
   },
   color: {
-    neutral: "bg-avatar-neutral-background text-text-secondary",
-    blue: "bg-blue-300 text-blue-900",
-    lime: "bg-lime-200 text-lime-700",
-    pink: "bg-pink-200 text-pink-500",
+    neutral: "bg-background-tertiary-default text-text-primary border border-border-button-default",
+    blue: "bg-background-tertiary-default text-text-primary border border-border-button-default",
+    lime: "bg-background-tertiary-default text-text-primary border border-border-button-default",
+    pink: "bg-background-tertiary-default text-text-primary border border-border-button-default",
   },
 });
 

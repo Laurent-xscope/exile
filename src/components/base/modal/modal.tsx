@@ -86,7 +86,7 @@ const styles = sortCx({
     "flex min-h-0 flex-col gap-4 overflow-clip py-6 outline-none",
     // Settings Modal's surface: page white in light mode, and in dark mode a
     // ground darker than the inputs and menus it holds, so they keep an edge.
-    "rounded-3xl border border-separator-border bg-background-full shadow-xs",
+    "rounded-2xl bg-background-full shadow-xl",
   ].join(" "),
   size: {
     sm: "max-w-[400px]",

@@ -9,8 +9,9 @@ import { MacOSToggle } from "@/components/base/toggle/macos-toggle";
 import type { QuizDifficultyLevel } from "@/lib/quiz/options";
 import { cx } from "@/utils/cx";
 
-const ACCEPT = ".pdf,.docx,.txt,.md";
-const MAX_BYTES = 8 * 1024 * 1024;
+const ACCEPT =
+  ".pdf,.docx,.doc,.pptx,.xlsx,.odt,.odp,.ods,.epub,.rtf,.csv,.tsv,.xml,.yaml,.yml,.json,.html,.htm,.tex,.srt,.vtt,.log,.txt,.md,text/*";
+const MAX_BYTES = 20 * 1024 * 1024;
 
 interface QuizUploadProps {
   roomCode: string;
@@ -57,12 +58,24 @@ const DIFFICULTY_OPTIONS: Array<{
   },
   {
     id: "campuran",
-    labelId: "Campuran",
-    labelEn: "Mixed",
+    labelId: "Adaptif",
+    labelEn: "Adaptive",
     descId: "Bertahap mudah ke sulit",
     descEn: "Gradual easy to hard",
   },
 ];
+
+function formatDuration(sec: number, isEn: boolean): string {
+  if (sec >= 60) {
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    if (s === 0) {
+      return isEn ? `${m} min` : `${m} mnt`;
+    }
+    return isEn ? `${m} min ${s}s` : `${m} mnt ${s} dtk`;
+  }
+  return isEn ? `${sec}s` : `${sec} dtk`;
+}
 
 function readAsBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -97,7 +110,7 @@ export function QuizUpload({
   const pick = (next: File | undefined | null) => {
     if (!next) return;
     if (next.size > MAX_BYTES) {
-      setError(isEn ? "File is larger than 8 mb." : "Berkas lebih dari 8 mb.");
+      setError(isEn ? "File is larger than 20 mb." : "Berkas lebih dari 20 mb.");
       return;
     }
     setError(null);
@@ -143,7 +156,7 @@ export function QuizUpload({
   };
 
   return (
-    <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 space-y-5 shadow-card">
+    <div className="bg-background-primary-default rounded-2xl p-6 space-y-5 shadow-sm">
       <div className="space-y-1">
         <h2 className="text-headline-semibold text-text-primary">
           {isEn
@@ -152,8 +165,8 @@ export function QuizUpload({
         </h2>
         <p className="text-body-2-regular text-text-secondary">
           {isEn
-            ? "Upload a document (pdf, docx, txt) or describe what your class will learn, then configure quiz difficulty and question count."
-            : "Unggah dokumen bahan ajar (pdf, docx, txt) atau tuliskan instruksi tentang apa yang akan dipelajari sebelum memulai kuis."}
+            ? "Upload a document or describe what your class will learn, then configure quiz difficulty and question count."
+            : "Unggah dokumen bahan ajar atau tuliskan instruksi tentang apa yang akan dipelajari sebelum memulai kuis."}
         </p>
       </div>
 
@@ -178,11 +191,11 @@ export function QuizUpload({
           if (!busy) pick(e.dataTransfer.files?.[0]);
         }}
         className={cx(
-          "flex flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed px-6 py-7 text-center transition-colors outline-none cursor-pointer",
+          "flex flex-col items-center justify-center gap-2 rounded-2xl px-6 py-7 text-center transition-colors outline-none cursor-pointer",
           "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
           dragging
-            ? "border-text-primary bg-background-secondary-default"
-            : "border-border-button-default hover:border-text-primary",
+            ? "bg-background-secondary-hover"
+            : "bg-background-secondary-default hover:bg-background-secondary-hover",
           busy && "pointer-events-none opacity-60"
         )}
       >
@@ -227,7 +240,7 @@ export function QuizUpload({
                 ? "Drag a learning file here, or click to choose (optional if writing instructions below)"
                 : "Seret berkas sumber belajar ke sini, atau klik untuk memilih"}
             </p>
-            <p className="text-caption-1-regular text-text-secondary">Pdf, docx, txt, md • maks 8 mb</p>
+            <p className="text-caption-1-regular text-text-secondary">{isEn ? "Max 20 mb" : "Maks 20 mb"}</p>
           </>
         )}
       </div>
@@ -250,7 +263,7 @@ export function QuizUpload({
               ? "Write the topic, material summary, or specific focus (e.g. Descriptive text describing a person for grade 10, focus on adjectives and simple present tense)..."
               : "Tuliskan topik, materi pembelajaran, atau instruksi fokus soal (misal: Teks deskriptif bahasa inggris kelas 10, atau hukum newton dan penerapannya)..."
           }
-          className="w-full rounded-2xl border border-border-button-default bg-background-secondary-default p-3.5 text-body-2-regular text-text-primary placeholder:text-text-placeholder outline-none focus:border-text-primary resize-y"
+          className="w-full rounded-xl ring-1 ring-inset ring-border-button-default bg-background-primary-default p-3.5 text-body-2-regular text-text-primary placeholder:text-text-placeholder outline-none focus:outline-none resize-y"
         />
       </label>
 
@@ -272,16 +285,16 @@ export function QuizUpload({
                   onSettingsChange?.({ difficulty: opt.id });
                 }}
                 className={cx(
-                  "p-3 rounded-2xl border text-start transition cursor-pointer",
+                  "p-3 rounded-2xl text-start transition cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                   active
-                    ? "border-accent-600 bg-accent-700/10 text-text-primary shadow-2xs"
-                    : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary hover:border-border-button-hover"
+                    ? "bg-background-tertiary-default text-text-primary ring-1 ring-inset ring-border-button-hover shadow-xs"
+                    : "bg-background-secondary-default text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
                 )}
               >
-                <span className="text-body-2-semibold text-text-primary block">
+                <span className="text-body-2-semibold block text-text-primary">
                   {isEn ? opt.labelEn : opt.labelId}
                 </span>
-                <span className="text-[11px] text-text-secondary block mt-0.5">
+                <span className="text-[11px] block mt-0.5 text-text-secondary">
                   {isEn ? opt.descEn : opt.descId}
                 </span>
               </button>
@@ -297,7 +310,7 @@ export function QuizUpload({
             <span className="text-caption-1-semibold text-text-primary">
               {isEn ? "Question count" : "Jumlah soal"}
             </span>
-            <span className="rounded-lg border border-border-button-default bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+            <span className="rounded-lg bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
               {count} {isEn ? "questions" : "soal"}
             </span>
           </div>
@@ -310,47 +323,41 @@ export function QuizUpload({
             aria-label={isEn ? "Questions" : "Jumlah soal"}
             value={count}
             onChange={(e) => setCount(Number(e.target.value))}
-            className="w-full h-2 rounded-lg bg-border-button-default accent-accent-700 cursor-pointer disabled:opacity-50"
+            className="w-full h-2 rounded-lg bg-background-secondary-default accent-text-primary cursor-pointer disabled:opacity-50"
           />
-          <div className="flex justify-between px-0.5 font-mono text-[11px] text-text-tertiary">
-            <span>3</span>
-            <span>8</span>
-            <span>15</span>
-          </div>
         </div>
 
         <div className="space-y-2">
-          <span className="text-caption-1-semibold text-text-primary block">
-            {isEn ? "Time per question" : "Durasi per soal"}
-          </span>
-          <div className="grid grid-cols-4 gap-1.5">
-            {[15, 20, 30, 45].map((sec) => (
-              <button
-                key={sec}
-                type="button"
-                disabled={busy}
-                onClick={() => {
-                  setTimePerQuestionSec(sec);
-                  onSettingsChange?.({ timePerQuestionSec: sec });
-                }}
-                className={cx(
-                  "py-2 px-2 rounded-xl border text-caption-1-medium font-mono transition cursor-pointer",
-                  timePerQuestionSec === sec
-                    ? "border-accent-600 bg-accent-700 text-text-white"
-                    : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
-                )}
-              >
-                {sec}d
-              </button>
-            ))}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-caption-1-semibold text-text-primary">
+              {isEn ? "Time per question" : "Durasi per soal"}
+            </span>
+            <span className="rounded-lg bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+              {formatDuration(timePerQuestionSec, isEn)}
+            </span>
           </div>
+          <input
+            type="range"
+            min={15}
+            max={90}
+            step={5}
+            disabled={busy}
+            aria-label={isEn ? "Time per question" : "Durasi per soal"}
+            value={timePerQuestionSec}
+            onChange={(e) => {
+              const val = Number(e.target.value);
+              setTimePerQuestionSec(val);
+              onSettingsChange?.({ timePerQuestionSec: val });
+            }}
+            className="w-full h-2 rounded-lg bg-background-secondary-default accent-text-primary cursor-pointer disabled:opacity-50"
+          />
         </div>
 
         <div className="space-y-2">
           <span className="text-caption-1-semibold text-text-primary block">
             {isEn ? "Streak bonus" : "Bonus beruntun"}
           </span>
-          <div className="flex h-10 items-center justify-between px-3 rounded-xl border border-border-button-default bg-background-secondary-default">
+          <div className="flex h-10 items-center justify-between px-3 rounded-xl bg-background-secondary-default">
             <span className="text-caption-1-medium text-text-secondary select-none">
               {streakBonus ? (isEn ? "Active" : "Aktif") : isEn ? "Off" : "Nonaktif"}
             </span>
@@ -369,7 +376,7 @@ export function QuizUpload({
       </div>
 
       {error && (
-        <div role="alert" className="rounded-2xl border border-border-error-default bg-background-tertiary-error p-3.5 space-y-2">
+        <div role="alert" className="rounded-2xl bg-background-tertiary-error p-3.5 space-y-2">
           <p className="text-caption-1-medium text-text-error-primary">{error}</p>
           <div className="flex items-center gap-2 pt-1">
             <button

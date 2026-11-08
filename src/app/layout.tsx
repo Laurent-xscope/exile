@@ -1,23 +1,17 @@
-import type { Metadata } from "next";
-import { Archivo_Black, Space_Mono, Work_Sans } from "next/font/google";
-import { Toaster } from "sonner";
+import type { Metadata, Viewport } from "next";
+import { Inter, Space_Mono, Fraunces } from "next/font/google";
+import { SingleToastViewport } from "@/components/foundations/single-toaster/single-toaster";
 import { DirectionProvider } from "@/components/foundations/direction/direction";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { SmoothScrollProvider } from "@/components/foundations/smooth-scroll";
 import { cx } from "@/utils/cx";
 import "./globals.css";
 
-const workSans = Work_Sans({
-  variable: "--font-work-sans",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
-});
-
-const archivoBlack = Archivo_Black({
-  variable: "--font-archivo-black",
-  subsets: ["latin"],
-  weight: "400",
-  display: "swap",
+  preload: true,
 });
 
 const spaceMono = Space_Mono({
@@ -25,13 +19,26 @@ const spaceMono = Space_Mono({
   subsets: ["latin"],
   weight: ["400", "700"],
   display: "swap",
+  preload: true,
 });
+
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
+  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+});
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.exile.web.id"),
-  title: "Exile — Closed-loop learning & formative assessment",
+  title: "Exile",
   description:
-    "Platform evaluasi formatif terstruktur untuk guru dan siswa. Menyusun bahan ajar, kartu latihan 3d, dan kuis kelas real-time dengan penguatan pemahaman konsep.",
+    "Platform evaluasi formatif terstruktur untuk guru dan siswa. Menyusun bahan ajar, kartu latihan 3D, dan kuis kelas real-time dengan penguatan pemahaman konsep.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },
@@ -55,9 +62,9 @@ export default function RootLayout({
       lang="id"
       dir="ltr"
       suppressHydrationWarning
-      className={cx("h-full", workSans.variable, archivoBlack.variable, spaceMono.variable)}
+      className={cx("h-full", inter.variable, spaceMono.variable, fraunces.variable)}
     >
-      <body className="min-h-full flex flex-col bg-background-full text-text-primary font-sans antialiased">
+      <body className={cx("min-h-full flex flex-col bg-background-full text-text-primary font-sans antialiased", inter.className)}>
         <DirectionProvider locale="id-ID">
           <ThemeProvider
             attribute="class"
@@ -67,19 +74,7 @@ export default function RootLayout({
           >
             <SmoothScrollProvider>
               {children}
-              <Toaster
-                position="top-right"
-                closeButton
-                toastOptions={{
-                  style: {
-                    borderRadius: 0,
-                    border: "2px solid var(--vb-ink)",
-                    background: "var(--vb-paper)",
-                    color: "var(--vb-ink)",
-                    boxShadow: "none",
-                  },
-                }}
-              />
+              <SingleToastViewport />
             </SmoothScrollProvider>
           </ThemeProvider>
         </DirectionProvider>

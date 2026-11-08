@@ -25,6 +25,8 @@ import {
   RiFullscreenLine,
   RiFullscreenExitLine,
   RiAlertLine,
+  RiExchangeLine,
+  RiUserUnfollowLine,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
@@ -38,7 +40,6 @@ import { useTranslation } from "@/lib/i18n/use-translation";
 import { soundEffects } from "@/lib/audio/sounds";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Button } from "@/components/base/buttons/button";
-import { IconButton } from "@/components/base/buttons/icon-button";
 import { InputBase } from "@/components/base/input/input";
 import { Chip } from "@/components/base/badges/chip";
 import { Badge } from "@/components/base/badges/badge";
@@ -58,6 +59,8 @@ import {
 } from "@/components/foundations/scroll-fade/scroll-fade";
 import { QuizUpload } from "@/components/rooms/quiz-upload";
 import { TelegramSpoilerPin } from "@/components/rooms/telegram-spoiler-pin";
+import { RoomChatWidget } from "@/components/rooms/room-chat-drawer";
+import { MoreMenu, type MoreMenuItem } from "@/components/base/dropdown/more-menu";
 import { FormattedMessage } from "@/components/chat/formatted-message";
 import { cx } from "@/utils/cx";
 
@@ -140,6 +143,16 @@ interface TeacherRoomState {
   players: PlayerItem[];
   pendingPlayers?: PlayerItem[];
   approvedPlayers?: PlayerItem[];
+  chatMessages?: Array<{
+    id: string;
+    roomCode: string;
+    senderId: string;
+    senderName: string;
+    senderRole: "teacher" | "student";
+    avatar?: string;
+    text: string;
+    createdAt: string;
+  }>;
 }
 
 function getInitials(name: string): string {
@@ -165,6 +178,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const [replacingMaterial, setReplacingMaterial] = useState(false);
   const [showLeaveModal, setShowLeaveModal] = useState(false);
   const [leavingRoom, setLeavingRoom] = useState(false);
+  const [showGuideTips, setShowGuideTips] = useState(true);
+  const [showCopilotDock, setShowCopilotDock] = useState(true);
   const [approvingPlayerId, setApprovingPlayerId] = useState<string | null>(null);
   const [rejectingPlayerId, setRejectingPlayerId] = useState<string | null>(null);
 
@@ -174,7 +189,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     () => null
   );
 
-  const [activeTab, setActiveTab] = useState<"question" | "leaderboard" | "players" | "copilot">("question");
+  const [activeTab, setActiveTab] = useState<"question" | "leaderboard" | "players">("question");
   const [expandedLeaderboardPlayer, setExpandedLeaderboardPlayer] = useState<string | null>(null);
   const [selectedHostAnswers, setSelectedHostAnswers] = useState<Record<number, string>>({});
 
@@ -192,7 +207,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
   const leaderboardFade = useScrollFade();
   const playersFade = useScrollFade();
-  const copilotFade = useScrollFade();
+  const dockCopilotFade = useScrollFade();
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleFullscreen = () => {
@@ -606,15 +621,52 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const currentTimeSec = state?.settings?.timePerQuestionSec || 20;
   const currentStreakBonus = state?.settings?.streakBonus ?? true;
 
+  const headerMoreMenuItems: MoreMenuItem[] = [
+    {
+      id: "share-link",
+      label: isEn ? "Share link" : "Bagikan tautan",
+      icon: RiUserSharedLine,
+      onAction: copyShareLink,
+    },
+    {
+      id: "toggle-fullscreen",
+      label: isFullscreen
+        ? (isEn ? "Exit fullscreen" : "Keluar layar penuh")
+        : (isEn ? "Fullscreen projector mode" : "Mode proyektor layar penuh"),
+      icon: isFullscreen ? RiFullscreenExitLine : RiFullscreenLine,
+      onAction: toggleFullscreen,
+    },
+  ];
+
+  const lobbyCardMoreMenuItems: MoreMenuItem[] = [
+    {
+      id: "lobby-change-material",
+      label: isEn ? "Change material" : "Ganti materi",
+      icon: RiExchangeLine,
+      disabled: actionLoading,
+      onAction: () => setReplacingMaterial(true),
+    },
+  ];
+
+  const activeQuizCardMoreMenuItems: MoreMenuItem[] = [
+    {
+      id: "quiz-change-material",
+      label: isEn ? "Change material" : "Ganti materi",
+      icon: RiExchangeLine,
+      disabled: actionLoading,
+      onAction: () => setReplacingMaterial(true),
+    },
+  ];
+
   return (
-    <main className="min-h-screen bg-background-secondary-default text-text-primary flex flex-col transition-colors">
-      <header className="border-b border-separator-border bg-background-primary-default/95 sticky top-0 z-40 backdrop-blur-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3 min-w-0">
+    <main className="min-h-screen bg-background-secondary-default text-text-primary flex flex-col transition-colors overflow-x-hidden">
+      <header className="bg-background-primary-default/95 sticky top-0 z-40 backdrop-blur-md border-b border-separator-border">
+        <div className="mx-auto max-w-[960px] px-3 sm:px-6 py-2 min-h-16 flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
             <button
               type="button"
               onClick={() => setShowLeaveModal(true)}
-              className="flex items-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              className="flex min-h-10 min-w-10 items-center justify-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
               aria-label={isEn ? "Leave classroom" : "Tinggalkan ruang kelas"}
               title={isEn ? "Leave classroom" : "Tinggalkan ruang kelas"}
             >
@@ -625,63 +677,60 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               <div className="flex items-center gap-2 flex-wrap">
                 {/* Status badge shown once the quiz is running or finished */}
                 {state?.status === "waiting" ? null : state?.status === "finished" ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-tertiary border border-border-button-default">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-tertiary">
                     <RiCheckboxCircleLine className="size-3.5" aria-hidden />
                     <span>{isEn ? "Quiz finished" : "Kuis selesai"}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-primary border border-border-button-default">
                     <span className="relative flex size-2">
-                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-accent-700 opacity-50" />
-                      <span className="relative inline-flex rounded-full size-2 bg-accent-700" />
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-text-secondary opacity-50" />
+                      <span className="relative inline-flex rounded-full size-2 bg-text-primary" />
                     </span>
                     <RiCheckLine className="size-3.5" aria-hidden />
                     <span>{isEn ? "Quiz active" : "Kuis aktif"}</span>
                   </span>
                 )}
               </div>
-
             </div>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              type="button"
-              onClick={copyShareLink}
-              className="cursor-pointer hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-background-primary-default hover:bg-background-primary-hover border border-border-button-default text-caption-1-medium text-text-primary shadow-card transition"
-              title={isEn ? "Copy direct invitation link for students" : "Salin tautan langsung untuk siswa"}
-            >
-              <RiUserSharedLine className="size-4 text-accent-700" aria-hidden />
-              <span>{isEn ? "Share link" : "Bagikan tautan"}</span>
-            </button>
-
+          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end min-w-0">
             <TelegramSpoilerPin
               pin={roomCode}
-              size="md"
+              size="sm"
               isEn={isEn}
               label={isEn ? "Room pin" : "Pin ruang"}
+              className="shrink-0"
             />
 
-            <div className="hidden sm:flex items-center gap-2 px-3 py-2 rounded-xl bg-background-primary-default border border-border-button-default shadow-card">
+            <RoomChatWidget
+              role="teacher"
+              roomCode={roomCode}
+              senderId="host"
+              senderName={state?.hostName || "Guru"}
+              hostToken={hostToken}
+              messages={state?.chatMessages}
+              isEn={isEn}
+            />
+
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background-primary-default border border-border-button-default">
               <RiGroupLine className="size-4 text-foreground-icon-secondary" aria-hidden />
               <span className="text-caption-1-medium text-text-primary tabular-nums">
                 {totalApproved} {isEn ? "students" : "siswa"}
               </span>
             </div>
 
-            <IconButton
-              icon={isFullscreen ? RiFullscreenExitLine : RiFullscreenLine}
-              size="medium"
-              onClick={toggleFullscreen}
-              aria-label={isEn ? "Toggle fullscreen projector mode" : "Buka mode proyektor layar penuh"}
-              title={isEn ? "Classroom projector mode" : "Mode proyektor layar penuh"}
-            />
             <ThemeToggle />
+            <MoreMenu
+              items={headerMoreMenuItems}
+              aria-label={isEn ? "More options" : "Opsi lanjutan"}
+            />
           </div>
         </div>
       </header>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
+      <div className="mx-auto max-w-[960px] px-4 sm:px-6 py-8 w-full flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-8 flex flex-col gap-5">
           {state?.status === "waiting" && !quizStarted && (!hasQuestions || replacingMaterial) && (
             <div className="space-y-3">
@@ -711,33 +760,30 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             <motion.div
               initial={{ opacity: 0, y: -4 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card"
+              className="bg-background-primary-default rounded-3xl p-5 shadow-card"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
                     <span className="relative flex size-2.5">
-                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-accent-700 opacity-50" />
-                      <span className="relative inline-flex rounded-full size-2.5 bg-accent-700" />
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-text-secondary opacity-50" />
+                      <span className="relative inline-flex rounded-full size-2.5 bg-text-primary" />
                     </span>
                     <span className="text-body-semibold text-text-primary">
                       {isEn ? "Classroom lobby waiting for students" : "Lobi ruangan menunggu siswa"}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
                       {totalApproved} {isEn ? "students ready" : "siswa siap"}
                     </span>
                   </div>
-                  <div className="flex items-center gap-2 flex-wrap text-caption-1-regular text-text-secondary">
-                    <span>{isEn ? "Share pin" : "Bagikan pin"}</span>
-                    <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} />
-                    <span>{isEn ? "with students. Click start quiz to begin question 1." : "kepada siswa. Klik mulai kuis untuk membuka soal 1."}</span>
-                  </div>
+                  <p className="text-caption-1-regular text-text-secondary">
+                    {isEn
+                      ? "Share pin with students. Click start quiz to begin question 1."
+                      : "Bagikan pin kepada siswa. Klik mulai kuis untuk membuka soal 1."}
+                  </p>
                 </div>
 
                 <div className="flex shrink-0 items-center gap-2">
-                  <Button variant="secondary" size="small" onClick={() => setReplacingMaterial(true)} disabled={actionLoading}>
-                    {isEn ? "Change material" : "Ganti materi"}
-                  </Button>
                   <Button
                     variant="primary"
                     leadingIcon={RiPlayCircleLine}
@@ -747,6 +793,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   >
                     {isEn ? "Start quiz now (q1)" : "Mulai kuis sekarang (soal 1)"}
                   </Button>
+                  <MoreMenu
+                    items={lobbyCardMoreMenuItems}
+                    aria-label={isEn ? "Lobby card options" : "Opsi kartu lobi"}
+                  />
                 </div>
               </div>
             </motion.div>
@@ -757,11 +807,11 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-5 rounded-3xl bg-background-secondary-default border border-border-button-default shadow-card flex flex-col gap-4"
+              className="p-5 rounded-3xl bg-background-secondary-default shadow-card flex flex-col gap-4"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div className="flex items-center gap-3">
-                  <div className="size-9 rounded-xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center shrink-0">
+                  <div className="size-9 rounded-xl bg-background-primary-default text-foreground-icon-secondary border border-border-button-default flex items-center justify-center shrink-0">
                     <RiTimeLine className="size-5" aria-hidden />
                   </div>
                   <div>
@@ -778,7 +828,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
                 <div className="flex items-center gap-2 shrink-0">
                   <Button
-                    variant="primary"
+                    variant="secondary"
                     size="small"
                     leadingIcon={RiCheckDoubleLine}
                     onClick={handleApproveAllPlayers}
@@ -790,11 +840,11 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               </div>
 
               {/* Individual pending student approval cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2 border-t border-separator-border">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2">
                 {pendingPlayersList.map((p) => (
                   <div
                     key={p.id}
-                    className="p-3 rounded-2xl bg-background-primary-default border border-border-button-default shadow-2xs flex items-center justify-between gap-2"
+                    className="p-3 rounded-2xl bg-background-primary-default shadow-2xs flex items-center justify-between gap-2"
                   >
                     <div className="flex items-center gap-2 min-w-0">
                       <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />
@@ -805,22 +855,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Button
-                        variant="ghost"
-                        size="small"
-                        leadingIcon={rejectingPlayerId === p.id ? undefined : RiCloseLine}
-                        onClick={() => handleRejectPlayer(p.id)}
-                        disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
-                        aria-label={isEn ? "Reject student" : "Tolak siswa"}
-                        title={isEn ? "Reject student" : "Tolak siswa"}
-                      >
-                        {rejectingPlayerId === p.id ? (
-                          <Spinner size="xs" aria-label="Menolak" />
-                        ) : (
-                          isEn ? "Reject" : "Tolak"
-                        )}
-                      </Button>
-                      <Button
-                        variant="primary"
+                        variant="secondary"
                         size="small"
                         leadingIcon={approvingPlayerId === p.id ? undefined : RiCheckLine}
                         onClick={() => handleApprovePlayer(p.id)}
@@ -832,6 +867,25 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           isEn ? "Approve" : "Setujui"
                         )}
                       </Button>
+                      <MoreMenu
+                        items={[
+                          {
+                            id: `reject-${p.id}`,
+                            label: isEn ? "Reject student" : "Tolak siswa",
+                            icon: RiCloseLine,
+                            isDestructive: true,
+                            destructiveTitle: isEn ? "Reject student admission" : "Tolak akses siswa",
+                            destructiveDescription: isEn
+                              ? `Are you sure you want to reject admission for ${p.nickname}?`
+                              : `Apakah anda yakin ingin menolak akses untuk ${p.nickname}?`,
+                            confirmLabel: isEn ? "Reject" : "Tolak",
+                            cancelLabel: isEn ? "Cancel" : "Batal",
+                            disabled: actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id,
+                            onAction: () => handleRejectPlayer(p.id),
+                          },
+                        ]}
+                        aria-label={isEn ? "Student options" : "Opsi siswa"}
+                      />
                     </div>
                   </div>
                 ))}
@@ -842,10 +896,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
           <Tabs
             selectedKey={activeTab}
             onSelectionChange={(key) =>
-              setActiveTab(String(key) as "question" | "leaderboard" | "players" | "copilot")
+              setActiveTab(String(key) as "question" | "leaderboard" | "players")
             }
           >
-            <TabList aria-label="Navigasi ruang guru">
+            <TabList className="overflow-x-auto no-scrollbar pb-1 max-w-full" aria-label="Navigasi ruang guru">
               <Tab id="question" icon={RiBookOpenLine}>
                 Pertanyaan aktif
               </Tab>
@@ -855,9 +909,6 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               <Tab id="players" icon={RiGroupLine} count={totalApproved}>
                 Daftar siswa {totalPending > 0 ? `(${totalPending} tertunda)` : ""}
               </Tab>
-              <Tab id="copilot" icon={RiCopilotFill}>
-                Copilot ruang
-              </Tab>
             </TabList>
 
             <TabPanel id="question">
@@ -865,26 +916,32 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 <motion.div
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-5"
+                  className="bg-background-primary-default rounded-3xl p-6 shadow-card space-y-5"
                 >
                   <div className="flex items-center justify-between gap-2 flex-wrap">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <Chip variant="subtle" color="gray">
+                      <Chip variant="subtle" color="neutral">
                         Soal {(state?.currentQuestionIndex || 0) + 1} dari{" "}
                         {state?.totalQuestions || 5}
                       </Chip>
                       {currentQ.conceptTag && (
-                        <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                        <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
                           {currentQ.conceptTag}
                         </span>
                       )}
                     </div>
 
-                    <span className="text-caption-1-medium text-text-secondary tabular-nums">
-                      Respon masuk:{" "}
-                      <strong className="text-text-primary">{submissionsCount}</strong>/
-                      {totalApproved} siswa
-                    </span>
+                    <div className="flex items-center gap-2.5">
+                      <span className="text-caption-1-medium text-text-secondary tabular-nums">
+                        Respon masuk:{" "}
+                        <strong className="text-text-primary">{submissionsCount}</strong>/
+                        {totalApproved} siswa
+                      </span>
+                      <MoreMenu
+                        items={activeQuizCardMoreMenuItems}
+                        aria-label={isEn ? "Quiz card options" : "Opsi kartu kuis"}
+                      />
+                    </div>
                   </div>
 
                   <ProgressTrack percentage={progressPercent} size="md" />
@@ -935,12 +992,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             }));
                           }}
                           className={cx(
-                            "p-4 rounded-2xl border transition relative overflow-hidden space-y-2 text-start cursor-pointer",
+                            "p-4 rounded-2xl transition relative overflow-hidden space-y-2 text-start cursor-pointer",
                             selectedOnHost
                               ? option.isCorrect
-                                ? "bg-accent-700/10 border-accent-700/50"
-                                : "bg-background-tertiary-error border-border-error-default"
-                              : "bg-background-secondary-default border-border-button-default hover:border-border-button-hover"
+                                ? "bg-background-secondary-default ring-1 ring-inset ring-border-button-hover"
+                                : "bg-background-tertiary-error"
+                              : "bg-background-secondary-default hover:bg-background-secondary-hover"
                           )}
                         >
                           {/* Percentage visual bar */}
@@ -951,10 +1008,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                               className={cx(
                                 "pointer-events-none absolute inset-y-0 start-0 transition-all duration-300",
                                 selectedOnHost
-                                  ? option.isCorrect
-                                    ? "bg-accent-700/15"
-                                    : "bg-background-tertiary-error"
-                                  : "bg-text-primary/5"
+                              ? option.isCorrect
+                                ? "bg-background-tertiary-default"
+                                : "bg-background-tertiary-error"
+                              : "bg-text-primary/5"
                               )}
                             />
                           )}
@@ -966,8 +1023,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                   "size-6 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0",
                                   selectedOnHost
                                     ? option.isCorrect
-                                      ? "bg-accent-700 text-text-white"
-                                      : "bg-accent-destructive text-text-white"
+                                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default"
+                                      : "bg-background-tertiary-error text-text-error-primary"
                                     : "bg-background-tertiary-default text-text-primary"
                                 )}
                               >
@@ -983,8 +1040,8 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                 "inline-flex items-center px-2 py-0.5 rounded-md text-caption-2-medium tabular-nums shrink-0",
                                 selectedOnHost
                                   ? option.isCorrect
-                                    ? "bg-accent-700/15 text-accent-700 border border-accent-700/25"
-                                    : "bg-background-tertiary-error text-text-error-primary border border-border-error-default"
+                                    ? "bg-background-tertiary-default text-text-primary border border-border-button-default"
+                                    : "bg-background-tertiary-error text-text-error-primary"
                                   : "bg-background-tertiary-default text-text-secondary"
                               )}
                             >
@@ -993,7 +1050,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           </div>
 
                           {!option.isCorrect && optRationale && (voteCount > 0 || selectedOnHost) && (
-                            <p className="text-caption-2-regular text-text-secondary pt-1.5 ps-8 border-t border-border-button-default/50 relative z-10">
+                            <p className="text-caption-2-regular text-text-secondary pt-1.5 ps-8 relative z-10">
                               <span className="font-semibold text-text-primary">
                                 {isEn ? "Weak point: " : "Titik lemah: "}
                               </span>
@@ -1006,10 +1063,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   </div>
 
                   {selectedHostAnswers[currentQ.questionOrder || 1] && currentQ.explanation && (
-                    <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-1.5">
+                    <div className="p-4 rounded-2xl bg-background-secondary-default space-y-1.5">
                       <span className="text-caption-1-semibold text-text-primary flex items-center gap-1.5">
                         <RiLightbulbLine
-                          className="size-4 text-text-error-primary shrink-0"
+                          className="size-4 text-foreground-icon-secondary shrink-0"
                           aria-hidden
                         />
                         Penjelasan
@@ -1021,7 +1078,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   )}
                 </motion.div>
               ) : (
-                <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-8 text-center shadow-card space-y-2">
+                <div className="bg-background-primary-default rounded-3xl p-8 text-center shadow-card space-y-2">
                   <p className="text-body-regular text-text-secondary">
                     {state?.status === "finished"
                       ? "Sesi kuis telah diselesaikan. Anda dapat membuka laporan kelas di panel kanan."
@@ -1037,7 +1094,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-4"
+                className="bg-background-primary-default rounded-3xl p-6 shadow-card space-y-4"
               >
                 <div className="flex items-center justify-between">
                   <h2 className="text-headline-semibold text-text-primary">
@@ -1075,7 +1132,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         return (
                           <div
                             key={player.id}
-                            className="overflow-hidden rounded-2xl border border-border-button-default bg-background-secondary-default"
+                            className="overflow-hidden rounded-2xl bg-background-secondary-default"
                           >
                             <button
                               type="button"
@@ -1088,12 +1145,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                               className="flex w-full cursor-pointer items-center justify-between gap-3 p-3.5 text-start outline-none transition-colors hover:bg-background-secondary-hover focus-visible:ring-2 focus-visible:ring-border-focus-ring"
                             >
                               <div className="flex min-w-0 items-center gap-3">
-                                <Badge color={player.rank === 1 ? "primary" : "neutral"}>
+                                <Badge color="neutral">
                                   #{player.rank}
                                 </Badge>
                                 <Avatar
                                   size="sm"
-                                  color={player.rank === 1 ? "lime" : "neutral"}
+                                  color="neutral"
                                   initials={getInitials(player.nickname)}
                                 />
                                 <div className="min-w-0">
@@ -1107,7 +1164,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                               </div>
 
                               <span className="flex shrink-0 items-center gap-2">
-                                <span className="inline-flex items-center rounded-lg border border-border-button-default bg-background-primary-default px-2.5 py-1 text-caption-1-medium tabular-nums">
+                                <span className="inline-flex items-center rounded-lg bg-background-primary-default px-2.5 py-1 text-caption-1-medium tabular-nums">
                                   {player.score.toLocaleString()} poin
                                 </span>
                                 <RiArrowDownSLine
@@ -1123,7 +1180,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             {expanded && (
                               <div
                                 id={`leaderboard-breakdown-${player.id}`}
-                                className="border-t border-separator-border px-3.5 pb-3.5 pt-3"
+                                className="px-3.5 pb-3.5 pt-3"
                               >
                                 <div className="flex flex-wrap items-center justify-between gap-1.5">
                                   <span className="text-caption-2-semibold tracking-wide text-text-tertiary">
@@ -1139,7 +1196,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                   {parts.map((part) => (
                                     <div
                                       key={part.label}
-                                      className="rounded-xl border border-border-button-default bg-background-primary-default px-3 py-2"
+                                      className="rounded-xl bg-background-primary-default px-3 py-2"
                                     >
                                       <span className="block text-caption-2-regular text-text-tertiary">
                                         {part.label}
@@ -1173,10 +1230,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               <motion.div
                 initial={{ opacity: 0, y: 6 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-6"
+                className="bg-background-primary-default rounded-3xl p-6 shadow-card space-y-6"
               >
                 {/* Admission Control Mode Bar */}
-                <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="p-4 rounded-2xl bg-background-secondary-default flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="space-y-0.5">
                     <span className="text-body-semibold text-text-primary block">
                       {isEn ? "Student admission control" : "Kontrol penerimaan siswa"}
@@ -1216,7 +1273,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         <span className="text-body-semibold text-text-primary">
                           Menunggu persetujuan
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
                           {totalPending} siswa
                         </span>
                       </div>
@@ -1234,7 +1291,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       {pendingPlayersList.map((p) => (
                         <div
                           key={p.id}
-                          className="p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default flex items-center justify-between gap-3"
+                          className="p-3.5 rounded-2xl bg-background-secondary-default flex items-center justify-between gap-3"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />
@@ -1250,22 +1307,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
                           <div className="flex items-center gap-2 shrink-0">
                             <Button
-                              variant="ghost"
-                              size="small"
-                              leadingIcon={rejectingPlayerId === p.id ? undefined : RiCloseLine}
-                              onClick={() => handleRejectPlayer(p.id)}
-                              disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
-                              aria-label={isEn ? "Reject student" : "Tolak siswa"}
-                              title={isEn ? "Reject student" : "Tolak siswa"}
-                            >
-                              {rejectingPlayerId === p.id ? (
-                                <Spinner size="xs" aria-label="Menolak" />
-                              ) : (
-                                isEn ? "Reject" : "Tolak"
-                              )}
-                            </Button>
-                            <Button
-                              variant="primary"
+                              variant="secondary"
                               size="small"
                               leadingIcon={approvingPlayerId === p.id ? undefined : RiCheckLine}
                               onClick={() => handleApprovePlayer(p.id)}
@@ -1277,6 +1319,25 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                 isEn ? "Approve" : "Setujui"
                               )}
                             </Button>
+                            <MoreMenu
+                              items={[
+                                {
+                                  id: `reject-${p.id}`,
+                                  label: isEn ? "Reject student" : "Tolak siswa",
+                                  icon: RiCloseLine,
+                                  isDestructive: true,
+                                  destructiveTitle: isEn ? "Reject student admission" : "Tolak akses siswa",
+                                  destructiveDescription: isEn
+                                    ? `Are you sure you want to reject admission for ${p.nickname}?`
+                                    : `Apakah anda yakin ingin menolak akses untuk ${p.nickname}?`,
+                                  confirmLabel: isEn ? "Reject" : "Tolak",
+                                  cancelLabel: isEn ? "Cancel" : "Batal",
+                                  disabled: actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id,
+                                  onAction: () => handleRejectPlayer(p.id),
+                                },
+                              ]}
+                              aria-label={isEn ? "Student options" : "Opsi siswa"}
+                            />
                           </div>
                         </div>
                       ))}
@@ -1290,7 +1351,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     <h3 className="text-body-semibold text-text-primary">
                       Siswa terhubung & disetujui
                     </h3>
-                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-accent-700/10 text-accent-700 border border-accent-700/20">
+                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
                       {totalApproved} siswa
                     </span>
                   </div>
@@ -1304,18 +1365,39 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         {approvedPlayersList.map((p) => (
                           <div
                             key={p.id}
-                            className="p-3.5 rounded-2xl bg-background-secondary-default border border-border-button-default flex items-center justify-between gap-2"
+                            className="p-3.5 rounded-2xl bg-background-secondary-default flex items-center justify-between gap-2"
                           >
                             <div className="flex items-center gap-2.5 min-w-0">
-                              <span className="size-2 rounded-full bg-accent-700" />
-                              <Avatar size="xs" color="blue" initials={getInitials(p.nickname)} />
+                              <span className="size-2 rounded-full bg-foreground-icon-secondary" />
+                              <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />
                               <span className="text-body-medium text-text-primary truncate">
                                 {p.nickname}
                               </span>
                             </div>
-                            <span className="text-caption-2-medium px-2 py-0.5 rounded-md bg-background-primary-default border border-border-button-default tabular-nums shrink-0">
-                              {p.score.toLocaleString()} poin
-                            </span>
+                            <div className="flex items-center gap-2 shrink-0">
+                              <span className="text-caption-2-medium px-2 py-0.5 rounded-md bg-background-primary-default tabular-nums shrink-0">
+                                {p.score.toLocaleString()} poin
+                              </span>
+                              <MoreMenu
+                                items={[
+                                  {
+                                    id: `remove-${p.id}`,
+                                    label: isEn ? "Remove student" : "Keluarkan siswa",
+                                    icon: RiUserUnfollowLine,
+                                    isDestructive: true,
+                                    destructiveTitle: isEn ? "Remove student from room" : "Keluarkan siswa dari kelas",
+                                    destructiveDescription: isEn
+                                      ? `Are you sure you want to remove ${p.nickname}?`
+                                      : `Apakah anda yakin ingin mengeluarkan ${p.nickname} dari ruangan?`,
+                                    confirmLabel: isEn ? "Remove" : "Keluarkan",
+                                    cancelLabel: isEn ? "Cancel" : "Batal",
+                                    disabled: actionLoading,
+                                    onAction: () => handleRejectPlayer(p.id),
+                                  },
+                                ]}
+                                aria-label={isEn ? "Student options" : "Opsi siswa"}
+                              />
+                            </div>
                           </div>
                         ))}
                       </div>
@@ -1331,128 +1413,10 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           ? "No students have joined yet. Share this pin with students:"
                           : "Belum ada siswa yang masuk. Bagikan pin ini ke siswa:"}
                       </p>
-                      <TelegramSpoilerPin pin={roomCode} size="md" isEn={isEn} />
+                      <bdi className="font-mono text-title-2-bold text-text-primary tracking-wider">{roomCode}</bdi>
                     </div>
                   )}
                 </div>
-              </motion.div>
-            </TabPanel>
-
-            <TabPanel id="copilot">
-              <motion.div
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-background-primary-default border border-border-button-default rounded-3xl p-6 shadow-card space-y-4"
-              >
-                <div className="flex items-center justify-between pb-3 border-b border-separator-border">
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-9 rounded-xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center">
-                      <RiCopilotFill className="size-5" />
-                    </div>
-                    <div>
-                      <h3 className="text-body-semibold text-text-primary">
-                        Copilot ruang
-                      </h3>
-                      <p className="text-caption-1-regular text-text-secondary">
-                        Membaca materi kuis, daftar siswa ({totalApproved} orang), dan hasil respon kelas
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick Action Prompt Chips */}
-                <div className="flex flex-wrap gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={() => handleAskCopilot("Siapa siswa yang cocok untuk presentasi materi saat ini?")}
-                    className="cursor-pointer px-3 py-1.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-1-medium text-text-primary flex items-center gap-1.5 transition"
-                  >
-                    <RiUserSharedLine className="size-3.5 text-accent-700" />
-                    <span>Pilih siswa presentasi acak</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAskCopilot("Bagaimana ringkasan performa dan pemahaman materi kelas saat ini?")}
-                    className="cursor-pointer px-3 py-1.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-1-medium text-text-primary flex items-center gap-1.5 transition"
-                  >
-                    <RiBarChartBoxLine className="size-3.5 text-text-error-primary" />
-                    <span>Evaluasi performa kelas</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAskCopilot("Berikan 2 pertanyaan pemantik lisan untuk mendiskusikan soal ini.")}
-                    className="cursor-pointer px-3 py-1.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-1-medium text-text-primary flex items-center gap-1.5 transition"
-                  >
-                    <RiLightbulbLine className="size-3.5 text-accent-700" />
-                    <span>Pertanyaan pemantik diskusi</span>
-                  </button>
-                </div>
-
-                {/* Copilot Chat Log */}
-                <div className="relative min-h-0">
-                  <div
-                    onScroll={copilotFade.onScroll}
-                    className="space-y-3 max-h-80 overflow-y-auto p-3 rounded-2xl bg-background-secondary-default border border-border-button-default"
-                  >
-                    {copilotMessages.map((msg, i) => (
-                      <div
-                        key={i}
-                        className={cx(
-                          "p-3.5 rounded-2xl text-body-2-regular max-w-[85%] whitespace-pre-wrap leading-relaxed",
-                          msg.role === "user"
-                            ? "ms-auto bg-background-primary-default border border-border-button-default text-text-primary"
-                            : "me-auto bg-background-primary-default border border-accent-700/20 text-text-primary shadow-2xs"
-                        )}
-                      >
-                        {msg.role === "assistant" && (
-                          <span className="text-[11px] font-semibold text-accent-700 block mb-1">
-                            Exile copilot
-                          </span>
-                        )}
-                        <FormattedMessage content={msg.content} />
-                      </div>
-                    ))}
-                    {copilotLoading && (
-                      <div className="p-3 rounded-2xl me-auto bg-background-primary-default border border-accent-700/20 flex items-center gap-2 text-caption-1-medium text-text-secondary">
-                        <Spinner size="xs" />
-                        <span>Copilot sedang menganalisis kelas...</span>
-                      </div>
-                    )}
-                  </div>
-                  <ScrollFade
-                    progress={copilotFade.progress}
-                    surfaceClassName="from-background-primary-default"
-                  />
-                </div>
-
-                {/* Input box */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleAskCopilot();
-                  }}
-                  className="flex items-center gap-2"
-                >
-                  <InputBase
-                    aria-label={isEn ? "Ask copilot" : "Tanyakan ke copilot"}
-                    value={copilotInput}
-                    onChange={(e) => setCopilotInput(e.target.value)}
-                    placeholder={
-                      isEn
-                        ? "Ask copilot anything about this class..."
-                        : "Tanyakan ke copilot (misal: 'Pilihkan 1 siswa untuk menjelaskan...')"
-                    }
-                    className="flex-1"
-                  />
-                  <Button
-                    type="submit"
-                    variant="primary"
-                    disabled={copilotLoading || !copilotInput.trim()}
-                    leadingIcon={RiSendPlaneLine}
-                  >
-                    {isEn ? "Send" : "Kirim"}
-                  </Button>
-                </form>
               </motion.div>
             </TabPanel>
           </Tabs>
@@ -1460,25 +1424,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
         {/* Right column: Action Controls & Diagnostic */}
         <div className="lg:col-span-4 space-y-5">
-          <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-4">
+          <div className="bg-background-primary-default rounded-3xl p-5 shadow-card space-y-4">
             <h3 className="text-caption-1-semibold text-text-secondary">
-              Kontrol ruang kelas
+              {isEn ? "Classroom controls" : "Kontrol ruang kelas"}
             </h3>
 
             <div className="flex flex-col gap-2.5">
-              {/* Start Quiz button: hidden permanently once started */}
-              {state?.status === "waiting" && !quizStarted && (
-                <Button
-                  variant="primary"
-                  leadingIcon={RiPlayCircleLine}
-                  onClick={() => handleAction("resume_quiz")}
-                  disabled={actionLoading || quizStarted || !hasQuestions}
-                  className="w-full"
-                >
-                  Mulai kuis sekarang (soal 1)
-                </Button>
-              )}
-
               {state?.status === "showing_leaderboard" && (
                 <Button
                   variant="secondary"
@@ -1487,7 +1438,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   disabled={actionLoading}
                   className="w-full"
                 >
-                  Kembali ke soal aktif
+                  {isEn ? "Return to active question" : "Kembali ke soal aktif"}
                 </Button>
               )}
 
@@ -1500,7 +1451,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     disabled={actionLoading || !hasQuestions}
                     className="w-full"
                   >
-                    Lanjut ke pertanyaan berikutnya
+                    {isEn ? "Advance to next question" : "Lanjut ke pertanyaan berikutnya"}
                   </Button>
 
                   <Button
@@ -1510,7 +1461,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                     disabled={actionLoading || !hasQuestions}
                     className="w-full"
                   >
-                    Tampilkan papan skor di layar
+                    {isEn ? "Show leaderboard on screen" : "Tampilkan papan skor di layar"}
                   </Button>
                 </>
               )}
@@ -1524,40 +1475,213 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   disabled={actionLoading || gameFinished || !hasQuestions}
                   className="w-full text-text-secondary hover:text-text-primary"
                 >
-                  Selesaikan sesi kuis
+                  {isEn ? "Finish quiz session" : "Selesaikan sesi kuis"}
                 </Button>
               ) : (
-                <div className="p-3 rounded-xl bg-background-secondary-default border border-border-button-default text-center text-caption-1-medium text-text-secondary">
-                  Sesi kuis telah diselesaikan
+                <div className="p-3 rounded-xl bg-background-secondary-default text-center text-caption-1-medium text-text-secondary">
+                  {isEn ? "Quiz session finished" : "Sesi kuis telah diselesaikan"}
                 </div>
               )}
             </div>
           </div>
 
-          <div className="bg-background-primary-default border border-border-button-default rounded-3xl p-5 shadow-card space-y-2">
-            <span className="text-caption-1-semibold text-text-primary block">
-              Petunjuk cepat pengajar:
-            </span>
-            <ul className="space-y-1.5 list-disc list-inside text-caption-1-regular text-text-secondary">
-              <li>
-                {isEn ? "Students can join using room pin " : "Siswa dapat langsung masuk menggunakan pin "}
-                <span className="inline-flex items-center align-middle mx-1">
-                  <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} />
-                </span>
-                {" "}{isEn ? "at " : "di "}
-                <Link href="/play" className="underline font-medium text-text-primary">
-                  /play
-                </Link>
-                .
-              </li>
-              <li>
-                Bila verifikasi manual aktif, setujui siswa di tab daftar siswa agar mereka dapat berpartisipasi.
-              </li>
-              <li>
-                Gunakan tab copilot ruang untuk menunjuk siswa presentasi secara acak atau menganalisis pemahaman kelas.
-              </li>
-            </ul>
-          </div>
+          {/* Collapsible Copilot Ruang Card */}
+          {!showCopilotDock ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              leadingIcon={RiCopilotFill}
+              onClick={() => setShowCopilotDock(true)}
+              className="w-full justify-center text-caption-1-medium py-2 rounded-2xl"
+            >
+              {isEn ? "Open room copilot" : "Buka copilot ruang"}
+            </Button>
+          ) : (
+            <div className="bg-background-primary-default rounded-3xl p-5 shadow-card space-y-4">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="size-8 rounded-xl bg-background-secondary-default text-foreground-icon-secondary border border-border-button-default flex items-center justify-center shrink-0">
+                    <RiCopilotFill className="size-4" aria-hidden />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-body-semibold text-text-primary block">
+                      Copilot ruang
+                    </span>
+                    <span className="text-caption-2-regular text-text-secondary block truncate">
+                      {totalApproved} {isEn ? "students connected" : "siswa terhubung"}
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="small"
+                  onClick={() => setShowCopilotDock(false)}
+                  className="shrink-0"
+                >
+                  {isEn ? "Hide" : "Sembunyikan"}
+                </Button>
+              </div>
+
+              <div className="space-y-3 pt-1">
+                {/* Quick Action Prompt Chips */}
+                <div className="flex flex-wrap gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => handleAskCopilot("Siapa siswa yang cocok untuk presentasi materi saat ini?")}
+                    className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
+                  >
+                    <RiUserSharedLine className="size-3 text-foreground-icon-secondary" aria-hidden />
+                    <span>Pilih siswa acak</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAskCopilot("Bagaimana ringkasan performa dan pemahaman materi kelas saat ini?")}
+                    className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
+                  >
+                    <RiBarChartBoxLine className="size-3 text-foreground-icon-secondary" aria-hidden />
+                    <span>Evaluasi kelas</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAskCopilot("Berikan 2 pertanyaan pemantik lisan untuk mendiskusikan soal ini.")}
+                    className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
+                  >
+                    <RiLightbulbLine className="size-3 text-foreground-icon-secondary" aria-hidden />
+                    <span>Pemantik diskusi</span>
+                  </button>
+                </div>
+
+                {/* Copilot Chat Log with ScrollFade */}
+                <div className="relative min-h-0">
+                  <div
+                    onScroll={dockCopilotFade.onScroll}
+                    className="space-y-2.5 max-h-64 overflow-y-auto p-3 rounded-2xl bg-background-secondary-default border border-border-button-default"
+                  >
+                    {copilotMessages.map((msg, i) => (
+                      <div
+                        key={i}
+                        className={cx(
+                          "p-3 rounded-2xl text-body-2-regular whitespace-pre-wrap leading-relaxed",
+                          msg.role === "user"
+                            ? "ms-auto max-w-[90%] bg-background-primary-default text-text-primary"
+                            : "me-auto max-w-[95%] bg-background-primary-default text-text-primary shadow-2xs"
+                        )}
+                      >
+                        {msg.role === "assistant" && (
+                          <span className="text-caption-2-semibold text-text-secondary block mb-1">
+                            Copilot ruang
+                          </span>
+                        )}
+                        <FormattedMessage content={msg.content} />
+                      </div>
+                    ))}
+                    {copilotLoading && (
+                      <div className="p-2.5 rounded-2xl me-auto bg-background-primary-default flex items-center gap-2 text-caption-2-medium text-text-secondary">
+                        <Spinner size="xs" aria-label="Memuat analisis" />
+                        <span>Copilot sedang menganalisis kelas...</span>
+                      </div>
+                    )}
+                  </div>
+                  <ScrollFade
+                    progress={dockCopilotFade.progress}
+                    surfaceClassName="from-background-primary-default"
+                  />
+                </div>
+
+                {/* Compact input form */}
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    handleAskCopilot();
+                  }}
+                  className="flex items-center gap-1.5 pt-0.5"
+                >
+                  <InputBase
+                    aria-label={isEn ? "Ask copilot" : "Tanyakan ke copilot"}
+                    value={copilotInput}
+                    onChange={(e) => setCopilotInput(e.target.value)}
+                    placeholder={
+                      isEn
+                        ? "Ask copilot about this room..."
+                        : "Tanyakan ke copilot..."
+                    }
+                    className="flex-1"
+                  />
+                  <Button
+                    type="submit"
+                    variant="secondary"
+                    size="small"
+                    disabled={copilotLoading || !copilotInput.trim()}
+                    leadingIcon={RiSendPlaneLine}
+                    className="shrink-0"
+                  >
+                    {isEn ? "Send" : "Kirim"}
+                  </Button>
+                </form>
+              </div>
+            </div>
+          )}
+
+          {!showGuideTips ? (
+            <Button
+              type="button"
+              variant="secondary"
+              size="small"
+              leadingIcon={RiLightbulbLine}
+              onClick={() => setShowGuideTips(true)}
+              className="w-full justify-center text-caption-1-medium py-2 rounded-2xl"
+            >
+              {isEn ? "Open teacher guide" : "Buka petunjuk pengajar"}
+            </Button>
+          ) : (
+            <div className="bg-background-primary-default rounded-3xl p-5 shadow-card space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                  <div className="size-8 rounded-xl bg-background-secondary-default text-foreground-icon-secondary border border-border-button-default flex items-center justify-center shrink-0">
+                    <RiLightbulbLine className="size-4" aria-hidden />
+                  </div>
+                  <span className="text-body-semibold text-text-primary block truncate">
+                    {isEn ? "Teacher guide" : "Petunjuk pengajar"}
+                  </span>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="small"
+                  onClick={() => setShowGuideTips(false)}
+                  className="shrink-0"
+                >
+                  {isEn ? "Hide" : "Sembunyikan"}
+                </Button>
+              </div>
+              <ul className="space-y-1.5 list-disc list-inside text-caption-1-regular text-text-secondary pt-1">
+                <li>
+                  {isEn ? "Students can join using room pin " : "Siswa dapat langsung masuk menggunakan pin "}
+                  <span className="inline-flex items-center align-middle mx-1">
+                    <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} />
+                  </span>
+                  {" "}{isEn ? "at " : "di "}
+                  <Link href="/play" className="underline font-medium text-text-primary">
+                    /play
+                  </Link>
+                  .
+                </li>
+                <li>
+                  {isEn
+                    ? "If manual verification is active, approve students in the player tab."
+                    : "Bila verifikasi manual aktif, setujui siswa di tab daftar siswa agar mereka dapat berpartisipasi."}
+                </li>
+                <li>
+                  {isEn
+                    ? "Use room copilot to pick random student presenters or analyze classroom understanding."
+                    : "Gunakan copilot ruang untuk menunjuk siswa presentasi secara acak atau menganalisis pemahaman kelas."}
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
       </div>
 
@@ -1579,7 +1703,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               : "Meninggalkan ruangan akan menutup dan membubarkan sesi kelas secara permanen. Seluruh siswa yang sedang menunggu atau bergabung akan terputus dan menerima informasi bahwa ruangan kelas telah ditutup oleh pengajar."
           }
         />
-        <ModalFooter className="sm:justify-between border-t border-separator-border pt-4 mt-4">
+        <ModalFooter className="sm:justify-between pt-4 mt-4">
           <Button
             variant="secondary"
             onClick={() => setShowLeaveModal(false)}

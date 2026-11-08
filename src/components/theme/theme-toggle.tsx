@@ -18,7 +18,7 @@ export function ThemeToggle({ className = "" }: { className?: string }) {
   if (!mounted) {
     return (
       <div
-        className={cx("size-9 border-2 border-line2", className)}
+        className={cx("size-9 rounded-xl bg-background-secondary-default", className)}
         aria-hidden="true"
       />
     );

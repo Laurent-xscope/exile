@@ -3,7 +3,7 @@
 import React from "react";
 import { cx } from "@/utils/cx";
 
-interface FormattedMessageProps {
+export interface FormattedMessageProps {
   content: string;
   className?: string;
 }
@@ -15,7 +15,7 @@ interface FormattedMessageProps {
  * - `code` -> <code>
  * - Bullet / Numbered lists with clean spacing
  */
-export function FormattedMessage({ content, className = "" }: FormattedMessageProps) {
+function FormattedMessageBase({ content, className = "" }: FormattedMessageProps) {
   if (!content) return null;
 
   const lines = content.split("\n");
@@ -50,7 +50,7 @@ export function FormattedMessage({ content, className = "" }: FormattedMessagePr
           const bulletText = trimmed.replace(/^(\*|-|•)\s+/, "");
           return (
             <div key={lineIndex} className="flex items-start gap-2 pl-2">
-              <span className="size-1.5 rounded-full bg-accent-600 dark:bg-accent-400 mt-1.5 shrink-0" />
+              <span className="size-1.5 rounded-full bg-foreground-icon-secondary mt-1.5 shrink-0" />
               <div className="flex-1">{formatInlineMarkdown(bulletText)}</div>
             </div>
           );
@@ -62,7 +62,7 @@ export function FormattedMessage({ content, className = "" }: FormattedMessagePr
           const text = numberedMatch[2];
           return (
             <div key={lineIndex} className="flex items-start gap-2 pl-1.5">
-              <span className="font-mono text-caption-2-bold text-accent-700 dark:text-accent-400 shrink-0 min-w-4">
+              <span className="font-mono text-caption-2-bold text-text-secondary shrink-0 min-w-4">
                 {num}.
               </span>
               <div className="flex-1">{formatInlineMarkdown(text)}</div>
@@ -109,7 +109,7 @@ function formatInlineMarkdown(text: string): React.ReactNode[] {
       return (
         <code
           key={index}
-          className="font-mono text-[11px] px-1 py-0.5 rounded bg-background-primary-default/90 border border-border-button-default text-text-primary"
+          className="font-mono text-[11px] px-1 py-0.5 rounded bg-background-primary-default/90 text-text-primary"
         >
           {inner}
         </code>
@@ -119,3 +119,8 @@ function formatInlineMarkdown(text: string): React.ReactNode[] {
     return <React.Fragment key={index}>{part}</React.Fragment>;
   });
 }
+
+export const FormattedMessage = React.memo(FormattedMessageBase);
+FormattedMessage.displayName = "FormattedMessage";
+
+export default FormattedMessage;

@@ -14,6 +14,7 @@ import {
   validateHostToken,
   recordHeartbeat,
   abandonRoom,
+  invalidateGameRoomState,
 } from "@/lib/rooms/store";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
 import { isValidRoomCode, normalizeRoomCode } from "@/lib/rooms/code";
@@ -44,7 +45,10 @@ const ActionSchema = z.object({
       streakBonus: z.boolean().optional(),
       shuffleQuestions: z.boolean().optional(),
       autoApproveStudents: z.boolean().optional(),
-      difficulty: z.enum(["mudah", "sedang", "sulit", "campuran"]).optional(),
+      difficulty: z
+        .enum(["mudah", "sedang", "sulit", "campuran", "adaptif"])
+        .transform((v) => (v === "adaptif" ? "campuran" : v))
+        .optional(),
     })
     .optional(),
 });
@@ -88,6 +92,10 @@ export async function POST(
     }
 
     const { action, playerId, selectedOption } = parseResult.data;
+
+    if (action !== "get_teacher_state") {
+      invalidateGameRoomState(roomCode);
+    }
 
     switch (action) {
       case "get_teacher_state": {

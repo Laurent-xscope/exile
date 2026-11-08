@@ -259,10 +259,10 @@ function RowMoreMenu({ name }: { name: string }) {
           aria-label={`More actions for ${name}`}
           className={cx(
             "relative inline-flex size-8 shrink-0 items-center justify-center rounded-2lg",
-            "border border-border-button-default bg-background-primary-default text-foreground-icon-primary shadow-xs",
-            "transition-[background-color,border-color,box-shadow,color] duration-150 ease",
-            "hover:border-border-button-hover hover:bg-background-primary-hover",
-            isOpen && "border-border-button-active bg-background-primary-active",
+            "bg-background-primary-default text-foreground-icon-primary shadow-xs",
+            "transition-[background-color,box-shadow,color] duration-150 ease",
+            "hover:bg-background-primary-hover",
+            isOpen && "bg-background-primary-active",
           )}
         >
           <RiMore2Fill className="size-4 shrink-0" aria-hidden />
@@ -423,7 +423,7 @@ export function DataTableExample({
     <div className="flex w-full flex-col items-center gap-5">
     <section
       className={cx(
-        "flex w-full flex-col rounded-2xl border border-border-table pt-2",
+        "flex w-full flex-col rounded-2xl pt-2",
         totalPages > 1 ? "pb-3" : "pb-0",
       )}
     >
@@ -582,7 +582,7 @@ export function DataTableExample({
 
       {/* Pagination footer */}
       {totalPages > 1 && (
-        <div className="border-t border-separator-border px-3 pt-3">
+        <div className="px-3 pt-3">
           <Pagination
             page={pagination.pageIndex + 1}
             totalPages={totalPages}

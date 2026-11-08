@@ -25,6 +25,17 @@ import {
 
 // Guarded at every call site: when no service-role key is configured the app
 // runs in stateless in-memory mode and this client is never used.
+interface QuestionDbRow {
+  id: string;
+  question_order: number;
+  question_text: string;
+  options: Question["options"];
+  correct_answer: Question["correctAnswer"];
+  explanation: string;
+  concept_tag: string;
+  cultural_context?: string | null;
+}
+
 function db() {
   const client = getSupabaseAdmin();
   if (!client) throw new Error("SUPABASE_SERVICE_ROLE_KEY is required when Supabase is configured.");
@@ -49,6 +60,17 @@ export interface LeaderboardScoreBreakdown extends ScoreBreakdown {
   total: number;
   correctAnswers: number;
   submissions: number;
+}
+
+export interface RoomChatMessage {
+  id: string;
+  roomCode: string;
+  senderId: string;
+  senderName: string;
+  senderRole: "teacher" | "student";
+  avatar?: string;
+  text: string;
+  createdAt: string;
 }
 
 export interface SubmissionRecord {
@@ -82,10 +104,12 @@ export interface GameRoomRecord {
     difficulty?: QuizDifficultyLevel;
     questionsSnapshot?: Question[];
     abandoned?: boolean;
+    chatMessages?: RoomChatMessage[];
   };
   questions: Question[];
   players: Map<string, PlayerRecord>;
   submissions: SubmissionRecord[];
+  chatMessages?: RoomChatMessage[];
   createdAt: string;
   updatedAt: string;
   lastSyncedAt?: number;
@@ -221,13 +245,23 @@ export function isIdleRoom(
 }
 
 let lastDbIdleSweep = 0;
+let lastCloseIdleRoomsSweep = 0;
+export const CLOSE_IDLE_ROOMS_THROTTLE_MS = 60_000;
 const DB_IDLE_SWEEP_THROTTLE_MS = 10_000;
 
 export async function closeIdleRooms(options?: {
   now?: number;
   forceDb?: boolean;
+  force?: boolean;
 }): Promise<string[]> {
   const now = options?.now ?? Date.now();
+  const isForced = Boolean(options?.force || options?.forceDb || options?.now !== undefined);
+
+  if (!isForced && now - lastCloseIdleRoomsSweep < CLOSE_IDLE_ROOMS_THROTTLE_MS) {
+    return [];
+  }
+
+  lastCloseIdleRoomsSweep = now;
   const closedCodes: string[] = [];
 
   for (const [code, room] of inMemoryRooms.entries()) {
@@ -261,6 +295,12 @@ export async function closeIdleRooms(options?: {
     }
   } catch (err) {
     console.warn("[RoomStore] closeIdleRooms Supabase sync omitted:", err);
+  }
+
+  if (closedCodes.length > 0) {
+    for (const code of closedCodes) {
+      invalidateGameRoomState(code);
+    }
   }
 
   return closedCodes;
@@ -308,11 +348,15 @@ export async function recordHeartbeat(
     }
   }
 
+  invalidateGameRoomState(roomCode);
   return true;
 }
 
 export function _resetInMemoryRoomsForTesting(): void {
   inMemoryRooms.clear();
+  invalidateGameRoomState();
+  lastCloseIdleRoomsSweep = 0;
+  lastDbIdleSweep = 0;
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -396,17 +440,20 @@ export async function createGameRoom(params: {
       shuffleQuestions: params.settings?.shuffleQuestions ?? false,
       autoApproveStudents: params.settings?.autoApproveStudents ?? true,
       difficulty: params.settings?.difficulty || "sedang",
+      chatMessages: [],
       ...(questions.length > 0 ? { questionsSnapshot: questions } : {}),
     },
     questions,
     players: new Map<string, PlayerRecord>(),
     submissions: [],
+    chatMessages: [],
     createdAt: now,
     updatedAt: now,
     lastSyncedAt: Date.now(),
   };
 
   inMemoryRooms.set(roomCode, newRoom);
+  invalidateGameRoomState(roomCode);
 
   try {
     const isPlaceholder = !isDatabaseEnabled();
@@ -447,6 +494,12 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
   await closeIdleRooms();
 
   const cached = inMemoryRooms.get(roomCode) || null;
+  if (cached && isIdleRoom(cached)) {
+    cached.status = "finished";
+    cached.updatedAt = new Date().toISOString();
+    invalidateGameRoomState(roomCode);
+  }
+
   if (cached && cached.lastSyncedAt && Date.now() - cached.lastSyncedAt < 750) {
     return cached;
   }
@@ -456,18 +509,36 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
 
     if (isPlaceholder) return cached;
 
+    const knownQuizId =
+      cached?.quizId && cached.quizId !== SEED_QUIZ_ID ? cached.quizId : null;
+    const needParallelQuestions = Boolean(
+      knownQuizId && (!cached?.questions || cached.questions.length === 0)
+    );
+
     const synced = await withTimeout(
       Promise.all([
         db().from("game_rooms").select("*").eq("room_code", roomCode).maybeSingle(),
         db().from("players").select("*").eq("room_code", roomCode),
         db().from("submissions").select("*").eq("room_code", roomCode),
+        needParallelQuestions && knownQuizId
+          ? db()
+              .from("questions")
+              .select("*")
+              .eq("quiz_id", knownQuizId)
+              .order("question_order", { ascending: true })
+          : Promise.resolve({ data: null, error: null }),
       ]),
       2500
     );
 
     if (!synced) return cached;
 
-    const [{ data: roomData, error: roomErr }, { data: playersData }, { data: subData }] = synced;
+    const [
+      { data: roomData, error: roomErr },
+      { data: playersData },
+      { data: subData },
+      parallelQuestionsRes,
+    ] = synced;
 
     if (roomErr || !roomData) return cached;
 
@@ -530,6 +601,26 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
         ? cached.questions
         : [];
 
+    if (
+      questions.length === 0 &&
+      activeQuizId &&
+      knownQuizId === activeQuizId &&
+      parallelQuestionsRes?.data &&
+      Array.isArray(parallelQuestionsRes.data) &&
+      parallelQuestionsRes.data.length > 0
+    ) {
+      questions = (parallelQuestionsRes.data as QuestionDbRow[]).map((q) => ({
+        id: q.id,
+        questionOrder: q.question_order,
+        question: q.question_text,
+        options: q.options,
+        correctAnswer: q.correct_answer,
+        explanation: q.explanation,
+        conceptTag: q.concept_tag,
+        culturalContext: q.cultural_context || undefined,
+      }));
+    }
+
     if (questions.length === 0 && activeQuizId) {
       const qRes = await withTimeout(
         db().from("questions")
@@ -559,6 +650,10 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
       questions = rawSettings.questionsSnapshot as Question[];
     }
 
+    const restoredChatMessages: RoomChatMessage[] =
+      cached?.chatMessages ||
+      (Array.isArray(rawSettings.chatMessages) ? (rawSettings.chatMessages as RoomChatMessage[]) : []);
+
     const restoredRoom: GameRoomRecord = {
       id: roomData.id,
       roomCode: roomData.room_code,
@@ -575,10 +670,12 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
         autoApproveStudents: true,
         difficulty: "sedang",
         ...rawSettings,
+        chatMessages: restoredChatMessages,
       },
       questions,
       players: playerMap,
       submissions,
+      chatMessages: restoredChatMessages,
       createdAt: roomData.created_at || cached?.createdAt || new Date().toISOString(),
       updatedAt: roomData.updated_at || cached?.updatedAt || new Date().toISOString(),
       lastSyncedAt: Date.now(),
@@ -607,6 +704,35 @@ export async function ensureRoomLoaded(roomCode: string): Promise<GameRoomRecord
   }
 }
 
+/**
+ * Resolves a unique room nickname by appending (1), (2), etc. if the base nickname
+ * is already taken by another player in the room (case-insensitive).
+ */
+export function resolveUniqueRoomNickname(
+  rawNickname: string,
+  existingNicknames: Iterable<string>
+): string {
+  const base = rawNickname.trim() || "Siswa";
+  const taken = new Set<string>();
+
+  for (const n of existingNicknames) {
+    if (typeof n === "string") {
+      taken.add(n.trim().toLowerCase());
+    }
+  }
+
+  if (!taken.has(base.toLowerCase())) {
+    return base;
+  }
+
+  let index = 1;
+  while (taken.has(`${base}(${index})`.toLowerCase())) {
+    index++;
+  }
+
+  return `${base}(${index})`;
+}
+
 export async function joinGameRoom(params: {
   roomCode: string;
   nickname: string;
@@ -624,32 +750,27 @@ export async function joinGameRoom(params: {
     return null;
   }
 
-  let existingPlayer: PlayerRecord | undefined;
-  for (const p of room.players.values()) {
-    if (p.nickname.toLowerCase() === params.nickname.trim().toLowerCase()) {
-      existingPlayer = p;
-      break;
-    }
-  }
-
   const initialStatus: "approved" | "pending" =
     room.settings.autoApproveStudents !== false ? "approved" : "pending";
   const db = getSupabaseAdmin();
 
-  if (existingPlayer) {
-    // A nickname alone must never grant control of an existing player record.
-    // Reconnects must present the token saved on the original device.
-    const keepsToken = Boolean(
-      params.playerToken && safeEqual(existingPlayer.token, params.playerToken)
-    );
-    if (!keepsToken) {
-      throw new PlayerIdentityConflictError();
+  // 1. Check if an existing player is reconnecting via valid playerToken
+  let reconnectingPlayer: PlayerRecord | undefined;
+  if (params.playerToken) {
+    for (const p of room.players.values()) {
+      if (safeEqual(p.token, params.playerToken)) {
+        reconnectingPlayer = p;
+        break;
+      }
     }
+  }
+
+  if (reconnectingPlayer) {
     const nowIso = new Date().toISOString();
-    existingPlayer.isConnected = true;
-    existingPlayer.lastSeenAt = nowIso;
-    if (existingPlayer.status === "rejected") {
-      existingPlayer.status = initialStatus;
+    reconnectingPlayer.isConnected = true;
+    reconnectingPlayer.lastSeenAt = nowIso;
+    if (reconnectingPlayer.status === "rejected") {
+      reconnectingPlayer.status = initialStatus;
     }
     room.updatedAt = nowIso;
     room.lastSyncedAt = Date.now();
@@ -660,11 +781,11 @@ export async function joinGameRoom(params: {
             db
               .from("players")
               .update({
-                player_token: existingPlayer.token,
+                player_token: reconnectingPlayer.token,
                 is_connected: true,
-                last_seen_at: existingPlayer.lastSeenAt,
+                last_seen_at: reconnectingPlayer.lastSeenAt,
               })
-              .match({ room_code: roomCode, id: existingPlayer.id }),
+              .match({ room_code: roomCode, id: reconnectingPlayer.id }),
             db
               .from("game_rooms")
               .update({ updated_at: nowIso })
@@ -676,15 +797,20 @@ export async function joinGameRoom(params: {
     } catch (err) {
       console.warn("[RoomStore] Supabase player reconnect sync omitted:", err);
     }
-    return { player: existingPlayer, room };
+    invalidateGameRoomState(roomCode);
+    return { player: reconnectingPlayer, room };
   }
+
+  // 2. New join: Auto-number duplicate nicknames so conflicts never error out
+  const existingNicknames = Array.from(room.players.values()).map((p) => p.nickname);
+  const resolvedNickname = resolveUniqueRoomNickname(params.nickname, existingNicknames);
 
   const playerId = crypto.randomUUID();
   const nowIso = new Date().toISOString();
   const newPlayer: PlayerRecord = {
     id: playerId,
     roomCode,
-    nickname: params.nickname.trim(),
+    nickname: resolvedNickname,
     avatar: params.avatar || "garuda",
     score: 0,
     streak: 0,
@@ -735,6 +861,7 @@ export async function joinGameRoom(params: {
     console.warn("[RoomStore] Supabase player sync omitted:", err);
   }
 
+  invalidateGameRoomState(roomCode);
   return { player: newPlayer, room };
 }
 
@@ -757,7 +884,30 @@ export async function validatePlayerToken(
   return Boolean(room && safeEqual(room.players.get(playerId)?.token, token));
 }
 
-export async function getGameRoomState(roomCode: string) {
+export type GameRoomPublicState = NonNullable<Awaited<ReturnType<typeof computeGameRoomState>>>;
+
+interface InflightStateEntry {
+  promise?: Promise<GameRoomPublicState | null>;
+  resolvedAt?: number;
+  data?: GameRoomPublicState | null;
+}
+
+const stateInflightMap = new Map<string, InflightStateEntry>();
+const roomInvalidatedAt = new Map<string, number>();
+
+export function invalidateGameRoomState(roomCode?: string): void {
+  const now = Date.now();
+  if (roomCode) {
+    const code = normalizeRoomCode(roomCode);
+    stateInflightMap.delete(code);
+    roomInvalidatedAt.set(code, now);
+  } else {
+    stateInflightMap.clear();
+    roomInvalidatedAt.clear();
+  }
+}
+
+async function computeGameRoomState(roomCode: string) {
   await closeIdleRooms();
   const room = await ensureRoomLoaded(roomCode);
 
@@ -828,9 +978,60 @@ export async function getGameRoomState(roomCode: string) {
       difficulty: room.settings.difficulty || "sedang",
     },
     totalSubmissionsCount: room.submissions.length,
+    chatMessages: room.chatMessages || room.settings?.chatMessages || [],
     isAbandoned: Boolean(room.isAbandoned || room.settings?.abandoned),
     updatedAt: room.updatedAt,
   };
+}
+
+export async function getGameRoomState(roomCode: string) {
+  const code = normalizeRoomCode(roomCode);
+  const now = Date.now();
+
+  const existing = stateInflightMap.get(code);
+  if (existing) {
+    if (existing.data && existing.resolvedAt && now - existing.resolvedAt < 400) {
+      return existing.data;
+    }
+    if (!existing.resolvedAt && existing.promise) {
+      return existing.promise;
+    }
+  }
+
+  const queryStartTime = now;
+
+  const entry: InflightStateEntry = {};
+  const promise: Promise<GameRoomPublicState | null> = (async () => {
+    try {
+      const state = await computeGameRoomState(code);
+      const resolveTime = Date.now();
+      const lastInvalidation = roomInvalidatedAt.get(code) || 0;
+
+      if (lastInvalidation <= queryStartTime) {
+        entry.resolvedAt = resolveTime;
+        entry.data = state;
+        stateInflightMap.set(code, entry);
+
+        setTimeout(() => {
+          const curr = stateInflightMap.get(code);
+          if (curr && curr.resolvedAt === resolveTime) {
+            stateInflightMap.delete(code);
+          }
+        }, 400).unref?.();
+      } else {
+        stateInflightMap.delete(code);
+      }
+
+      return state;
+    } catch (err) {
+      stateInflightMap.delete(code);
+      throw err;
+    }
+  })();
+
+  entry.promise = promise;
+  stateInflightMap.set(code, entry);
+  return promise;
 }
 
 export type SubmissionFailureReason =
@@ -1111,6 +1312,7 @@ export async function recordAnswerSubmission(params: {
 
   room.submissions.push(submission);
   room.lastSyncedAt = Date.now();
+  invalidateGameRoomState(params.roomCode);
 
   return {
     ok: true,
@@ -1254,6 +1456,7 @@ export async function setRoomQuestions(
     console.warn("[RoomStore] Supabase quiz attach omitted:", err);
   }
 
+  invalidateGameRoomState(roomCode);
   return room.questions;
 }
 
@@ -1313,6 +1516,7 @@ export async function updateRoomSettings(
     console.warn("[RoomStore] updateRoomSettings sync omitted:", err);
   }
 
+  invalidateGameRoomState(roomCode);
   return room.settings;
 }
 
@@ -1432,6 +1636,7 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
       console.warn("[RoomStore] Supabase start sync omitted:", err);
     }
 
+    invalidateGameRoomState(roomCode);
     return { success: true, isFinished: false, currentQuestionIndex: 0 };
   }
 
@@ -1457,6 +1662,7 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
       console.warn("[RoomStore] Supabase finish sync omitted:", err);
     }
 
+    invalidateGameRoomState(roomCode);
     return { success: true, isFinished: true, currentQuestionIndex: room.currentQuestionIndex };
   }
 
@@ -1484,6 +1690,7 @@ export async function advanceRoomQuestion(roomCode: string): Promise<{
     console.warn("[RoomStore] Supabase question advance sync omitted:", err);
   }
 
+  invalidateGameRoomState(roomCode);
   return { success: true, isFinished: false, currentQuestionIndex: nextIndex };
 }
 
@@ -1522,6 +1729,7 @@ export async function setRoomStatus(
     console.warn("[RoomStore] Supabase status sync omitted:", err);
   }
 
+  invalidateGameRoomState(roomCode);
   return true;
 }
 
@@ -1560,6 +1768,7 @@ export async function abandonRoom(roomCode: string): Promise<boolean> {
     console.warn("[RoomStore] Supabase abandon sync omitted:", err);
   }
 
+  invalidateGameRoomState(roomCode);
   return true;
 }
 
@@ -1680,6 +1889,7 @@ export async function getTeacherRoomDetails(roomCode: string) {
     players: playersList,
     pendingPlayers: pendingList,
     approvedPlayers: approvedList,
+    chatMessages: room.chatMessages || room.settings?.chatMessages || [],
     isAbandoned: Boolean(room.isAbandoned || room.settings?.abandoned),
   };
 }
@@ -1714,6 +1924,7 @@ export async function approvePlayer(roomCode: string, playerId: string): Promise
       console.error("[RoomStore] approvePlayer sync failed:", err);
     }
   }
+  invalidateGameRoomState(roomCode);
   return true;
 }
 
@@ -1747,6 +1958,7 @@ export async function rejectPlayer(roomCode: string, playerId: string): Promise<
       console.error("[RoomStore] rejectPlayer sync failed:", err);
     }
   }
+  invalidateGameRoomState(roomCode);
   return true;
 }
 
@@ -1787,6 +1999,7 @@ export async function approveAllPlayers(roomCode: string): Promise<number> {
       console.error("[RoomStore] approveAllPlayers sync failed:", err);
     }
   }
+  invalidateGameRoomState(roomCode);
   return count;
 }
 
@@ -1813,5 +2026,82 @@ export async function toggleAutoApprove(roomCode: string, enabled?: boolean): Pr
       .match({ room_code: roomCode });
     if (error) console.error("[RoomStore] toggleAutoApprove sync failed:", error.message);
   }
+  invalidateGameRoomState(roomCode);
   return target;
 }
+
+export async function addRoomChatMessage(params: {
+  roomCode: string;
+  senderId: string;
+  senderName: string;
+  senderRole: "teacher" | "student";
+  avatar?: string;
+  text: string;
+}): Promise<RoomChatMessage | null> {
+  const room = await ensureRoomLoaded(params.roomCode);
+  if (!room) return null;
+
+  const trimmedText = params.text.trim();
+  if (!trimmedText) return null;
+
+  const message: RoomChatMessage = {
+    id: crypto.randomUUID(),
+    roomCode: room.roomCode,
+    senderId: params.senderId,
+    senderName: params.senderName.trim() || (params.senderRole === "teacher" ? "Guru" : "Siswa"),
+    senderRole: params.senderRole,
+    avatar: params.avatar,
+    text: trimmedText.slice(0, 500),
+    createdAt: new Date().toISOString(),
+  };
+
+  if (!room.chatMessages) {
+    room.chatMessages = Array.isArray(room.settings?.chatMessages) ? [...room.settings.chatMessages] : [];
+  }
+  room.chatMessages.push(message);
+  if (room.chatMessages.length > 100) {
+    room.chatMessages = room.chatMessages.slice(-100);
+  }
+
+  if (!room.settings) {
+    room.settings = {
+      timePerQuestionSec: 20,
+      streakBonus: true,
+      autoApproveStudents: true,
+    };
+  }
+  room.settings.chatMessages = room.chatMessages;
+  room.updatedAt = message.createdAt;
+  room.lastSyncedAt = Date.now();
+
+  const client = getSupabaseAdmin();
+  if (client) {
+    try {
+      await withTimeout(
+        client
+          .from("game_rooms")
+          .update({
+            settings: room.settings,
+            updated_at: room.updatedAt,
+          })
+          .match({ room_code: room.roomCode }),
+        1500
+      );
+    } catch (err) {
+      console.warn("[RoomStore] addRoomChatMessage Supabase sync omitted:", err);
+    }
+  }
+
+  invalidateGameRoomState(params.roomCode);
+  return message;
+}
+
+export async function getRoomChatMessages(roomCode: string): Promise<RoomChatMessage[]> {
+  const room = await ensureRoomLoaded(roomCode);
+  if (!room) return [];
+  if (!room.chatMessages) {
+    room.chatMessages = Array.isArray(room.settings?.chatMessages) ? room.settings.chatMessages : [];
+  }
+  return room.chatMessages;
+}
+

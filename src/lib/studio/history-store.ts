@@ -107,6 +107,7 @@ export async function fetchRemoteStudioHistory(): Promise<StudioHistoryEntry[]> 
     const res = await fetch("/api/studio/history", {
       method: "GET",
       headers: { "Cache-Control": "no-cache" },
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) {
       if (res.status !== 401) {
@@ -142,6 +143,7 @@ export async function syncStudioHistoryEntry(
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(entry),
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok && res.status !== 401) {
       console.warn("Failed to sync studio history to server:", res.status);
@@ -165,6 +167,7 @@ export async function deleteRemoteStudioHistoryEntry(
   try {
     const res = await fetch(`/api/studio/history?id=${encodeURIComponent(id)}`, {
       method: "DELETE",
+      signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok && res.status !== 401) {
       console.warn("Failed to delete remote studio history entry:", res.status);

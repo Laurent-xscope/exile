@@ -281,6 +281,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
           variant="secondary"
           size="small"
           leadingIcon={RiArrowLeftLine}
+          className="border border-border-button-default"
         >
           {isEn ? "Join another room" : "Ganti ruangan"}
         </ButtonLink>
@@ -306,9 +307,9 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md rounded-3xl border border-border-button-default bg-background-primary-default p-7 text-center shadow-card"
+          className="w-full max-w-md rounded-2xl bg-background-primary-default p-7 text-center shadow-lg"
         >
-          <div className="mx-auto flex size-12 items-center justify-center rounded-2xl border border-border-error-default bg-background-tertiary-error text-text-error-primary">
+          <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-background-tertiary-error text-text-error-primary">
             <RiTimeLine className="size-6" aria-hidden />
           </div>
           <h1 className="mt-4 text-title-2-semibold text-text-primary">
@@ -324,10 +325,10 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
           )}
           <ButtonLink
             href="/play"
-            variant="primary"
+            variant="secondary"
             size="medium"
             leadingIcon={RiArrowLeftLine}
-            className="mt-6 w-full justify-center"
+            className="mt-6 w-full justify-center border border-border-button-default"
           >
             {isEn ? "Try another pin" : "Coba pin lain"}
           </ButtonLink>
@@ -338,8 +339,8 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-lg space-y-4"
         >
-          <div className="rounded-3xl border border-border-button-default bg-background-primary-default p-6 shadow-card sm:p-8">
-            <div className="flex items-start gap-3 border-b border-separator-border pb-5">
+          <div className="rounded-2xl bg-background-primary-default p-6 shadow-lg sm:p-8">
+            <div className="flex items-start gap-3 pb-5">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-title-2-semibold text-text-primary">
@@ -352,7 +353,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
                         : "Ruang kuis live"}
                   </h1>
                   {preview && (
-                    <Chip variant="caption" color="lime">
+                    <Chip variant="caption" color="neutral">
                       {statusLabel(preview.status, isEn)}
                     </Chip>
                   )}
@@ -381,7 +382,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
             </div>
 
             {notice && (
-              <div className="mt-4 rounded-xl border border-border-error-default bg-background-tertiary-error px-3.5 py-2.5 text-caption-1-medium text-text-error-primary">
+              <div className="mt-4 rounded-xl bg-background-tertiary-error px-3.5 py-2.5 text-caption-1-medium text-text-error-primary">
                 {notice}
               </div>
             )}

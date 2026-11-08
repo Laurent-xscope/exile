@@ -30,10 +30,10 @@ type ChipVariant = "bold" | "subtle" | "caption";
 export type ChipColor = "orange" | "lime" | "rose" | "yellow" | "cyan" | "blue" | "purple" | "neutral" | "gray" | "soft";
 
 /** Background and text pair per colour, shared with Tag Group's tags. */
-const CHIP_SUCCESS = "bg-green-50 text-green-700 border-green-600";
-const CHIP_WARNING = "bg-amber-50 text-amber-700 border-amber-600";
-const CHIP_ERROR = "bg-rose-50 text-text-error-primary border-border-error-default";
-const CHIP_NEUTRAL = "bg-transparent text-text-secondary border-border-button-default";
+const CHIP_SUCCESS = "bg-status-lime-background text-status-lime-text";
+const CHIP_WARNING = "bg-status-yellow-background text-status-yellow-text";
+const CHIP_ERROR = "bg-background-tertiary-error text-text-error-primary";
+const CHIP_NEUTRAL = "bg-background-secondary-default text-text-secondary";
 
 const CHIP_COLORS: Record<ChipColor, string> = {
   orange: CHIP_ERROR,
@@ -44,8 +44,8 @@ const CHIP_COLORS: Record<ChipColor, string> = {
   blue: CHIP_NEUTRAL,
   purple: CHIP_NEUTRAL,
   neutral: CHIP_NEUTRAL,
-  gray: "bg-background-primary-default text-text-primary border-border-button-default",
-  soft: "bg-background-secondary-default text-text-secondary border-border-button-default",
+  gray: "bg-background-secondary-default text-text-primary",
+  soft: "bg-background-secondary-default text-text-secondary",
 };
 
 export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
@@ -55,7 +55,7 @@ export interface ChipProps extends HTMLAttributes<HTMLSpanElement> {
 }
 
 const styles = sortCx({
-  base: "inline-flex items-center justify-center rounded-lg border-2 px-3 whitespace-nowrap font-semibold tracking-[0.01em]",
+  base: "inline-flex items-center justify-center rounded-lg px-2.5 whitespace-nowrap font-medium tracking-[0.01em]",
   variant: {
     bold: "py-1 text-[11px] leading-4",
     subtle: "py-1 text-[11px] leading-4",

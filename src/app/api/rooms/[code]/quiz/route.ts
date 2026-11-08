@@ -16,7 +16,11 @@ const BodySchema = z.object({
   text: z.string().optional(),
   questionCount: z.coerce.number().int().min(1).max(20).optional().default(8),
   instructions: z.string().max(4000).optional(),
-  difficulty: z.enum(["mudah", "sedang", "sulit", "campuran"]).optional().default("sedang"),
+  difficulty: z
+    .enum(["mudah", "sedang", "sulit", "campuran", "adaptif"])
+    .transform((v) => (v === "adaptif" ? "campuran" : v))
+    .optional()
+    .default("sedang"),
   timePerQuestionSec: z.coerce.number().int().min(5).max(120).optional(),
   streakBonus: z.boolean().optional(),
 });

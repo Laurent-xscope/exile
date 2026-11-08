@@ -164,12 +164,17 @@ export async function runExileAgent(params: {
     if (d.name && d.text) docs.set(d.name, d.text);
   }
   const attachmentErrors: string[] = [];
-  for (const file of params.attachments ?? []) {
-    try {
-      docs.set(file.name, await extractText(file));
-    } catch (err) {
-      attachmentErrors.push(`${file.name}: ${err instanceof Error ? err.message : "gagal dibaca"}`);
-    }
+  if (params.attachments && params.attachments.length > 0) {
+    await Promise.all(
+      params.attachments.map(async (file) => {
+        try {
+          const text = await extractText(file);
+          docs.set(file.name, text);
+        } catch (err) {
+          attachmentErrors.push(`${file.name}: ${err instanceof Error ? err.message : "gagal dibaca"}`);
+        }
+      })
+    );
   }
 
   const changed = new Set<string>();

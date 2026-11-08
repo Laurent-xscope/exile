@@ -43,6 +43,18 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
+function formatDurationSec(sec: number): string {
+  if (sec < 60) {
+    return `${sec} detik`;
+  }
+  const mins = Math.floor(sec / 60);
+  const remainingSec = sec % 60;
+  if (remainingSec === 0) {
+    return `${mins} menit`;
+  }
+  return `${mins} menit ${remainingSec} detik`;
+}
+
 interface SettingToggleRowProps {
   title: string;
   description: string;
@@ -59,23 +71,25 @@ function SettingToggleRow({
   onChange,
 }: SettingToggleRowProps) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-2xl border border-border-button-default bg-background-secondary-default p-3.5">
+    <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-2xl bg-background-secondary-default p-3 sm:p-3.5">
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <p className="text-body-medium text-text-primary">{title}</p>
         <p className="text-caption-1-regular text-text-secondary">
           {description}
         </p>
       </div>
-      <MacOSToggle
-        checked={checked}
-        onChange={(val) => {
-          soundEffects.playClick();
-          onChange(val);
-        }}
-        disabled={disabled}
-        label={title}
-        color="green"
-      />
+      <div className="shrink-0">
+        <MacOSToggle
+          checked={checked}
+          onChange={(val) => {
+            soundEffects.playClick();
+            onChange(val);
+          }}
+          disabled={disabled}
+          label={title}
+          color="green"
+        />
+      </div>
     </div>
   );
 }
@@ -132,10 +146,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         closeLabel="Tutup pengaturan"
       />
 
-      <ModalBody className="py-2">
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 min-h-[360px]">
+      <ModalBody className="py-2 px-3 sm:px-6">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 min-h-[360px]">
           {/* Side navigation */}
-          <nav className="md:col-span-4 flex md:flex-col gap-1 border-b md:border-b-0 md:border-r border-separator-border pb-3 md:pb-0 md:pr-4 overflow-x-auto no-scrollbar">
+          <nav className="md:col-span-4 flex md:flex-col gap-1 pb-2 md:pb-0 md:pr-4 overflow-x-auto no-scrollbar">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -145,14 +159,14 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   type="button"
                   onClick={() => setActiveTab(item.id)}
                   className={cx(
-                    "flex shrink-0 items-center gap-2.5 px-3.5 py-2.5 rounded-xl text-body-2-medium transition-colors cursor-pointer text-start select-none md:w-full",
+                    "flex shrink-0 items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-body-2-medium transition-colors cursor-pointer text-start select-none md:w-full",
                     "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                     isActive
-                      ? "bg-accent-50 text-accent-800 font-semibold"
+                      ? "bg-background-secondary-hover text-text-primary font-semibold"
                       : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-default"
                   )}
                 >
-                  <Icon className={cx("size-4 shrink-0", isActive ? "text-accent-700" : "text-text-tertiary")} />
+                  <Icon className={cx("size-4 shrink-0", isActive ? "text-foreground-icon-primary" : "text-foreground-icon-tertiary")} />
                   <span>{item.label}</span>
                 </button>
               );
@@ -170,7 +184,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   onChange={(val) => updateSetting("soundEnabled", val)}
                 />
 
-                <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-3">
+                <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-body-medium text-text-primary">
                       Volume suara
@@ -189,9 +203,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       updateSetting("soundVolume", Number(e.target.value))
                     }
                     disabled={!settings.soundEnabled}
-                    className="w-full h-1.5 rounded-full bg-background-tertiary-default accent-accent-600 cursor-pointer disabled:opacity-40"
+                    className="w-full h-1.5 rounded-full bg-background-tertiary-default accent-[var(--color-text-primary)] cursor-pointer disabled:opacity-40"
                   />
-                  <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1">
                     <Button
                       variant="secondary"
                       size="small"
@@ -234,36 +248,32 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
             {activeTab === "quiz" && (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-body-medium text-text-primary">
-                      Durasi standar soal (detik)
-                    </span>
-                    <span className="text-caption-1-regular text-text-secondary">
-                      Waktu standar untuk menjawab setiap butir soal di arena kelas
+                <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="text-body-medium text-text-primary">
+                        Durasi standar soal
+                      </span>
+                      <span className="text-caption-1-regular text-text-secondary">
+                        Waktu standar untuk menjawab setiap butir soal di arena kelas
+                      </span>
+                    </div>
+                    <span className="text-caption-1-semibold font-mono text-text-primary bg-background-primary-default border border-border-button-default px-2.5 py-1 rounded-lg shrink-0">
+                      {formatDurationSec(settings.defaultQuestionTimeSec)}
                     </span>
                   </div>
-                  <SegmentedControl
+                  <input
+                    type="range"
+                    min={15}
+                    max={90}
+                    step={5}
                     aria-label="Durasi standar soal"
-                    selectedKeys={new Set([String(settings.defaultQuestionTimeSec)])}
-                    onSelectionChange={(keys) => {
-                      const selected = Array.from(keys)[0];
-                      if (selected != null) {
-                        updateSetting("defaultQuestionTimeSec", Number(selected));
-                      }
-                    }}
-                    className="w-full grid grid-cols-4"
-                  >
-                    {[15, 20, 30, 45].map((sec) => (
-                      <SegmentedControlItem
-                        key={sec}
-                        id={String(sec)}
-                        className="w-full font-mono"
-                      >
-                        {sec} detik
-                      </SegmentedControlItem>
-                    ))}
-                  </SegmentedControl>
+                    value={settings.defaultQuestionTimeSec}
+                    onChange={(e) =>
+                      updateSetting("defaultQuestionTimeSec", Number(e.target.value))
+                    }
+                    className="w-full h-1.5 rounded-full bg-background-tertiary-default accent-[var(--color-text-primary)] cursor-pointer"
+                  />
                 </div>
 
                 <SettingToggleRow
@@ -284,7 +294,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
             {activeTab === "display" && (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
+                <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-2.5">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-body-medium text-text-primary">
                       Bahasa antarmuka
@@ -315,7 +325,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   </SegmentedControl>
                 </div>
 
-                <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4 space-y-2.5">
+                <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-2.5">
                   <div className="flex flex-col gap-0.5">
                     <span className="text-body-medium text-text-primary">
                       Tema antarmuka
@@ -373,7 +383,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
             {activeTab === "profile" && (
               <div className="space-y-4">
-                <div className="rounded-2xl border border-border-button-default bg-background-secondary-default p-4">
+                <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4">
                   <Input
                     label="Nama panggilan standar"
                     placeholder="Contoh: dimas arya"
@@ -390,7 +400,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
       </ModalBody>
 
-      <ModalFooter className="sm:justify-between border-t border-separator-border pt-4">
+      <ModalFooter className="sm:justify-between pt-4">
         <Button
           variant="secondary"
           size="small"
@@ -399,7 +409,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         >
           Reset standar
         </Button>
-        <Button variant="primary" size="small" onClick={onClose}>
+        <Button variant="secondary" size="small" onClick={onClose}>
           Selesai
         </Button>
       </ModalFooter>

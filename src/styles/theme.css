@@ -22,21 +22,20 @@
   --color-neutral-925: #141312;
   --color-blue-400:    #3392ff;
 
-  /* ----- Accent ramp (Tridatu Terracotta Crimson & Warm Ember) ----------------
-   * Interactive/selection surfaces reference accent-* instead of cold corporate
-   * blue. Provides authentic warmth without visual fatigue.
+  /* ----- Accent ramp (Neutral Monochrome Slate) -----------------------------
+   * Calm, neutral monochrome slate ramp for buttons, active tabs, and selection states.
    * --------------------------------------------------------------------------*/
-  --color-accent-50:  #fdf5f4;
-  --color-accent-100: #fbeae8;
-  --color-accent-200: #f8d7d4;
-  --color-accent-300: #f2b8b1;
-  --color-accent-400: #e98b80;
-  --color-accent-500: #dc5647;
-  --color-accent-600: #c94030;
-  --color-accent-700: #a83123;
-  --color-accent-800: #8b2c21;
-  --color-accent-900: #742921;
-  --color-accent-950: #3f110c;
+  --color-accent-50:  #f3f4f6;
+  --color-accent-100: #e7e9ed;
+  --color-accent-200: #d5d9e0;
+  --color-accent-300: #b8bec9;
+  --color-accent-400: #8e95a2;
+  --color-accent-500: #5f6672;
+  --color-accent-600: #3c4043;
+  --color-accent-700: #282a2d;
+  --color-accent-800: #1f2023;
+  --color-accent-900: #161719;
+  --color-accent-950: #0e0f11;
 
   /* ----- Typography ----------------------------------------------------------
    * Font sizes, weights, line-heights, and tracking all match Tailwind v4
@@ -180,6 +179,19 @@
   --color-input-disabled-text:  var(--color-neutral-300);
   --color-text-white:           var(--color-white);
 
+  /* Accent ramp (Neutral Monochrome Slate Light) */
+  --color-accent-50:  #f3f4f6;
+  --color-accent-100: #e7e9ed;
+  --color-accent-200: #d5d9e0;
+  --color-accent-300: #b8bec9;
+  --color-accent-400: #8e95a2;
+  --color-accent-500: #5f6672;
+  --color-accent-600: #3c4043;
+  --color-accent-700: #282a2d;
+  --color-accent-800: #1f2023;
+  --color-accent-900: #161719;
+  --color-accent-950: #0e0f11;
+
   /* Background */
   --color-background-full:              var(--color-white);
   /* Ticket detail, Figma 4509:12272. The raw #fafafa surface matches neutral/50. */
@@ -222,7 +234,7 @@
   --color-file-upload-icon-foreground-hover: var(--color-neutral-500);
 
   /* Border */
-  --color-border-button-default:   var(--color-neutral-200);
+  --color-border-button-default:   rgba(0, 0, 0, 0.08);
   --color-border-button-hover:     var(--color-neutral-300);
   --color-border-button-active:    var(--color-neutral-400);
   --color-border-button-white:     var(--color-white);
@@ -311,9 +323,9 @@
   --color-badge-neutral-background: var(--color-neutral-200);
   --color-team-menu-count-background: var(--color-neutral-200);
   --color-team-menu-count-foreground: var(--color-neutral-500);
-  --color-badge-new-background: var(--color-accent-100);
-  --color-badge-new-text:       var(--color-accent-600);
-  --color-tab-count-selected-background: var(--color-accent-100);
+  --color-badge-new-background: #e7e9ed;
+  --color-badge-new-text:       #1f1f1f;
+  --color-tab-count-selected-background: #e2e5e9;
   --color-pill-tab-blue-selected-background: var(--color-accent-50);
   --color-pill-tab-blue-hover-background: var(--color-neutral-100);
 
@@ -403,9 +415,9 @@
   --color-chart-agents-bar-active: var(--color-purple-400);
 
   /* Button gradients */
-  --gradient-button-primary-default:  linear-gradient(180deg, var(--color-accent-500)    0%, var(--color-accent-600)    100%);
-  --gradient-button-primary-hover:    linear-gradient(180deg, var(--color-accent-400)    0%, var(--color-accent-500)    100%);
-  --gradient-button-primary-active:   linear-gradient(180deg, var(--color-accent-600)    0%, var(--color-accent-700)    100%);
+  --gradient-button-primary-default:  linear-gradient(180deg, #e6e8ec 0%, #e6e8ec 100%);
+  --gradient-button-primary-hover:    linear-gradient(180deg, #dcdfe5 0%, #dcdfe5 100%);
+  --gradient-button-primary-active:   linear-gradient(180deg, #cfd3db 0%, #cfd3db 100%);
   --gradient-button-primary-disabled: linear-gradient(180deg, var(--color-neutral-200) 0%, var(--color-neutral-300) 100%);
 
   --gradient-button-danger-default:   linear-gradient(180deg, var(--color-red-500) 0%, var(--color-red-600) 100%);
@@ -416,30 +428,43 @@
 
 .dark {
   /* Foreground */
-  --color-foreground-full:            var(--color-neutral-700);
-  --color-foreground-icon-primary:    var(--color-neutral-50);
-  --color-foreground-icon-hover:      var(--color-white);
+  --color-foreground-full:            #ffffff;
+  --color-foreground-icon-primary:    #e3e3e3;
+  --color-foreground-icon-hover:      #ffffff;
   --color-foreground-icon-error:      var(--color-red-400);
-  --color-foreground-icon-tertiary:   var(--color-neutral-600);
-  --color-foreground-icon-quaternary: var(--color-neutral-700);
-  --color-foreground-icon-disabled:   var(--color-neutral-800);
-  --color-foreground-disabled:        var(--color-neutral-700);
+  --color-foreground-icon-tertiary:   #8e918f;
+  --color-foreground-icon-quaternary: #767777;
+  --color-foreground-icon-disabled:   #5e5e5e;
+  --color-foreground-disabled:        #5e5e5e;
   --color-foreground-disabled-danger: var(--color-red-400);
-  --color-input-disabled-foreground:  var(--color-neutral-600);
-  --color-icon-button-disabled-foreground: var(--color-neutral-500);
-  --color-button-primary-disabled-foreground: var(--color-neutral-500);
+  --color-input-disabled-foreground:  #767777;
+  --color-icon-button-disabled-foreground: #5e5e5e;
+  --color-button-primary-disabled-foreground: #5e5e5e;
 
   /* Text */
-  --color-text-primary:   var(--color-neutral-50);
-  --color-text-secondary: var(--color-neutral-300);
-  --color-text-tertiary:  var(--color-neutral-400);
-  --color-text-disabled:  var(--color-neutral-600);
+  --color-text-primary:   #e3e3e3;
+  --color-text-secondary: #c4c7c5;
+  --color-text-tertiary:  #8e918f;
+  --color-text-disabled:  #5e5e5e;
   --color-text-error-primary: var(--color-red-400);
   --color-text-destructive: color-mix(in srgb, var(--color-red-500) 80%, var(--color-neutral-500));
   --color-input-disabled-text: color-mix(in srgb, var(--color-neutral-500) 40%, transparent);
 
+  /* Accent ramp (Neutral Monochrome Slate Dark) */
+  --color-accent-50:  #202225;
+  --color-accent-100: #282a2e;
+  --color-accent-200: #32353a;
+  --color-accent-300: #42464d;
+  --color-accent-400: #6e737b;
+  --color-accent-500: #9aa0a6;
+  --color-accent-600: #33363b;
+  --color-accent-700: #c8ccd1;
+  --color-accent-800: #dce0e5;
+  --color-accent-900: #eceff2;
+  --color-accent-950: #f7f8fa;
+
   /* Background */
-  --color-background-full:              var(--color-neutral-925);
+  --color-background-full:              #131314;
   --color-ticket-detail-surface: var(--color-neutral-925);
   --color-ticket-detail-low-background: color-mix(in srgb, var(--color-indigo-950) 60%, transparent);
   --color-ticket-detail-low-hover: color-mix(in srgb, var(--color-indigo-950) 80%, transparent);
@@ -454,18 +479,18 @@
   --color-project-board-empty-middle: var(--color-neutral-700);
   --color-project-board-empty-back: color-mix(in srgb, var(--color-neutral-600) 35%, var(--color-neutral-700));
   --color-project-board-empty-detail: var(--color-neutral-500);
-  --color-background-primary-default:   var(--color-neutral-800);
-  --color-background-inner-default:     color-mix(in srgb, var(--color-neutral-800) 60%, transparent);
-  --color-background-primary-hover:     color-mix(in srgb, var(--color-neutral-700) 60%, transparent);
-  --color-background-primary-active:    var(--color-neutral-800);
-  --color-background-primary-disabled:  var(--color-neutral-800);
-  --color-input-disabled-background:    color-mix(in srgb, var(--color-neutral-800) 30%, transparent);
+  --color-background-primary-default:   #1e1f20;
+  --color-background-inner-default:     #1e1f20;
+  --color-background-primary-hover:     #282a2c;
+  --color-background-primary-active:    #333537;
+  --color-background-primary-disabled:  #1e1f20;
+  --color-input-disabled-background:    #1e1f20;
   --color-switch-off-chip-start:        var(--color-background-tertiary-default);
   --color-switch-off-chip-end:          var(--color-background-tertiary-default);
-  --color-background-secondary-default: var(--color-neutral-900);
-  --color-background-secondary-hover:   var(--color-neutral-800);
-  --color-background-tertiary-default:  var(--color-neutral-800);
-  --color-background-tertiary-hover:    var(--color-neutral-700);
+  --color-background-secondary-default: #282a2c;
+  --color-background-secondary-hover:   #333537;
+  --color-background-tertiary-default:  #333537;
+  --color-background-tertiary-hover:    #3e4043;
   --color-background-tertiary-error:    color-mix(in srgb, var(--color-red-950) 60%, transparent);
   --color-background-quaternary-default: var(--color-neutral-700);
   --color-background-quaternary-hover:   var(--color-neutral-600);
@@ -533,9 +558,9 @@
   --color-badge-neutral-background: var(--color-neutral-800);
   --color-team-menu-count-background: var(--color-neutral-700);
   --color-team-menu-count-foreground: var(--color-neutral-400);
-  --color-badge-new-background: var(--color-accent-950);
-  --color-badge-new-text:       var(--color-accent-400);
-  --color-tab-count-selected-background: color-mix(in srgb, var(--color-accent-800) 60%, transparent);
+  --color-badge-new-background: #2c2e32;
+  --color-badge-new-text:       #e3e3e3;
+  --color-tab-count-selected-background: #333537;
 
   /* Dark status discs use /800 surfaces with /300 foregrounds so the icon
    * remains crisp without reverting to a bright pastel circle. */
@@ -548,7 +573,7 @@
   --color-notification-center-background:      var(--color-neutral-900);
 
   /* Borders and separators */
-  --color-border-button-default:   var(--color-neutral-700);
+  --color-border-button-default:   rgba(255, 255, 255, 0.09);
   --color-border-button-hover:     var(--color-neutral-500);
   --color-border-button-active:    var(--color-neutral-600);
   --color-border-button-white:     var(--color-zinc-800);
@@ -606,6 +631,11 @@
   --color-calendar-event-emerald-title:      var(--color-emerald-300);
   --color-calendar-event-emerald-time:       var(--color-emerald-300);
 
+  /* Primary CTA in dark: calm neutral slate. */
+  --gradient-button-primary-default: linear-gradient(180deg, #2c2e32 0%, #2c2e32 100%);
+  --gradient-button-primary-hover:   linear-gradient(180deg, #35383d 0%, #35383d 100%);
+  --gradient-button-primary-active:  linear-gradient(180deg, #3e4248 0%, #3e4248 100%);
+
   /* Disabled primary CTA: dark, low-emphasis fill with readable muted text. */
   --gradient-button-primary-disabled: linear-gradient(
     180deg,
@@ -630,7 +660,7 @@
  * /950 that glows too loudly against the dark sidebar; halve the NEW badge
  * fill there. Light mode keeps the solid /100 surface. */
 .dark[data-accent] {
-  --color-badge-new-background: color-mix(in srgb, var(--color-accent-950) 50%, transparent);
+  --color-badge-new-background: #2c2e32;
 }
 
 /* Re-export semantic tokens as Tailwind utilities. The `inline` form means
@@ -661,6 +691,18 @@
   --color-text-destructive: var(--color-text-destructive);
   --color-input-disabled-text:  var(--color-input-disabled-text);
   --color-text-white:           var(--color-text-white);
+
+  --color-accent-50:  var(--color-accent-50);
+  --color-accent-100: var(--color-accent-100);
+  --color-accent-200: var(--color-accent-200);
+  --color-accent-300: var(--color-accent-300);
+  --color-accent-400: var(--color-accent-400);
+  --color-accent-500: var(--color-accent-500);
+  --color-accent-600: var(--color-accent-600);
+  --color-accent-700: var(--color-accent-700);
+  --color-accent-800: var(--color-accent-800);
+  --color-accent-900: var(--color-accent-900);
+  --color-accent-950: var(--color-accent-950);
 
   --color-background-full:              var(--color-background-full);
   --color-ticket-detail-surface: var(--color-ticket-detail-surface);
@@ -768,6 +810,7 @@
   --color-status-lime-text:         var(--color-status-lime-text);
   --color-status-yellow-background: var(--color-status-yellow-background);
   --color-status-yellow-text:       var(--color-status-yellow-text);
+  --color-warning:                  var(--color-warning);
   --color-status-rose-background:   var(--color-status-rose-background);
   --color-status-rose-text:         var(--color-status-rose-text);
   --color-status-cyan-background:   var(--color-status-cyan-background);

@@ -50,14 +50,14 @@ export interface IconLinkButtonProps
 const styles = sortCx({
   base: [
     "relative inline-flex shrink-0 items-center justify-center overflow-visible rounded-2lg",
-    "bg-background-primary-default text-foreground-icon-primary",
-    "border border-border-button-default shadow-xs",
+    "bg-background-secondary-default text-foreground-icon-primary",
     "select-none cursor-pointer",
-    "transition-[background-color,border-color,box-shadow,color] duration-150 ease",
+    "before:absolute before:top-1/2 before:left-1/2 before:-translate-x-1/2 before:-translate-y-1/2 before:min-w-11 before:min-h-11 before:content-['']",
+    "transition-[background-color,color] duration-150 ease",
     "outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border-focus-ring",
-    "hover:bg-background-primary-hover hover:border-border-button-hover",
-    "active:bg-background-primary-active active:border-border-button-active",
-    "disabled:cursor-not-allowed disabled:bg-background-primary-disabled disabled:border-border-button-default disabled:text-icon-button-disabled-foreground disabled:opacity-60 disabled:shadow-none",
+    "hover:bg-background-secondary-hover",
+    "active:bg-background-tertiary-default",
+    "disabled:cursor-not-allowed disabled:bg-background-secondary-default disabled:text-text-disabled disabled:opacity-50",
   ].join(" "),
   size: {
     medium: "size-9",

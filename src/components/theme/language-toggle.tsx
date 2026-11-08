@@ -77,7 +77,7 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
     return (
       <div
         className={cx(
-          "h-9 px-2.5 rounded-xl border border-border-button-default bg-background-secondary-default animate-pulse w-20",
+          "h-9 px-2.5 rounded-xl bg-background-secondary-default animate-pulse w-20",
           className
         )}
         aria-hidden="true"
@@ -102,10 +102,10 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
           setIsOpen(!isOpen);
         }}
         className={cx(
-          "inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl border border-border-button-default",
+          "inline-flex items-center gap-1.5 h-9 px-2.5 rounded-xl",
           "bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover",
           "transition-all cursor-pointer select-none outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
-          isOpen && "ring-2 ring-border-focus-ring bg-background-secondary-hover"
+          isOpen && "bg-background-secondary-hover"
         )}
         aria-haspopup="listbox"
         aria-expanded={isOpen}
@@ -128,11 +128,11 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
           role="listbox"
           className={cx(
             "absolute right-0 mt-1.5 w-60 z-50 rounded-2xl p-1.5 shadow-xl",
-            "border border-border-button-default bg-background-primary-default backdrop-blur-md",
+            "bg-background-primary-default backdrop-blur-md",
             "animate-in fade-in zoom-in-95 duration-150 origin-top-right focus:outline-none"
           )}
         >
-          <div className="px-2.5 py-1.5 text-caption-2-medium text-text-tertiary border-b border-separator-border mb-1">
+          <div className="px-2.5 py-1.5 text-caption-2-medium text-text-tertiary mb-1">
             {isID ? "Pilih bahasa" : "Select language"}
           </div>
 
@@ -144,7 +144,7 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
             className={cx(
               "w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-start transition-colors cursor-pointer",
               isID
-                ? "bg-accent-50 text-accent-950 font-medium dark:bg-accent-950/40 dark:text-accent-200"
+                ? "bg-background-secondary-default text-text-primary font-medium"
                 : "text-text-primary hover:bg-background-secondary-default"
             )}
           >
@@ -168,7 +168,7 @@ export function LanguageToggle({ className = "" }: { className?: string }) {
             className={cx(
               "w-full flex items-center justify-between px-2.5 py-2 rounded-xl text-start transition-colors cursor-pointer mt-0.5",
               !isID
-                ? "bg-accent-50 text-accent-950 font-medium dark:bg-accent-950/40 dark:text-accent-200"
+                ? "bg-background-secondary-default text-text-primary font-medium"
                 : "text-text-primary hover:bg-background-secondary-default"
             )}
           >

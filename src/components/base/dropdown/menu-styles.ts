@@ -9,7 +9,7 @@ export const MENU_POPOVER_SURFACE = [
   // z-110 sits above the modal layer (z-100), so menus opened inside a
   // Modal or Drawer render over it rather than behind its backdrop.
   "z-110 max-w-[calc(100vw-32px)] overflow-y-auto",
-  "rounded-2xl border border-border-button-default bg-background-primary-default p-2.5 shadow-dropdown",
+  "rounded-2xl bg-background-primary-default p-2.5 shadow-dropdown",
   "transition duration-150 ease-out",
   "data-[entering]:opacity-0 data-[entering]:scale-95 data-[entering]:blur-[2px]",
   "data-[exiting]:opacity-0 data-[exiting]:scale-95 data-[exiting]:blur-[2px]",
@@ -26,7 +26,7 @@ export const MENU_ITEM = [
   "text-text-primary outline-none transition-colors",
 ].join(" ");
 
-export const MENU_ITEM_ACTIVE = "bg-dropdown-item-hover-background";
+export const MENU_ITEM_ACTIVE = "bg-background-secondary-default";
 
 export const MENU_ITEM_INTERACTIVE =
-  "hover:bg-dropdown-item-hover-background focus-visible:bg-dropdown-item-hover-background";
+  "hover:bg-background-secondary-default focus-visible:bg-background-secondary-default";

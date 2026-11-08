@@ -77,22 +77,22 @@ export interface ButtonLinkProps
 const styles = sortCx({
   base: [
     "inline-flex items-center justify-center gap-2 whitespace-nowrap overflow-hidden",
-    "font-sans select-none cursor-pointer border-2 rounded-xl",
-    "font-semibold tracking-[0.01em] transition-colors duration-100",
-    "outline-none focus-visible:shadow-[0_0_0_2px_var(--vb-paper),0_0_0_4px_var(--vb-ink)]",
+    "font-sans select-none cursor-pointer rounded-xl",
+    "font-medium tracking-[0.01em] transition-colors duration-150",
+    "outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-border-focus-ring",
     "disabled:opacity-35 disabled:cursor-not-allowed aria-disabled:opacity-35 aria-disabled:cursor-not-allowed",
     "disabled:pointer-events-none aria-disabled:pointer-events-none",
   ].join(" "),
 
   // VoiceBox sizes: Small 6/16 12px, Medium 10/24 14px.
   size: {
-    medium: "px-6 py-2.5 text-[14px] leading-5",
-    small:  "px-4 py-1.5 text-[12px] leading-4",
-    xs:     "px-3 py-1 text-[11px] leading-4",
+    medium: "px-5 py-2 text-[14px] leading-5",
+    small:  "px-3.5 py-1.5 text-[12px] leading-4",
+    xs:     "px-2.5 py-1 text-[11px] leading-4",
   },
 
   iconOnlySize: {
-    medium: "size-10 p-0",
+    medium: "size-9 p-0",
     small:  "size-8 p-0",
     xs:     "size-6 p-0",
   },
@@ -111,13 +111,13 @@ const styles = sortCx({
 
   variant: {
     primary:
-      "bg-ink text-paper border-ink hover:bg-red-500 hover:border-red-500 active:bg-red-600 active:border-red-600",
+      "[background-image:var(--gradient-button-primary-default)] text-text-primary border border-border-button-default hover:[background-image:var(--gradient-button-primary-hover)] active:[background-image:var(--gradient-button-primary-active)] shadow-xs transition-all duration-150",
     danger:
-      "bg-red-500 text-paper border-red-500 hover:bg-red-600 hover:border-red-600 active:bg-red-700 active:border-red-700",
+      "bg-button-danger text-foreground-full",
     secondary:
-      "bg-transparent text-ink border-ink hover:bg-ink hover:text-paper active:bg-neutral-700",
+      "bg-background-secondary-default text-text-primary border border-border-button-default hover:bg-background-secondary-hover active:bg-background-tertiary-default",
     ghost:
-      "bg-transparent text-ink border-transparent hover:text-red-500 active:text-red-600",
+      "bg-transparent text-text-primary hover:bg-background-secondary-default active:bg-background-secondary-hover",
   },
 });
 

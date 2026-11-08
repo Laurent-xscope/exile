@@ -48,6 +48,14 @@ export function isNotebookLmConfigured(): boolean {
   return Boolean(process.env.NOTEBOOKLM_COOKIE?.trim());
 }
 
+interface CachedCsrfToken {
+  token: string;
+  expiresAt: number;
+}
+
+const CSRF_TTL_MS = 30 * 60 * 1000;
+const csrfCache = new Map<string, CachedCsrfToken>();
+
 export class NotebookLmClient {
   private csrf: string | null = null;
   private reqId = 100000 + Math.floor(Math.random() * 900000);
@@ -73,10 +81,18 @@ export class NotebookLmClient {
     };
   }
 
-  /** Loads the app shell to mint the session CSRF token (`SNlM0e`). */
+  /** Loads the app shell to mint the session CSRF token (`SNlM0e`). Cached for 30 minutes. */
   async ensureCsrf(): Promise<string> {
-    if (this.csrf) return this.csrf;
-    const res = await fetch(`${ORIGIN}/`, { headers: this.headers(), redirect: "manual" });
+    const cached = csrfCache.get(this.cookie);
+    if (cached && Date.now() < cached.expiresAt) {
+      this.csrf = cached.token;
+      return cached.token;
+    }
+    const res = await fetch(`${ORIGIN}/`, {
+      headers: this.headers(),
+      redirect: "manual",
+      signal: AbortSignal.timeout(30_000),
+    });
     if (res.status >= 300 && res.status < 400) {
       throw new NotebookLmAuthError(
         "NotebookLM redirected to sign-in (stale cookies or OSID origin mismatch). Re-export cookies from notebooklm.google.com."
@@ -85,6 +101,10 @@ export class NotebookLmClient {
     const token = extractCsrfToken(await res.text());
     if (!token) throw new NotebookLmAuthError("Could not resolve the NotebookLM CSRF token.");
     this.csrf = token;
+    csrfCache.set(this.cookie, {
+      token,
+      expiresAt: Date.now() + CSRF_TTL_MS,
+    });
     return token;
   }
 
@@ -104,9 +124,11 @@ export class NotebookLmClient {
         "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
       }),
       body: toFormBody(encodeBatchexecuteRequest(rpcId, args, at)),
+      signal: AbortSignal.timeout(30_000),
     });
     if (res.status === 400 || res.status === 401 || res.status === 403) {
       this.csrf = null;
+      csrfCache.delete(this.cookie);
       throw new NotebookLmAuthError(`NotebookLM rejected the request (HTTP ${res.status}).`);
     }
     if (!res.ok) throw new Error(`NotebookLM RPC ${rpcId} failed (HTTP ${res.status}).`);

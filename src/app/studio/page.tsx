@@ -9,7 +9,7 @@ import {
   type FormEvent,
 } from "react";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { toast } from "sonner";
 
 const triggerConfetti = async (options?: { particleCount?: number; spread?: number; origin?: { y?: number; x?: number } }) => {
@@ -51,15 +51,18 @@ import {
   RiHistoryLine,
   RiDeleteBinLine,
   RiAddLine,
+  RiSidebarFoldLine,
+  RiSidebarUnfoldLine,
+  RiSettings3Line,
+  RiEyeLine,
 } from "@remixicon/react";
 import Image from "next/image";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
-import { Modal } from "@/components/base/modal/modal";
+import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/base/modal/modal";
 import { Input } from "@/components/base/input/input";
 import { Chip } from "@/components/base/badges/chip";
-import { ThemeToggle } from "@/components/theme/theme-toggle";
-import { LanguageToggle } from "@/components/theme/language-toggle";
-import { SettingsButton } from "@/components/settings/settings-modal";
+import { SettingsModal } from "@/components/settings/settings-modal";
+import { MoreMenu, type MoreMenuItem } from "@/components/base/dropdown/more-menu";
 import { UserNav } from "@/components/auth/user-nav";
 import { useAuth } from "@/lib/auth/use-auth";
 import { useExileSettings } from "@/lib/settings/user-settings";
@@ -68,6 +71,7 @@ import { saveHostToken } from "@/lib/rooms/host-token";
 import { soundEffects } from "@/lib/audio/sounds";
 import { FormattedMessage } from "@/components/chat/formatted-message";
 import { ScrollReveal } from "@/components/foundations/scroll-reveal/scroll-reveal";
+import { ScrollFade, useScrollFade } from "@/components/foundations/scroll-fade/scroll-fade";
 import { cx } from "@/utils/cx";
 import type {
   DocumentAnalysis,
@@ -140,8 +144,8 @@ function ExplanationPanel({
   const isCorrect = selectedOption?.isCorrect === true;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-border-button-default bg-background-primary-default">
-      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-separator-border bg-background-secondary-default/60 px-4 py-3">
+    <div className="overflow-hidden rounded-2xl bg-background-primary-default">
+      <div className="flex flex-wrap items-start justify-between gap-2 bg-background-secondary-default/60 px-4 py-3">
         <div className="flex items-start gap-2.5">
           <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-500/10 text-accent-700">
             <RiLightbulbLine className="size-4" />
@@ -176,17 +180,17 @@ function ExplanationPanel({
         {selectedOption && (
           <div
             className={cx(
-              "rounded-xl border p-3",
+              "rounded-xl p-3",
               selectedOption.isCorrect
-                ? "border-emerald-500/40 bg-emerald-500/10"
-                : "border-border-error-default bg-rose-500/10"
+                ? "bg-emerald-500/10"
+                : "bg-rose-500/10"
             )}
           >
             <span
               className={cx(
                 "mb-1 flex items-center gap-1.5 text-caption-2-medium",
                 selectedOption.isCorrect
-                  ? "text-emerald-700 dark:text-emerald-300"
+                  ? "text-state-success-text"
                   : "text-text-error-primary"
               )}
             >
@@ -214,7 +218,7 @@ function ExplanationPanel({
           </div>
         )}
 
-        <div className="flex flex-col gap-1 border-t border-separator-border pt-3 text-caption-2-regular text-text-tertiary sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-1 pt-3 text-caption-2-regular text-text-tertiary sm:flex-row sm:items-center sm:justify-between">
           <span className="inline-flex min-w-0 items-center gap-1.5">
             <RiBookOpenLine className="size-3.5 shrink-0" />
             <span className="truncate">
@@ -250,7 +254,7 @@ function ArtifactExpansionBar({
   suggestions: string[];
 }) {
   return (
-    <div className="space-y-3 rounded-2xl border border-border-button-default bg-background-secondary-default/40 p-4">
+    <div className="space-y-3 rounded-2xl bg-background-secondary-default/40 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <RiCopilotFill className="size-4 text-accent-700" />
@@ -278,7 +282,7 @@ function ArtifactExpansionBar({
                 onChange(suggestion);
                 onSubmit(suggestion);
               }}
-              className="rounded-full border border-border-button-default bg-background-primary-default px-3 py-1 text-caption-2-regular text-text-secondary transition-colors hover:border-accent-500/40 hover:text-text-primary disabled:opacity-50 cursor-pointer"
+              className="rounded-full bg-background-primary-default px-3 py-1 text-caption-2-regular text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50 cursor-pointer"
             >
               {suggestion}
             </button>
@@ -299,7 +303,7 @@ function ArtifactExpansionBar({
           onChange={(e) => onChange(e.target.value)}
           disabled={loading}
           placeholder={placeholder}
-          className="h-10 flex-1 rounded-xl border border-border-button-default bg-background-primary-default px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 disabled:opacity-60"
+          className="h-10 flex-1 rounded-xl ring-1 ring-inset ring-[var(--vb-border)] bg-background-primary-default px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 disabled:opacity-60"
         />
         <Button
           type="submit"
@@ -473,7 +477,7 @@ function InstantQuizDialog({
         if (!open) onClose();
       }}
       size="xl"
-      aria-label={isEn ? "Instant quiz" : "Kuis instan"}
+      aria-label={isEn ? "Quick quiz" : "Kuis cepat"}
       className="gap-0 overflow-hidden p-0"
     >
       <div className="flex max-h-[88vh] flex-col bg-background-full">
@@ -490,7 +494,7 @@ function InstantQuizDialog({
             <div className="min-w-0 space-y-1.5">
               <div className="flex items-center gap-2 text-caption-2-medium tracking-wide text-text-white/70">
                 <RiCopilotFill className="size-4" />
-                <span>{isEn ? "Instant practice" : "Latihan instan"}</span>
+                <span>{isEn ? "Quick practice" : "Latihan cepat"}</span>
                 <span className="rounded-full bg-text-white/15 px-2 py-0.5 normal-case tracking-normal">
                   {isEn ? "Solo" : "Mandiri"}
                 </span>
@@ -589,7 +593,7 @@ function InstantQuizDialog({
                 ].map((stat) => (
                   <div
                     key={stat.label}
-                    className="rounded-2xl border border-border-button-default bg-background-secondary-default/50 p-3 text-center"
+                    className="rounded-2xl bg-background-secondary-default/50 p-3 text-center"
                   >
                     <span className="block text-caption-2-regular text-text-tertiary">
                       {stat.label}
@@ -601,7 +605,7 @@ function InstantQuizDialog({
                 ))}
               </div>
 
-              <div className="space-y-2.5 rounded-2xl border border-border-button-default p-4">
+              <div className="space-y-2.5 rounded-2xl p-4">
                 <div className="flex items-center justify-between gap-2">
                   <h4 className="text-caption-1-semibold text-text-primary">
                     {isEn ? "Concept check" : "Pemeriksaan konsep"}
@@ -657,7 +661,7 @@ function InstantQuizDialog({
                     onLaunchLive();
                   }}
                 >
-                  {isEn ? "Launch live room" : "Buka ruang live"}
+                  {isEn ? "Create quiz room" : "Buat Ruang Kuis"}
                 </Button>
               </div>
             </div>
@@ -674,10 +678,10 @@ function InstantQuizDialog({
                 </div>
                 <div
                   className={cx(
-                    "inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1 font-mono text-caption-2-medium tabular-nums",
+                    "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 font-mono text-caption-2-medium tabular-nums",
                     remainingSec <= 5 && !revealed
-                      ? "border-border-error-default bg-background-secondary-default text-text-error-primary"
-                      : "border-border-button-default bg-background-secondary-default text-text-secondary"
+                      ? " bg-background-secondary-default text-text-error-primary"
+                      : "bg-background-secondary-default text-text-secondary"
                   )}
                 >
                   <RiTimerLine className="size-3.5" />
@@ -713,24 +717,24 @@ function InstantQuizDialog({
                       onClick={() => selectAnswer(option.label)}
                       disabled={revealed}
                       className={cx(
-                        "group flex min-h-24 w-full items-start gap-3 rounded-2xl border p-3.5 text-start transition-all cursor-pointer disabled:cursor-default motion-safe:active:scale-[0.99]",
+                        "group flex min-h-24 w-full items-start gap-3 rounded-2xl p-3.5 text-start transition-all cursor-pointer disabled:cursor-default motion-safe:active:scale-[0.99]",
                         isSelectedCorrect
-                          ? "border-emerald-500 bg-emerald-500/15"
+                          ? "bg-emerald-500/15"
                           : isWrongSelection
-                            ? "border-border-error-default bg-rose-500/10"
+                            ? "bg-rose-500/10"
                             : revealed
-                              ? "border-border-button-default bg-background-primary-default opacity-60"
-                              : "border-border-button-default bg-background-secondary-default/50 hover:-translate-y-0.5 hover:border-border-button-hover hover:bg-background-secondary-default"
+                              ? "bg-background-primary-default opacity-60"
+                              : "bg-background-secondary-default/50 hover:-translate-y-0.5 hover:bg-background-secondary-default"
                       )}
                     >
                       <span
                         className={cx(
-                          "inline-flex size-10 shrink-0 items-center justify-center rounded-xl border font-mono text-body-2-semibold",
+                          "inline-flex size-10 shrink-0 items-center justify-center rounded-xl font-mono text-body-2-semibold",
                           isSelectedCorrect
-                            ? "border-emerald-600 bg-emerald-600 text-white"
+                            ? "bg-emerald-600 text-white"
                             : isWrongSelection
-                              ? "border-rose-600 bg-rose-600 text-white"
-                              : "border-border-button-default bg-background-primary-default text-text-secondary"
+                              ? "bg-rose-600 text-white"
+                              : "bg-background-primary-default text-text-secondary"
                         )}
                       >
                         {option.label}
@@ -742,11 +746,11 @@ function InstantQuizDialog({
                       </span>
                       <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center">
                         {isSelectedCorrect ? (
-                          <RiCheckLine className="size-4 text-emerald-600 dark:text-emerald-400" />
+                          <RiCheckLine className="size-4 text-state-success-text" />
                         ) : isWrongSelection ? (
                           <RiCloseLine className="size-4 text-text-error-primary" />
                         ) : (
-                          <span className="size-2 rounded-full bg-border-button-default transition-colors group-hover:bg-border-button-hover" />
+                          <span className="size-2 rounded-full bg-background-tertiary-default transition-colors group-hover:bg-background-tertiary-hover" />
                         )}
                       </span>
                     </button>
@@ -761,7 +765,7 @@ function InstantQuizDialog({
                       className={cx(
                         "inline-flex items-center gap-1.5",
                         selectedIsCorrect
-                          ? "text-emerald-600 dark:text-emerald-400"
+                          ? "text-state-success-text"
                           : "text-text-error-primary"
                       )}
                     >
@@ -803,7 +807,7 @@ function InstantQuizDialog({
         </div>
 
         {!finished && (
-          <div className="flex shrink-0 items-center justify-between gap-3 border-t border-separator-border bg-background-full px-5 py-4 sm:px-7">
+          <div className="flex shrink-0 items-center justify-between gap-3 bg-background-full px-5 py-4 sm:px-7">
             <span className="hidden text-caption-2-regular text-text-tertiary sm:block">
               {revealed
                 ? isEn
@@ -860,6 +864,22 @@ export default function StudioPage() {
     StudioCraftableArtifact[]
   >(["flashcards"]);
   const [isDraggingFile, setIsDraggingFile] = useState<boolean>(false);
+  const [isCopilotDrawerOpen, setIsCopilotDrawerOpen] = useState<boolean>(false);
+  const [isQuickQuizOpen, setIsQuickQuizOpen] = useState<boolean>(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const copilotScrollFade = useScrollFade();
+
+  useEffect(() => {
+    if (!isCopilotDrawerOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsCopilotDrawerOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isCopilotDrawerOpen]);
 
   const toggleArtifactSelection = (artifact: StudioCraftableArtifact) => {
     soundEffects.playClick();
@@ -879,6 +899,31 @@ export default function StudioPage() {
 
   const [flashcardIndex, setFlashcardIndex] = useState<number>(0);
   const [isFlipped, setIsFlipped] = useState<boolean>(false);
+  const [cardTilt, setCardTilt] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [cardGlare, setCardGlare] = useState<{ x: number; y: number; opacity: number }>({ x: 50, y: 50, opacity: 0 });
+  const reducedMotion = useReducedMotion();
+
+  const handleCardMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (reducedMotion) return;
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const centerX = rect.width / 2;
+    const centerY = rect.height / 2;
+    const tiltX = -((y - centerY) / centerY) * 10;
+    const tiltY = ((x - centerX) / centerX) * 10;
+    setCardTilt({ x: tiltX, y: tiltY });
+    setCardGlare({
+      x: (x / rect.width) * 100,
+      y: (y / rect.height) * 100,
+      opacity: 0.28,
+    });
+  };
+
+  const handleCardMouseLeave = () => {
+    setCardTilt({ x: 0, y: 0 });
+    setCardGlare((prev) => ({ ...prev, opacity: 0 }));
+  };
   const [showFlashcardHint, setShowFlashcardHint] = useState<boolean>(false);
   const [masteredCards, setMasteredCards] = useState<number[]>([]);
   const [cardViewMode, setCardViewMode] = useState<"deck" | "grid">("deck");
@@ -1420,7 +1465,7 @@ export default function StudioPage() {
       saveHostToken(data.roomCode, data.hostToken);
       void triggerConfetti({ particleCount: 60, spread: 70 });
       toast.success(`Ruang kuis aktif! Pin: ${data.roomCode}`);
-      router.push(`/host/${data.roomCode}`);
+      router.push(`/buat-ruang-kuis/${data.roomCode}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal meluncurkan ruangan kuis";
       toast.error(msg);
@@ -1466,7 +1511,7 @@ export default function StudioPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.success || !data.quiz) {
-        throw new Error(data.error || "Gagal membuat kuis instan");
+        throw new Error(data.error || "Gagal membuat kuis cepat");
       }
 
       setAiQuiz({ quizId: data.quizId, quiz: data.quiz });
@@ -1479,19 +1524,20 @@ export default function StudioPage() {
         questions: data.quiz.questions,
         launch: "ai",
       });
+      setIsQuickQuizOpen(false);
       void triggerConfetti({ particleCount: 35, spread: 55, origin: { y: 0.65 } });
       toast.success(
         isEn
-          ? `Instant quiz ready: ${data.quiz.questions.length} questions.`
-          : `Kuis instan siap: ${data.quiz.questions.length} soal.`
+          ? `Quick quiz ready: ${data.quiz.questions.length} questions.`
+          : `Kuis cepat siap: ${data.quiz.questions.length} soal.`
       );
     } catch (err: unknown) {
       toast.error(
         err instanceof Error
           ? err.message
           : isEn
-            ? "Could not generate the instant quiz."
-            : "Gagal membuat kuis instan."
+            ? "Could not generate the quick quiz."
+            : "Gagal membuat kuis cepat."
       );
     } finally {
       setAiQuizLoading(false);
@@ -1526,7 +1572,7 @@ export default function StudioPage() {
       saveHostToken(data.roomCode, data.hostToken);
       void triggerConfetti({ particleCount: 60, spread: 70 });
       toast.success(`Ruang kuis AI aktif! Pin: ${data.roomCode}`);
-      router.push(`/host/${data.roomCode}`);
+      router.push(`/buat-ruang-kuis/${data.roomCode}`);
     } catch (err: unknown) {
       toast.error(
         err instanceof Error
@@ -1550,6 +1596,7 @@ export default function StudioPage() {
       questions: aiQuiz.quiz.questions,
       launch: "ai",
     });
+    setIsQuickQuizOpen(false);
   };
 
   const openSourceInstantQuiz = () => {
@@ -1570,6 +1617,7 @@ export default function StudioPage() {
       questions: displayedQuestions,
       launch: "source",
     });
+    setIsQuickQuizOpen(false);
   };
 
   const handleSendChatMessage = async (e?: FormEvent) => {
@@ -1927,12 +1975,157 @@ export default function StudioPage() {
     toast.success(isEn ? "Table copied as csv." : "Tabel disalin dalam format csv.");
   };
 
+  const studioHeaderMoreMenuItems: MoreMenuItem[] = [
+    {
+      id: "header-history",
+      label: isEn ? "History" : "Riwayat",
+      icon: RiHistoryLine,
+      onAction: () => {
+        soundEffects.playClick();
+        if (user) {
+          fetchRemoteStudioHistory()
+            .then((latest) => setHistoryEntries(latest))
+            .catch((err) => {
+              console.warn("Failed to refresh remote history:", err);
+              setHistoryEntries(loadStudioHistory());
+            });
+        } else {
+          setHistoryEntries(loadStudioHistory());
+        }
+        setIsHistoryOpen(true);
+      },
+    },
+    {
+      id: "header-quick-quiz",
+      label: isEn ? "Quick quiz" : "Kuis cepat",
+      icon: RiQuestionnaireLine,
+      onAction: () => {
+        soundEffects.playClick();
+        setIsQuickQuizOpen(true);
+      },
+    },
+    {
+      id: "header-copilot",
+      label: "Exile copilot",
+      icon: RiCopilotFill,
+      onAction: () => {
+        soundEffects.playClick();
+        setIsCopilotDrawerOpen(true);
+      },
+    },
+    {
+      id: "header-settings",
+      label: isEn ? "Settings" : "Pengaturan",
+      icon: RiSettings3Line,
+      onAction: () => {
+        soundEffects.playClick();
+        setIsSettingsOpen(true);
+      },
+    },
+    {
+      id: "header-clear-text",
+      label: isEn ? "Clear text" : "Bersihkan teks",
+      icon: RiDeleteBinLine,
+      isDestructive: true,
+      destructiveTitle: isEn ? "Clear source text" : "Bersihkan teks bahan ajar",
+      destructiveDescription: isEn
+        ? "This will clear your draft and source material. Continue?"
+        : "Ini akan mengosongkan draf dan teks bahan ajar anda. Lanjutkan?",
+      confirmLabel: isEn ? "Clear" : "Bersihkan",
+      cancelLabel: isEn ? "Cancel" : "Batal",
+      disabled: !docText && !uploadedFileName,
+      onAction: () => {
+        setDocText("");
+        setUploadedFileName("");
+        setUploadedFileBase64("");
+        toast.info(isEn ? "Text cleared." : "Teks dikosongkan.");
+      },
+    },
+  ];
+
+  const artifactCardMoreMenuItems: MoreMenuItem[] = [
+    {
+      id: "artifact-reset",
+      label: isEn ? "Reset progress" : "Reset progres",
+      icon: RiRefreshLine,
+      onAction: () => {
+        soundEffects.playClick();
+        if (activeTab === "flashcards") {
+          setMasteredCards([]);
+          setCardTagFilter("all");
+          setFlashcardIndex(0);
+          setIsFlipped(false);
+          toast.info(isEn ? "Flashcard progress reset." : "Progres kartu direset.");
+        } else if (activeTab === "quiz") {
+          setTestedAnswers({});
+          setExpandedQuestionExplanations({});
+          toast.info(isEn ? "Quiz answers reset." : "Jawaban kuis direset.");
+        } else {
+          toast.info(isEn ? "View reset." : "Tampilan direset.");
+        }
+      },
+    },
+    {
+      id: "artifact-copy",
+      label: isEn ? "Copy content" : "Salin konten",
+      icon: RiFileCopyLine,
+      onAction: () => {
+        soundEffects.playClick();
+        if (!processedDoc) return;
+        let textToCopy = processedDoc.title;
+        if (activeTab === "summary" && processedDoc.summary) {
+          textToCopy = `${processedDoc.title}\n\n${processedDoc.summary.overview}\n\n${processedDoc.summary.keyTakeaways.join("\n")}`;
+        } else if (activeTab === "flashcards" && processedDoc.flashcards) {
+          textToCopy = processedDoc.flashcards
+            .map((f, i) => `${i + 1}. Q: ${f.front}\nA: ${f.back}`)
+            .join("\n\n");
+        } else if (activeTab === "quiz" && processedDoc.quiz) {
+          textToCopy = processedDoc.quiz
+            .map(
+              (q, i) =>
+                `${i + 1}. ${q.question}\n${q.options.map((o) => `  ${o.label}. ${o.text}`).join("\n")}`
+            )
+            .join("\n\n");
+        }
+        void navigator.clipboard.writeText(textToCopy);
+        toast.success(isEn ? "Content copied to clipboard." : "Konten disalin ke papan klip.");
+      },
+    },
+    {
+      id: "artifact-view-mode",
+      label:
+        activeTab === "flashcards"
+          ? cardViewMode === "deck"
+            ? (isEn ? "Switch to grid view" : "Beralih ke tampilan kisi")
+            : (isEn ? "Switch to 3D card mode" : "Beralih ke mode kartu 3D")
+          : (isEn ? "Toggle view mode" : "Ubah mode tampilan"),
+      icon: RiEyeLine,
+      onAction: () => {
+        soundEffects.playClick();
+        if (activeTab === "flashcards") {
+          setCardViewMode((prev) => (prev === "deck" ? "grid" : "deck"));
+        } else if (activeTab === "quiz") {
+          setShowDistractorRationale((prev) => !prev);
+        }
+      },
+    },
+    {
+      id: "artifact-regenerate",
+      label: isEn ? "Regenerate artifact" : "Buat ulang artifak",
+      icon: RiRestartLine,
+      disabled: processing,
+      onAction: () => {
+        void handleProcessDocument();
+      },
+    },
+  ];
+
   return (
-    <div className="min-h-screen bg-background-secondary-default/30 pb-12 text-text-primary selection:bg-accent-700 selection:text-text-white">
+    <div className="min-h-screen max-w-full overflow-x-clip bg-background-secondary-default/30 pb-12 text-text-primary selection:bg-accent-700 selection:text-text-white">
       {/* Notebook workspace bar */}
-      <header className="sticky top-0 z-30 border-b border-separator-border bg-background-full/92 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-[1500px] items-center justify-between gap-3 px-4 sm:px-6">
-          <div className="flex min-w-0 items-center gap-2">
+      <header className="sticky top-0 z-30 bg-background-full/92 backdrop-blur-xl border-0">
+        <div className="mx-auto flex flex-wrap sm:flex-nowrap min-h-14 py-1.5 sm:py-0 max-w-[1440px] items-center justify-between gap-2 px-3 sm:px-6">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
             <ButtonLink
               href="/"
               variant="ghost"
@@ -1940,25 +2133,22 @@ export default function StudioPage() {
               iconOnly
               leadingIcon={RiArrowLeftLine}
               aria-label={t.studio.backHome}
-              className="text-text-secondary"
+              className="text-text-secondary shrink-0"
             />
-          </div>
-
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             <div className="flex min-w-0 items-center gap-1.5">
-              <span className="text-caption-1-medium text-text-tertiary">
+              <span className="text-caption-1-medium text-text-tertiary hidden xs:inline">
                 Studio
               </span>
-              <span className="text-text-tertiary">/</span>
-              <span className="max-w-[30vw] truncate text-caption-1-semibold text-text-primary">
+              <span className="text-text-tertiary hidden xs:inline">/</span>
+              <span className="max-w-[110px] sm:max-w-[200px] md:max-w-[30vw] truncate text-caption-1-semibold text-text-primary">
                 {processedDoc?.title || (isEn ? "Untitled notebook" : "Notebook baru")}
               </span>
             </div>
+          </div>
 
-            <div className="hidden h-5 w-px bg-separator-border sm:block" />
-
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 ms-auto sm:ms-0">
             <div
-              className="hidden items-center gap-1.5 px-2 py-1 text-caption-2-medium text-text-tertiary sm:flex"
+              className="hidden items-center gap-1.5 px-2 py-1 text-caption-2-medium text-text-tertiary md:flex"
               title={
                 user
                   ? (isEn ? "Auto-saved" : "Tersimpan otomatis")
@@ -1982,433 +2172,427 @@ export default function StudioPage() {
               type="button"
               variant="secondary"
               size="small"
-              onClick={() => {
-                soundEffects.playClick();
-                if (user) {
-                  fetchRemoteStudioHistory()
-                    .then((latest) => setHistoryEntries(latest))
-                    .catch((err) => {
-                      console.warn("Failed to refresh remote history:", err);
-                      setHistoryEntries(loadStudioHistory());
-                    });
-                } else {
-                  setHistoryEntries(loadStudioHistory());
-                }
-                setIsHistoryOpen(true);
-              }}
-              leadingIcon={RiHistoryLine}
-              aria-label={isEn ? "History" : "Riwayat"}
-            >
-              <span className="hidden md:inline">
-                {isEn ? "History" : "Riwayat"}
-              </span>
-            </Button>
-
-            <Button
-              type="button"
-              variant="primary"
-              size="small"
               onClick={handleLaunchRoom}
               disabled={launchingRoom}
               leadingIcon={RiPlayCircleLine}
               aria-label={t.studio.launchRoomBtn}
-              className="font-semibold shadow-xs"
+              className="font-medium shadow-xs"
             >
               <span className="hidden sm:inline">
                 {launchingRoom ? t.studio.launchingRoomBtn : t.studio.launchRoomBtn}
               </span>
             </Button>
 
-            <div className="hidden items-center gap-0.5 sm:flex">
-              <LanguageToggle />
-              <ThemeToggle />
-              <SettingsButton />
-            </div>
-            <UserNav />
+            <MoreMenu
+              items={studioHeaderMoreMenuItems}
+              aria-label={isEn ? "More options" : "Opsi lanjutan"}
+            />
+            <UserNav includePreferences />
           </div>
         </div>
       </header>
 
       {/* Notebook workspace */}
-      <main className="mx-auto max-w-[1500px] px-4 pt-4 sm:px-6">
-        <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12 lg:gap-5">
+      <main className="mx-auto max-w-[1440px] px-4 pt-3 pb-3 sm:px-6 space-y-3 min-w-0">
+        <div className="grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-12 gap-5 items-start min-w-0">
           {/* ========================================================================= */}
           {/* SOURCES RAIL: Redesigned material input + artifact checklist + Create     */}
           {/* ========================================================================= */}
-          <aside className="min-w-0 space-y-3 self-start lg:col-span-3">
-            <ScrollReveal
-              variant="slide-up"
-              className="space-y-3.5 rounded-2xl border border-separator-border bg-background-full p-4 shadow-card"
-            >
-              {/* Multimodal Dropzone & Upload Trigger */}
-              <div>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".txt,.md,.pdf,.docx,image/png,image/jpeg,image/webp"
-                  onChange={handleFileChange}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => fileInputRef.current?.click()}
-                  onDragOver={(e) => {
-                    e.preventDefault();
-                    setIsDraggingFile(true);
-                  }}
-                  onDragLeave={() => setIsDraggingFile(false)}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    setIsDraggingFile(false);
-                    const dropped = e.dataTransfer.files?.[0];
-                    if (dropped && fileInputRef.current) {
-                      const dt = new DataTransfer();
-                      dt.items.add(dropped);
-                      fileInputRef.current.files = dt.files;
-                      handleFileChange({
-                        target: fileInputRef.current,
-                      } as ChangeEvent<HTMLInputElement>);
-                    }
-                  }}
-                  className={cx(
-                    "group flex w-full flex-col gap-2.5 rounded-2xl border border-dashed p-3.5 text-start transition-all cursor-pointer",
-                    isDraggingFile
-                      ? "border-accent-600 bg-accent-500/10"
-                      : uploadedFileName
-                        ? "border-accent-500/40 bg-accent-500/5 hover:border-accent-500/60"
-                        : "border-border-button-default bg-background-secondary-default/35 hover:border-accent-500/50 hover:bg-background-secondary-default/65"
-                  )}
-                >
-                  <div className="flex w-full items-center gap-3">
-                    <span
-                      className={cx(
-                        "flex size-9 shrink-0 items-center justify-center rounded-xl border transition-colors",
-                        uploadedFileName
-                          ? "border-accent-500/30 bg-accent-700 text-text-white"
-                          : "border-separator-border bg-background-full text-text-secondary group-hover:text-accent-700"
-                      )}
-                    >
-                      <RiUploadCloud2Line className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-caption-1-semibold text-text-primary">
-                        {uploadedFileName || t.studio.uploadTitle}
-                      </span>
-                      <span className="mt-0.5 block truncate text-caption-2-regular text-text-tertiary">
-                        {uploadedFileName
-                          ? `${docText.trim().length.toLocaleString()} ${isEn ? "characters" : "karakter"}`
-                          : t.studio.uploadHint}
-                      </span>
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    {["Pdf", "Docx", "Txt", isEn ? "Image" : "Gambar"].map((fmt) => (
-                      <span
-                        key={fmt}
-                        className="rounded-md border border-separator-border bg-background-full px-2 py-0.5 font-mono text-[10px] text-text-tertiary"
-                      >
-                        {fmt}
-                      </span>
-                    ))}
-                  </div>
-                </button>
-              </div>
-
-              {/* Multimodal AI Vision Ingestion Status Banner */}
-              {uploadedFileBase64 && (
-                <div className="p-2.5 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-between gap-2 text-caption-2-medium text-emerald-800 dark:text-emerald-300">
-                  <div className="flex items-center gap-2 min-w-0">
-                    <span
-                      className={cx(
-                        "inline-flex rounded-full size-2 shrink-0",
-                        isTranscribing ? "bg-amber-500 animate-ping" : "bg-emerald-500"
-                      )}
-                    />
-                    <span className="truncate">
-                      {isTranscribing
-                        ? isEn
-                          ? "Transcribing file..."
-                          : "Mentranskripsi berkas..."
-                        : isEn
-                          ? "File ready"
-                          : "Berkas siap"}
-                    </span>
-                  </div>
-                  {!isTranscribing && (
-                    <button
-                      type="button"
-                      onClick={() =>
-                        transcribeUploadedFile(
-                          uploadedFileBase64,
-                          uploadedFileName || "dokumen.pdf",
-                          uploadedFileType,
-                          uploadedMimeType || "application/pdf"
-                        )
-                      }
-                      className="text-caption-2-medium hover:underline text-emerald-700 dark:text-emerald-300 flex items-center gap-1 cursor-pointer shrink-0"
-                    >
-                      <RiRefreshLine className="size-3" />
-                      <span>{isEn ? "Retry" : "Ulang"}</span>
-                    </button>
-                  )}
+          {isSidebarCollapsed ? (
+            <aside className="shrink-0 min-w-0 lg:col-span-1 xl:col-span-1">
+              <button
+                type="button"
+                onClick={() => setIsSidebarCollapsed(false)}
+                className="flex items-center gap-2 p-2 rounded-xl bg-background-secondary-default/50 hover:bg-background-secondary-default text-text-secondary hover:text-text-primary text-caption-1-medium transition-colors cursor-pointer border-0"
+                title={isEn ? "Expand sidebar" : "Buka bilah sisi"}
+                aria-label={isEn ? "Expand sidebar" : "Buka bilah sisi"}
+              >
+                <RiSidebarUnfoldLine className="size-4" />
+                <span className="hidden xl:inline text-caption-2-medium">{isEn ? "Source material" : "Bahan ajar"}</span>
+              </button>
+            </aside>
+          ) : (
+            <aside className="w-full min-w-0 space-y-2.5 self-start lg:col-span-4 xl:col-span-3">
+              <ScrollReveal
+                variant="slide-up"
+                className="space-y-2.5 rounded-2xl bg-background-secondary-default/45 p-3 shadow-sm border-0"
+              >
+                <div className="flex items-center justify-between pb-0.5">
+                  <span className="text-caption-2-medium text-text-tertiary">
+                    {isEn ? "Source material" : "Bahan ajar"}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setIsSidebarCollapsed(true)}
+                    className="p-1 rounded-lg hover:bg-background-secondary-default text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+                    title={isEn ? "Collapse sidebar" : "Tutup bilah sisi"}
+                    aria-label={isEn ? "Collapse sidebar" : "Tutup bilah sisi"}
+                  >
+                    <RiSidebarFoldLine className="size-4" />
+                  </button>
                 </div>
-              )}
 
-              {/* Redesigned Material Sheet Editor */}
-              <div className="overflow-hidden rounded-2xl border border-border-button-default bg-background-secondary-default/35 transition-all focus-within:border-accent-500/60 focus-within:ring-2 focus-within:ring-accent-500/15">
-                <div className="flex items-center justify-between gap-2 border-b border-separator-border bg-background-secondary-default/70 px-3 py-2">
-                  <div className="flex items-center gap-1.5 min-w-0">
-                    <RiFileTextLine className="size-3.5 shrink-0 text-accent-700" />
-                    <span className="truncate text-caption-2-medium text-text-secondary">
-                      {t.studio.textEditorLabel}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <span className="rounded-md bg-background-full px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-text-tertiary">
-                      {docText.trim().length.toLocaleString()}
-                    </span>
-                    {(docText || uploadedFileName) && (
+                {/* Multimodal Dropzone & Upload Trigger */}
+                <div>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp,.rtf,.txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.epub,image/*,text/*,application/*"
+                    onChange={handleFileChange}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(true);
+                    }}
+                    onDragLeave={() => setIsDraggingFile(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setIsDraggingFile(false);
+                      const dropped = e.dataTransfer.files?.[0];
+                      if (dropped && fileInputRef.current) {
+                        const dt = new DataTransfer();
+                        dt.items.add(dropped);
+                        fileInputRef.current.files = dt.files;
+                        handleFileChange({
+                          target: fileInputRef.current,
+                        } as ChangeEvent<HTMLInputElement>);
+                      }
+                    }}
+                    className={cx(
+                      "group flex w-full flex-col gap-2 rounded-xl p-2.5 text-start transition-all cursor-pointer border-0",
+                      isDraggingFile
+                        ? "bg-accent-500/10"
+                        : uploadedFileName
+                          ? "bg-accent-500/5"
+                          : "bg-background-secondary-default/35 hover:bg-background-secondary-default/65"
+                    )}
+                  >
+                    <div className="flex w-full items-center gap-2.5">
+                      <span
+                        className={cx(
+                          "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                          uploadedFileName
+                            ? "bg-background-tertiary-default text-text-primary"
+                            : "bg-background-full text-text-secondary group-hover:text-text-primary"
+                        )}
+                      >
+                        <RiUploadCloud2Line className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-caption-1-semibold text-text-primary">
+                          {uploadedFileName || t.studio.uploadTitle}
+                        </span>
+                        <span className="mt-0.5 block truncate text-caption-2-regular text-text-tertiary">
+                          {uploadedFileName
+                            ? `${docText.trim().length.toLocaleString()} ${isEn ? "characters" : "karakter"}`
+                            : t.studio.uploadHint}
+                        </span>
+                      </span>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Multimodal AI Vision Ingestion Status Banner */}
+                {uploadedFileBase64 && (
+                  <div className="p-2 rounded-xl bg-emerald-500/10 flex items-center justify-between gap-2 text-caption-2-medium text-state-success-text">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span
+                        className={cx(
+                          "inline-flex rounded-full size-2 shrink-0",
+                          isTranscribing ? "bg-warning animate-ping" : "bg-emerald-500"
+                        )}
+                      />
+                      <span className="truncate">
+                        {isTranscribing
+                          ? isEn
+                            ? "Transcribing file..."
+                            : "Mentranskripsi berkas..."
+                          : isEn
+                            ? "Document ready"
+                            : "Dokumen siap"}
+                      </span>
+                    </div>
+                    {!isTranscribing && (
                       <button
                         type="button"
-                        onClick={() => {
-                          setDocText("");
-                          setUploadedFileName("");
-                          setUploadedFileBase64("");
-                        }}
-                        className="text-caption-2-regular text-text-tertiary hover:text-rose-500 transition-colors cursor-pointer"
+                        onClick={() =>
+                          transcribeUploadedFile(
+                            uploadedFileBase64,
+                            uploadedFileName || "dokumen.pdf",
+                            uploadedFileType,
+                            uploadedMimeType || "application/pdf"
+                          )
+                        }
+                        className="text-caption-2-medium hover:underline text-state-success-text flex items-center gap-1 cursor-pointer shrink-0"
                       >
-                        {t.studio.textEditorClear}
+                        <RiRefreshLine className="size-3" />
+                        <span>{isEn ? "Retry" : "Ulang"}</span>
                       </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Material Sheet Editor */}
+                <div className="overflow-hidden rounded-xl bg-background-secondary-default/35 transition-all border-0">
+                  <div className="flex items-center justify-between gap-2 bg-background-secondary-default/70 px-2.5 py-1.5">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <RiFileTextLine className="size-3.5 shrink-0 text-accent-700" />
+                      <span className="truncate text-caption-2-medium text-text-secondary">
+                        {t.studio.textEditorLabel}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <span className="rounded-md bg-background-full px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-text-tertiary">
+                        {docText.trim().length.toLocaleString()}
+                      </span>
+                      {(docText || uploadedFileName) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setDocText("");
+                            setUploadedFileName("");
+                            setUploadedFileBase64("");
+                          }}
+                          className="text-caption-2-regular text-text-tertiary hover:text-text-error-primary transition-colors cursor-pointer"
+                        >
+                          {t.studio.textEditorClear}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="relative">
+                    <textarea
+                      ref={docTextareaRef}
+                      rows={3}
+                      value={docText}
+                      onChange={(e) => setDocText(e.target.value)}
+                      placeholder={
+                        isTranscribing
+                          ? isEn
+                            ? "Transcribing content..."
+                            : "Mentranskripsi konten..."
+                          : t.studio.textEditorPlaceholder
+                      }
+                      disabled={isTranscribing}
+                      className="w-full bg-transparent p-2.5 text-caption-1-regular leading-relaxed text-text-primary placeholder:text-text-tertiary focus:outline-none resize-y min-h-[76px] disabled:opacity-60"
+                    />
+                    {isTranscribing && (
+                      <div className="absolute inset-0 bg-background-secondary-default/60 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
+                        <div className="flex items-center gap-2 text-xs font-medium text-state-success-text bg-background-primary-default px-3 py-1.5 rounded-xl shadow-xs">
+                          <RiRefreshLine className="size-3.5 animate-spin text-state-success-text" />
+                          <span>{transcriptionStatus || (isEn ? "Transcribing..." : "Mentranskripsi...")}</span>
+                        </div>
+                      </div>
                     )}
                   </div>
                 </div>
 
-                <div className="relative">
-                  <textarea
-                    ref={docTextareaRef}
-                    rows={6}
-                    value={docText}
-                    onChange={(e) => setDocText(e.target.value)}
-                    placeholder={
-                      isTranscribing
+                {/* Checklist Menu: Choose specific artifacts to create */}
+                <div className="space-y-1.5 pt-0.5">
+                  <div className="flex items-center justify-between px-0.5">
+                    <span className="text-caption-2-medium text-text-tertiary">
+                      {isEn ? "Select artifacts" : "Pilih artifak"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        soundEffects.playClick();
+                        const allIds: StudioCraftableArtifact[] = [
+                          "flashcards",
+                          "quiz",
+                          "summary",
+                          "mindmap",
+                          "infographic",
+                          "table",
+                          "report",
+                        ];
+                        if (selectedArtifacts.length === allIds.length) {
+                          setSelectedArtifacts(["flashcards"]);
+                        } else {
+                          setSelectedArtifacts(allIds);
+                        }
+                      }}
+                      className="text-caption-2-medium text-accent-700 hover:underline cursor-pointer"
+                    >
+                      {selectedArtifacts.length === 7
                         ? isEn
-                          ? "Transcribing content..."
-                          : "Mentranskripsi konten..."
-                        : t.studio.textEditorPlaceholder
-                    }
-                    disabled={isTranscribing}
-                    className="w-full bg-transparent p-3 text-caption-1-regular leading-relaxed text-text-primary placeholder:text-text-tertiary focus:outline-none resize-y min-h-[132px] disabled:opacity-60"
-                  />
-                  {isTranscribing && (
-                    <div className="absolute inset-0 bg-background-secondary-default/60 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
-                      <div className="flex items-center gap-2 text-xs font-medium text-emerald-700 dark:text-emerald-300 bg-background-primary-default px-3 py-1.5 rounded-xl border border-emerald-500/30 shadow-xs">
-                        <RiRefreshLine className="size-3.5 animate-spin text-emerald-600" />
-                        <span>{transcriptionStatus || (isEn ? "Transcribing..." : "Mentranskripsi...")}</span>
+                          ? "Reset"
+                          : "Atur ulang"
+                        : isEn
+                          ? "Select all"
+                          : "Pilih semua"}
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-1">
+                    {(
+                      [
+                        {
+                          id: "flashcards" as const,
+                          label: t.studio.tabs.flashcards,
+                          icon: RiFileCopyLine,
+                          built: hasFlashcards,
+                        },
+                        {
+                          id: "quiz" as const,
+                          label: t.studio.tabs.quiz,
+                          icon: RiQuestionnaireLine,
+                          built: hasQuiz,
+                        },
+                        {
+                          id: "summary" as const,
+                          label: t.studio.tabs.summary,
+                          icon: RiBookOpenLine,
+                          built: hasSummary,
+                        },
+                        {
+                          id: "mindmap" as const,
+                          label: t.studio.tabs.mindmap,
+                          icon: RiNodeTree,
+                          built: hasMindMap,
+                        },
+                        {
+                          id: "infographic" as const,
+                          label: t.studio.tabs.infographic,
+                          icon: RiBarChartBoxLine,
+                          built: hasInfographic,
+                        },
+                        {
+                          id: "table" as const,
+                          label: t.studio.tabs.table,
+                          icon: RiTableLine,
+                          built: hasTable,
+                        },
+                        {
+                          id: "report" as const,
+                          label: t.studio.tabs.report,
+                          icon: RiFileList3Line,
+                          built: hasReport,
+                        },
+                      ] as const
+                    ).map((item) => {
+                      const Icon = item.icon;
+                      const checked = selectedArtifacts.includes(item.id);
+                      return (
+                        <button
+                          key={item.id}
+                          type="button"
+                          role="checkbox"
+                          aria-checked={checked}
+                          onClick={() => toggleArtifactSelection(item.id)}
+                          className={cx(
+                            "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-start transition-all cursor-pointer border-0",
+                            checked
+                              ? "bg-accent-500/10 text-text-primary"
+                              : "bg-background-secondary-default/30 text-text-secondary hover:bg-background-secondary-default/60 hover:text-text-primary"
+                          )}
+                        >
+                          <span className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={cx(
+                                "flex size-4 shrink-0 items-center justify-center rounded-md transition-colors",
+                                checked
+                                  ? "bg-background-tertiary-default text-text-primary"
+                                  : "bg-background-full text-transparent"
+                              )}
+                            >
+                              <RiCheckLine className="size-3" />
+                            </span>
+                            <Icon
+                              className={cx(
+                                "size-3.5 shrink-0",
+                                checked ? "text-accent-700" : "text-text-tertiary"
+                              )}
+                            />
+                            <span className="truncate text-caption-1-medium">
+                              {item.label}
+                            </span>
+                          </span>
+                          {item.built && (
+                            <span className="size-1.5 shrink-0 rounded-full bg-border-button-hover" />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Single On-Demand Create Button */}
+                <div className="pt-0.5">
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="small"
+                    onClick={handleProcessDocument}
+                    disabled={processing}
+                    className="w-full justify-center font-semibold gap-2"
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <RiCopilotFill className={cx("size-4", processing && "animate-spin")} />
+                      <span>
+                        {processing
+                          ? `${t.studio.creatingBtn}... (${formatTimer(reasoningElapsedSec)})`
+                          : t.studio.createBtn}
+                      </span>
+                    </span>
+                  </Button>
+
+                  {processing && (
+                    <div className="mt-2 p-2.5 rounded-xl bg-accent-500/10 flex items-center justify-between gap-2 text-caption-1-medium text-text-primary animate-pulse">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="relative flex size-2 shrink-0">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full size-2 bg-accent-600"></span>
+                        </span>
+                        <span className="truncate text-xs text-text-secondary">
+                          {isEn ? "Crafting selected artifacts..." : "Menyusun artifak pilihan..."}
+                        </span>
                       </div>
+                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-accent-500/20 text-accent-700 shrink-0">
+                        {formatTimer(reasoningElapsedSec)}
+                      </span>
                     </div>
                   )}
                 </div>
-              </div>
-
-              {/* Checklist Menu: Choose specific artifacts to create */}
-              <div className="space-y-2 pt-0.5">
-                <div className="flex items-center justify-between px-0.5">
-                  <span className="text-caption-2-medium text-text-tertiary">
-                    {isEn ? "Select artifacts" : "Pilih artifak"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      soundEffects.playClick();
-                      const allIds: StudioCraftableArtifact[] = [
-                        "flashcards",
-                        "quiz",
-                        "summary",
-                        "mindmap",
-                        "infographic",
-                        "table",
-                        "report",
-                      ];
-                      if (selectedArtifacts.length === allIds.length) {
-                        setSelectedArtifacts(["flashcards"]);
-                      } else {
-                        setSelectedArtifacts(allIds);
-                      }
-                    }}
-                    className="text-caption-2-medium text-accent-700 hover:underline cursor-pointer"
-                  >
-                    {selectedArtifacts.length === 7
-                      ? isEn
-                        ? "Reset"
-                        : "Atur ulang"
-                      : isEn
-                        ? "Select all"
-                        : "Pilih semua"}
-                  </button>
-                </div>
-
-                <div className="grid grid-cols-1 gap-1.5">
-                  {(
-                    [
-                      {
-                        id: "flashcards" as const,
-                        label: t.studio.tabs.flashcards,
-                        icon: RiFileCopyLine,
-                        built: hasFlashcards,
-                      },
-                      {
-                        id: "quiz" as const,
-                        label: t.studio.tabs.quiz,
-                        icon: RiQuestionnaireLine,
-                        built: hasQuiz,
-                      },
-                      {
-                        id: "summary" as const,
-                        label: t.studio.tabs.summary,
-                        icon: RiBookOpenLine,
-                        built: hasSummary,
-                      },
-                      {
-                        id: "mindmap" as const,
-                        label: t.studio.tabs.mindmap,
-                        icon: RiNodeTree,
-                        built: hasMindMap,
-                      },
-                      {
-                        id: "infographic" as const,
-                        label: t.studio.tabs.infographic,
-                        icon: RiBarChartBoxLine,
-                        built: hasInfographic,
-                      },
-                      {
-                        id: "table" as const,
-                        label: t.studio.tabs.table,
-                        icon: RiTableLine,
-                        built: hasTable,
-                      },
-                      {
-                        id: "report" as const,
-                        label: t.studio.tabs.report,
-                        icon: RiFileList3Line,
-                        built: hasReport,
-                      },
-                    ] as const
-                  ).map((item) => {
-                    const Icon = item.icon;
-                    const checked = selectedArtifacts.includes(item.id);
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        role="checkbox"
-                        aria-checked={checked}
-                        onClick={() => toggleArtifactSelection(item.id)}
-                        className={cx(
-                          "flex w-full items-center justify-between gap-2.5 rounded-xl border px-3 py-2 text-start transition-all cursor-pointer",
-                          checked
-                            ? "border-accent-600/50 bg-accent-500/10 text-text-primary"
-                            : "border-border-button-default bg-background-secondary-default/30 text-text-secondary hover:bg-background-secondary-default/60 hover:text-text-primary"
-                        )}
-                      >
-                        <span className="flex items-center gap-2.5 min-w-0">
-                          <span
-                            className={cx(
-                              "flex size-4.5 shrink-0 items-center justify-center rounded-md border transition-colors",
-                              checked
-                                ? "border-accent-700 bg-accent-700 text-text-white"
-                                : "border-border-button-default bg-background-full text-transparent"
-                            )}
-                          >
-                            <RiCheckLine className="size-3" />
-                          </span>
-                          <Icon
-                            className={cx(
-                              "size-4 shrink-0",
-                              checked ? "text-accent-700" : "text-text-tertiary"
-                            )}
-                          />
-                          <span className="truncate text-caption-1-medium">
-                            {item.label}
-                          </span>
-                        </span>
-                        {item.built && (
-                          <span className="size-2 shrink-0 rounded-full bg-accent-600" />
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Single On-Demand Create Button */}
-              <div className="pt-0.5">
-                <Button
-                  type="button"
-                  variant="primary"
-                  size="medium"
-                  onClick={handleProcessDocument}
-                  disabled={processing}
-                  className="w-full justify-center font-semibold"
-                >
-                  <RiCopilotFill className={cx("size-4", processing && "animate-spin")} />
-                  <span>
-                    {processing
-                      ? `${t.studio.creatingBtn}... (${formatTimer(reasoningElapsedSec)})`
-                      : t.studio.createBtn}
-                  </span>
-                </Button>
-
-                {processing && (
-                  <div className="mt-2.5 p-3 rounded-2xl border border-accent-500/30 bg-accent-500/10 flex items-center justify-between gap-2.5 text-caption-1-medium text-text-primary animate-pulse">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="relative flex size-2.5 shrink-0">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full size-2.5 bg-accent-600"></span>
-                      </span>
-                      <span className="truncate text-xs text-text-secondary">
-                        {isEn ? "Crafting selected artifacts..." : "Menyusun artifak pilihan..."}
-                      </span>
-                    </div>
-                    <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-accent-500/20 text-accent-700 dark:text-accent-300 shrink-0">
-                      {formatTimer(reasoningElapsedSec)}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </ScrollReveal>
-          </aside>
+              </ScrollReveal>
+            </aside>
+          )}
 
           {/* ========================================================================= */}
           {/* NOTEBOOK CANVAS: Artifact navigation (gated until created) & content      */}
           {/* ========================================================================= */}
-          <section className="min-w-0 space-y-4 lg:col-span-9 xl:col-span-6">
+          <section className={cx(
+            "min-w-0 space-y-4",
+            isSidebarCollapsed
+              ? "lg:col-span-11 xl:col-span-11"
+              : "lg:col-span-8 xl:col-span-9"
+          )}>
             {/* Artifact Navigation Tab Bar */}
             <ScrollReveal
               variant="slide-up"
-              className="sticky top-14 z-20 rounded-2xl border border-separator-border bg-background-full/95 p-1.5 shadow-card backdrop-blur"
+              className="sticky top-14 z-20 rounded-2xl bg-background-full/95 p-1.5 shadow-card backdrop-blur"
             >
               <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
                 <button
                   type="button"
+                  disabled={!hasFlashcards}
                   onClick={() => {
+                    if (!hasFlashcards) return;
                     soundEffects.playClick();
-                    if (!hasFlashcards) {
-                      toast.info(
-                        isEn
-                          ? `Artifact "${t.studio.tabs.flashcards}" is not yet crafted. Select it above and click "Generate artifacts".`
-                          : `Artifak "${t.studio.tabs.flashcards}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
-                      );
-                      return;
-                    }
                     setActiveTab("flashcards");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors",
                     activeTab === "flashcards" && hasFlashcards
-                      ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                       : hasFlashcards
-                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
-                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary cursor-pointer"
+                        : "text-text-secondary/40 cursor-not-allowed opacity-40"
                   )}
                 >
                   <RiFileCopyLine className="size-4" />
@@ -2422,25 +2606,19 @@ export default function StudioPage() {
 
                 <button
                   type="button"
+                  disabled={!hasQuiz}
                   onClick={() => {
+                    if (!hasQuiz) return;
                     soundEffects.playClick();
-                    if (!hasQuiz) {
-                      toast.info(
-                        isEn
-                          ? `Artifact "${t.studio.tabs.quiz}" is not yet crafted. Select it above and click "Generate artifacts".`
-                          : `Artifak "${t.studio.tabs.quiz}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
-                      );
-                      return;
-                    }
                     setActiveTab("quiz");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors",
                     activeTab === "quiz" && hasQuiz
-                      ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                       : hasQuiz
-                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
-                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary cursor-pointer"
+                        : "text-text-secondary/40 cursor-not-allowed opacity-40"
                   )}
                 >
                   <RiQuestionnaireLine className="size-4" />
@@ -2454,25 +2632,19 @@ export default function StudioPage() {
 
                 <button
                   type="button"
+                  disabled={!hasSummary}
                   onClick={() => {
+                    if (!hasSummary) return;
                     soundEffects.playClick();
-                    if (!hasSummary) {
-                      toast.info(
-                        isEn
-                          ? `Artifact "${t.studio.tabs.summary}" is not yet crafted. Select it above and click "Generate artifacts".`
-                          : `Artifak "${t.studio.tabs.summary}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
-                      );
-                      return;
-                    }
                     setActiveTab("summary");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors",
                     activeTab === "summary" && hasSummary
-                      ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                       : hasSummary
-                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
-                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary cursor-pointer"
+                        : "text-text-secondary/40 cursor-not-allowed opacity-40"
                   )}
                 >
                   <RiBookOpenLine className="size-4" />
@@ -2481,25 +2653,19 @@ export default function StudioPage() {
 
                 <button
                   type="button"
+                  disabled={!hasMindMap}
                   onClick={() => {
+                    if (!hasMindMap) return;
                     soundEffects.playClick();
-                    if (!hasMindMap) {
-                      toast.info(
-                        isEn
-                          ? `Artifact "${t.studio.tabs.mindmap}" is not yet crafted. Select it above and click "Generate artifacts".`
-                          : `Artifak "${t.studio.tabs.mindmap}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
-                      );
-                      return;
-                    }
                     setActiveTab("mindmap");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors",
                     activeTab === "mindmap" && hasMindMap
-                      ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                       : hasMindMap
-                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
-                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary cursor-pointer"
+                        : "text-text-secondary/40 cursor-not-allowed opacity-40"
                   )}
                 >
                   <RiNodeTree className="size-4" />
@@ -2513,25 +2679,19 @@ export default function StudioPage() {
 
                 <button
                   type="button"
+                  disabled={!hasInfographic}
                   onClick={() => {
+                    if (!hasInfographic) return;
                     soundEffects.playClick();
-                    if (!hasInfographic) {
-                      toast.info(
-                        isEn
-                          ? `Artifact "${t.studio.tabs.infographic}" is not yet crafted. Select it above and click "Generate artifacts".`
-                          : `Artifak "${t.studio.tabs.infographic}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
-                      );
-                      return;
-                    }
                     setActiveTab("infographic");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors",
                     activeTab === "infographic" && hasInfographic
-                      ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                       : hasInfographic
-                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
-                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary cursor-pointer"
+                        : "text-text-secondary/40 cursor-not-allowed opacity-40"
                   )}
                 >
                   <RiBarChartBoxLine className="size-4" />
@@ -2545,25 +2705,19 @@ export default function StudioPage() {
 
                 <button
                   type="button"
+                  disabled={!hasTable}
                   onClick={() => {
+                    if (!hasTable) return;
                     soundEffects.playClick();
-                    if (!hasTable) {
-                      toast.info(
-                        isEn
-                          ? `Artifact "${t.studio.tabs.table}" is not yet crafted. Select it above and click "Generate artifacts".`
-                          : `Artifak "${t.studio.tabs.table}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
-                      );
-                      return;
-                    }
                     setActiveTab("table");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors",
                     activeTab === "table" && hasTable
-                      ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                       : hasTable
-                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
-                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary cursor-pointer"
+                        : "text-text-secondary/40 cursor-not-allowed opacity-40"
                   )}
                 >
                   <RiTableLine className="size-4" />
@@ -2577,25 +2731,19 @@ export default function StudioPage() {
 
                 <button
                   type="button"
+                  disabled={!hasReport}
                   onClick={() => {
+                    if (!hasReport) return;
                     soundEffects.playClick();
-                    if (!hasReport) {
-                      toast.info(
-                        isEn
-                          ? `Artifact "${t.studio.tabs.report}" is not yet crafted. Select it above and click "Generate artifacts".`
-                          : `Artifak "${t.studio.tabs.report}" belum diracik. Centang di atas lalu klik "Mulai racik materi".`
-                      );
-                      return;
-                    }
                     setActiveTab("report");
                   }}
                   className={cx(
-                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
+                    "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors",
                     activeTab === "report" && hasReport
-                      ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                       : hasReport
-                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
-                        : "text-text-secondary/40 hover:bg-background-secondary-default/50"
+                        ? "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary cursor-pointer"
+                        : "text-text-secondary/40 cursor-not-allowed opacity-40"
                   )}
                 >
                   <RiFileList3Line className="size-4" />
@@ -2612,7 +2760,7 @@ export default function StudioPage() {
                     className={cx(
                       "flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-caption-1-medium whitespace-nowrap transition-colors cursor-pointer",
                       activeTab === "slides"
-                        ? "bg-accent-700 text-text-white font-semibold shadow-xs"
+                        ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                         : "text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
                     )}
                   >
@@ -2625,8 +2773,8 @@ export default function StudioPage() {
 
             {/* If no document has been generated yet, show the clean Exile Tools Guide (without duplicate Create button) */}
             {!processedDoc ? (
-              <ScrollReveal variant="scale-up" delay={80} className="rounded-2xl border border-separator-border bg-background-full p-5 shadow-card space-y-5 sm:p-6">
-                <div className="border-b border-separator-border pb-4 space-y-1">
+              <ScrollReveal variant="scale-up" delay={80} className="rounded-2xl bg-background-full p-5 shadow-card space-y-5 sm:p-6">
+                <div className="pb-4 space-y-1">
                   <div className="flex items-center gap-2">
                     <RiCompass3Line className="size-5 text-accent-700" />
                     <h3 className="text-title-2-semibold text-text-primary tracking-tight">
@@ -2642,7 +2790,7 @@ export default function StudioPage() {
                   {t.studio.guideSteps.map((step) => (
                     <div
                       key={step.num}
-                      className="p-4 rounded-2xl border border-border-button-default bg-background-secondary-default/40 space-y-1.5"
+                      className="p-4 rounded-2xl bg-background-secondary-default/40 space-y-1.5"
                     >
                       <div className="flex items-center gap-2 text-body-2-semibold text-text-primary">
                         <span className="inline-flex size-6 rounded-lg bg-accent-700/15 text-accent-700 font-mono text-xs items-center justify-center font-bold">
@@ -2664,10 +2812,10 @@ export default function StudioPage() {
                 initial={{ opacity: 0, y: 8 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.25 }}
-                className="rounded-2xl border border-separator-border bg-background-full p-5 shadow-card space-y-5 sm:p-6"
+                className="rounded-2xl bg-background-full p-5 shadow-card space-y-5 sm:p-6"
               >
                 {/* Document Header Banner */}
-                <div className="flex flex-col gap-3 border-b border-separator-border pb-4 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0 space-y-1.5">
                     <div className="flex flex-wrap items-center gap-1.5 text-caption-2-medium tracking-wide text-text-tertiary">
                       <span>{isEn ? "Notebook" : "Notebook"}</span>
@@ -2683,7 +2831,7 @@ export default function StudioPage() {
                     <div className="flex flex-wrap items-center gap-1.5 text-caption-2-regular text-text-tertiary">
                       <span
                         title={sourceLabel}
-                        className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg border border-separator-border bg-background-secondary-default/60 px-2 py-1"
+                        className="inline-flex min-w-0 max-w-full items-center gap-1.5 rounded-lg bg-background-secondary-default/60 px-2 py-1"
                       >
                         <RiBookOpenLine className="size-3.5 shrink-0 text-accent-700" />
                         <span className="truncate">
@@ -2698,6 +2846,13 @@ export default function StudioPage() {
                       )}
                     </div>
                   </div>
+
+                  <div className="flex items-center gap-2 shrink-0">
+                    <MoreMenu
+                      items={artifactCardMoreMenuItems}
+                      aria-label={isEn ? "Artifact options" : "Opsi artifak"}
+                    />
+                  </div>
                 </div>
 
                 {/* ========================================================= */}
@@ -2706,7 +2861,7 @@ export default function StudioPage() {
                 {activeTab === "summary" && (
                   <div className="space-y-6">
                     {/* Overview Paragraph */}
-                    <div className="p-5 rounded-2xl bg-background-secondary-default/50 border border-border-button-default space-y-2">
+                    <div className="p-5 rounded-2xl bg-background-secondary-default/50 space-y-2">
                       <span className="text-caption-2-medium text-text-tertiary block">
                         {isEn ? "Executive conceptual summary" : "Ringkasan intisari materi"}
                       </span>
@@ -2724,7 +2879,7 @@ export default function StudioPage() {
                         {processedDoc.summary.keyTakeaways.map((point, i) => (
                           <div
                             key={i}
-                            className="p-3.5 rounded-2xl border border-border-button-default bg-background-secondary-default/40 flex items-start gap-2.5"
+                            className="p-3.5 rounded-2xl bg-background-secondary-default/40 flex items-start gap-2.5"
                           >
                             <span className="inline-flex size-5 rounded-md bg-accent-700/15 text-accent-700 font-mono text-xs items-center justify-center shrink-0 mt-0.5 font-bold">
                               {i + 1}
@@ -2748,7 +2903,7 @@ export default function StudioPage() {
                             {processedDoc.summary.culturalGlossary.map((item, idx) => (
                               <div
                                 key={`${item.term}-${idx}`}
-                                className="p-3.5 rounded-2xl border border-border-button-default bg-background-primary-default space-y-1"
+                                className="p-3.5 rounded-2xl bg-background-primary-default space-y-1"
                               >
                                 <div className="flex items-center justify-between gap-2">
                                   <span className="text-body-2-semibold text-text-primary">
@@ -2780,7 +2935,7 @@ export default function StudioPage() {
                             {processedDoc.summary.expansions.map((exp, idx) => (
                               <div
                                 key={idx}
-                                className="rounded-2xl border border-accent-500/25 bg-accent-500/5 p-4 space-y-2"
+                                className="rounded-2xl bg-accent-500/5 p-4 space-y-2"
                               >
                                 <div className="flex items-center gap-2 text-body-2-semibold text-text-primary">
                                   <RiCopilotFill className="size-4 text-accent-700 shrink-0" />
@@ -2833,7 +2988,7 @@ export default function StudioPage() {
                   <div className="space-y-6">
                     {/* Top Deck Toolbar: View Switcher, Shuffle, Reset */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="inline-flex items-center rounded-xl border border-border-button-default bg-background-secondary-default p-1">
+                      <div className="inline-flex items-center rounded-xl bg-background-secondary-default p-1">
                         <button
                           type="button"
                           onClick={() => {
@@ -2843,11 +2998,11 @@ export default function StudioPage() {
                           className={cx(
                             "rounded-lg px-3 py-1.5 text-caption-1-medium transition-colors cursor-pointer",
                             cardViewMode === "deck"
-                              ? "bg-accent-700 text-text-white font-semibold"
+                              ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                               : "text-text-secondary hover:text-text-primary"
                           )}
                         >
-                          {isEn ? "3d card mode" : "Mode kartu 3d"}
+                          {isEn ? "Kartu 3D" : "Kartu 3D"}
                         </button>
                         <button
                           type="button"
@@ -2858,7 +3013,7 @@ export default function StudioPage() {
                           className={cx(
                             "rounded-lg px-3 py-1.5 text-caption-1-medium transition-colors cursor-pointer",
                             cardViewMode === "grid"
-                              ? "bg-accent-700 text-text-white font-semibold"
+                              ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-semibold shadow-xs"
                               : "text-text-secondary hover:text-text-primary"
                           )}
                         >
@@ -2906,10 +3061,10 @@ export default function StudioPage() {
                           setIsFlipped(false);
                         }}
                         className={cx(
-                          "rounded-full border px-3 py-1 text-caption-2-medium transition-colors cursor-pointer",
+                          "rounded-full px-3 py-1 text-caption-2-medium transition-colors cursor-pointer",
                           cardTagFilter === "all"
-                            ? "border-accent-700 bg-accent-700 text-text-white"
-                            : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
+                            ? "bg-background-tertiary-default text-text-primary border border-border-button-default"
+                            : "bg-background-secondary-default text-text-secondary hover:text-text-primary"
                         )}
                       >
                         {isEn
@@ -2925,10 +3080,10 @@ export default function StudioPage() {
                           setIsFlipped(false);
                         }}
                         className={cx(
-                          "rounded-full border px-3 py-1 text-caption-2-medium transition-colors cursor-pointer",
+                          "rounded-full px-3 py-1 text-caption-2-medium transition-colors cursor-pointer",
                           cardTagFilter === "unmastered"
-                            ? "border-accent-700 bg-accent-700 text-text-white"
-                            : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
+                            ? "bg-background-tertiary-default text-text-primary border border-border-button-default"
+                            : "bg-background-secondary-default text-text-secondary hover:text-text-primary"
                         )}
                       >
                         {isEn
@@ -2946,10 +3101,10 @@ export default function StudioPage() {
                             setIsFlipped(false);
                           }}
                           className={cx(
-                            "rounded-full border px-3 py-1 text-caption-2-medium transition-colors cursor-pointer",
+                            "rounded-full px-3 py-1 text-caption-2-medium transition-colors cursor-pointer",
                             cardTagFilter === tag
-                              ? "border-accent-700 bg-accent-700 text-text-white"
-                              : "border-border-button-default bg-background-secondary-default text-text-secondary hover:text-text-primary"
+                              ? "bg-background-tertiary-default text-text-primary border border-border-button-default"
+                              : "bg-background-secondary-default text-text-secondary hover:text-text-primary"
                           )}
                         >
                           {tag}
@@ -2958,7 +3113,7 @@ export default function StudioPage() {
                     </div>
 
                     {filteredFlashcards.length === 0 ? (
-                      <div className="rounded-2xl border border-border-button-default bg-background-secondary-default/40 p-8 text-center space-y-3">
+                      <div className="rounded-2xl bg-background-secondary-default/40 p-8 text-center space-y-3">
                         <p className="text-body-2-regular text-text-secondary">
                           {isEn
                             ? "All cards in this filter have been mastered!"
@@ -2984,7 +3139,7 @@ export default function StudioPage() {
                           return (
                             <div
                               key={card.id || originalIndex}
-                              className="flex flex-col justify-between gap-4 rounded-2xl border border-border-button-default bg-background-secondary-default/50 p-5"
+                              className="flex flex-col justify-between gap-4 rounded-2xl bg-background-secondary-default/50 p-5"
                             >
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between gap-2">
@@ -3005,7 +3160,7 @@ export default function StudioPage() {
                                 <p className="text-body-1-semibold text-text-primary leading-snug">
                                   {card.front}
                                 </p>
-                                <div className="rounded-xl border border-separator-border bg-background-primary-default p-3.5 text-caption-1-regular text-text-secondary leading-relaxed">
+                                <div className="rounded-xl bg-background-primary-default p-3.5 text-caption-1-regular text-text-secondary leading-relaxed">
                                   {card.back}
                                 </div>
                               </div>
@@ -3027,7 +3182,7 @@ export default function StudioPage() {
                                   }}
                                   className="text-caption-2-semibold text-accent-700 hover:underline cursor-pointer"
                                 >
-                                  {isEn ? "Open in 3d view" : "Buka di kartu 3d"}
+                                  {isEn ? "Open in 3D view" : "Buka di kartu 3D"}
                                 </button>
                               </div>
                             </div>
@@ -3080,6 +3235,8 @@ export default function StudioPage() {
                               soundEffects.playClick();
                               setIsFlipped(!isFlipped);
                             }}
+                            onMouseMove={handleCardMouseMove}
+                            onMouseLeave={handleCardMouseLeave}
                             onKeyDown={(e) => {
                               if (e.key === " " || e.key === "Enter") {
                                 e.preventDefault();
@@ -3099,14 +3256,40 @@ export default function StudioPage() {
                                 setFlashcardIndex((prev) => Math.max(0, prev - 1));
                               }
                             }}
-                            animate={{ rotateY: isFlipped ? 180 : 0 }}
-                            transition={{ duration: 0.45, ease: "easeInOut" }}
-                            className="w-full max-w-xl min-h-[280px] p-8 rounded-3xl border border-border-button-default bg-background-secondary-default shadow-card flex flex-col justify-between cursor-pointer select-none relative outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring [transform-style:preserve-3d]"
+                            animate={
+                              reducedMotion
+                                ? { opacity: 1 }
+                                : {
+                                    rotateX: cardTilt.x,
+                                    rotateY: (isFlipped ? 180 : 0) + (isFlipped ? -cardTilt.y : cardTilt.y),
+                                  }
+                            }
+                            transition={
+                              reducedMotion
+                                ? { duration: 0.2 }
+                                : {
+                                    type: "spring",
+                                    stiffness: 240,
+                                    damping: 22,
+                                    mass: 0.8,
+                                  }
+                            }
+                            className="w-full max-w-xl min-h-[300px] p-8 rounded-3xl vb-letterpress-surface shadow-card flex flex-col justify-between cursor-pointer select-none relative outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring [transform-style:preserve-3d] transition-shadow duration-300 overflow-hidden"
                           >
+                            {/* Dynamic Specular Sheen Glare */}
+                            <div
+                              className="pointer-events-none absolute inset-0 rounded-3xl transition-opacity duration-200 z-10"
+                              style={{
+                                opacity: cardGlare.opacity,
+                                background: `radial-gradient(circle at ${cardGlare.x}% ${cardGlare.y}%, rgba(255, 255, 255, 0.45) 0%, transparent 60%)`,
+                              }}
+                              aria-hidden="true"
+                            />
+
                             {/* Front Side */}
                             <div
                               className={cx(
-                                "space-y-4 flex flex-col justify-between h-full",
+                                "space-y-4 flex flex-col justify-between h-full relative z-20",
                                 isFlipped && "invisible"
                               )}
                             >
@@ -3120,11 +3303,11 @@ export default function StudioPage() {
                                   </Chip>
                                 )}
                               </div>
-                              <p className="text-title-2-semibold text-text-primary text-center my-auto leading-snug">
+                              <p className="font-display vb-deboss text-title-1-medium text-text-primary text-center my-auto leading-snug px-2">
                                 {currentFlashcard?.front}
                               </p>
                               {showFlashcardHint && currentFlashcard?.hint && (
-                                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-caption-2-regular text-amber-700 dark:text-amber-300">
+                                <div className="p-3 rounded-xl bg-amber-500/10 text-caption-2-regular text-warning">
                                   {isEn ? "Hint:" : "Petunjuk:"} {currentFlashcard.hint}
                                 </div>
                               )}
@@ -3133,7 +3316,7 @@ export default function StudioPage() {
                             {/* Back Side */}
                             <div
                               className={cx(
-                                "space-y-4 flex flex-col justify-between h-full [transform:rotateY(180deg)] absolute inset-8",
+                                "space-y-4 flex flex-col justify-between h-full [transform:rotateY(180deg)] absolute inset-8 z-20",
                                 !isFlipped && "invisible"
                               )}
                             >
@@ -3145,7 +3328,7 @@ export default function StudioPage() {
                                   {isEn ? "Click to flip back" : "Klik untuk membalik kembali"}
                                 </span>
                               </div>
-                              <p className="text-body-1-regular sm:text-title-3-semibold text-text-primary text-center my-auto leading-relaxed">
+                              <p className="font-display vb-deboss text-body-1-medium sm:text-title-2-medium text-text-primary text-center my-auto leading-relaxed px-2">
                                 {currentFlashcard?.back}
                               </p>
                               <div className="text-center text-caption-2-regular text-text-tertiary">
@@ -3247,9 +3430,9 @@ export default function StudioPage() {
                                 className={cx(
                                   "h-2 rounded-full transition-all cursor-pointer",
                                   safeCardCursor === i
-                                    ? "bg-accent-700 w-5"
+                                    ? "bg-background-tertiary-default border border-border-button-default w-5"
                                     : masteredCards.includes(originalIndex)
-                                      ? "bg-accent-700/40 w-2"
+                                      ? "bg-text-tertiary/40 w-2"
                                       : "bg-border-button-default w-2"
                                 )}
                               />
@@ -3278,7 +3461,7 @@ export default function StudioPage() {
                     )}
 
                     {/* Expand Deck with DeepSeek AI */}
-                    <div className="flex flex-col gap-2.5 rounded-2xl border border-border-button-default bg-background-secondary-default/40 p-4 sm:flex-row sm:items-center">
+                    <div className="flex flex-col gap-2.5 rounded-2xl bg-background-secondary-default/40 p-4 sm:flex-row sm:items-center">
                       <input
                         type="text"
                         value={cardFocusInput}
@@ -3289,7 +3472,7 @@ export default function StudioPage() {
                             ? "Optional focus for new cards (e.g. compare concepts, formulas)..."
                             : "Fokus kartu tambahan (opsional, mis. perbandingan konsep, studi kasus)..."
                         }
-                        className="h-10 flex-1 rounded-xl border border-border-button-default bg-background-primary-default px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        className="h-10 flex-1 rounded-xl ring-1 ring-inset ring-[var(--vb-border)] bg-background-primary-default px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500"
                       />
                       <Button
                         type="button"
@@ -3317,15 +3500,15 @@ export default function StudioPage() {
                 {activeTab === "quiz" && (
                   <div className="space-y-6">
                     {/* Wayground-style instant practice entry */}
-                    <div className="flex flex-col gap-3 rounded-2xl border border-accent-500/25 bg-accent-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 rounded-2xl bg-accent-500/5 p-4 sm:flex-row sm:items-center sm:justify-between">
                       <div className="flex items-start gap-3">
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-accent-700 text-text-white">
+                        <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-background-tertiary-default text-text-primary border border-border-button-default">
                           <RiPlayCircleLine className="size-5" />
                         </span>
                         <div className="space-y-0.5">
                           <div className="flex flex-wrap items-center gap-2">
                             <h4 className="text-body-2-semibold text-text-primary">
-                              {isEn ? "Instant quiz" : "Kuis instan"}
+                              {isEn ? "Quick quiz" : "Kuis cepat"}
                             </h4>
                             <Chip variant="caption" color="blue">
                               {isEn ? "Solo practice" : "Latihan mandiri"}
@@ -3340,19 +3523,19 @@ export default function StudioPage() {
                       </div>
                       <Button
                         type="button"
-                        variant="primary"
+                        variant="secondary"
                         size="medium"
                         onClick={openSourceInstantQuiz}
                         disabled={displayedQuestions.length === 0}
                         leadingIcon={RiPlayCircleLine}
                         className="shrink-0 justify-center"
                       >
-                        {isEn ? "Start instant quiz" : "Mulai kuis instan"}
+                        {isEn ? "Start quick quiz" : "Mulai kuis cepat"}
                       </Button>
                     </div>
 
                     {/* Difficulty Slider Bar */}
-                    <div className="p-4 rounded-2xl bg-background-secondary-default/50 border border-border-button-default space-y-3">
+                    <div className="p-4 rounded-2xl bg-background-secondary-default/50 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="space-y-0.5">
                           <span className="text-caption-2-medium text-text-tertiary block">
@@ -3415,9 +3598,9 @@ export default function StudioPage() {
                         return (
                           <article
                             key={key}
-                            className="overflow-hidden rounded-2xl border border-border-button-default bg-background-primary-default"
+                            className="overflow-hidden rounded-2xl bg-background-primary-default"
                           >
-                            <div className="space-y-3 border-b border-separator-border bg-background-secondary-default/40 p-5">
+                            <div className="space-y-3 bg-background-secondary-default/40 p-5">
                               <div className="flex items-center justify-between gap-3">
                                 <span className="font-mono text-caption-2-medium text-text-tertiary">
                                   {String(idx + 1).padStart(2, "0")} /{" "}
@@ -3473,24 +3656,24 @@ export default function StudioPage() {
                                         );
                                       }}
                                       className={cx(
-                                        "flex w-full cursor-pointer flex-col justify-between gap-2 rounded-xl border p-3 text-start text-caption-1-regular transition-all",
+                                        "flex w-full cursor-pointer flex-col justify-between gap-2 rounded-xl p-3 text-start text-caption-1-regular transition-all",
                                         isSelected
                                           ? opt.isCorrect
-                                            ? "border-emerald-500 bg-emerald-500/15 text-text-primary"
-                                            : "border-border-error-default bg-rose-500/10 text-text-primary"
-                                          : "border-border-button-default bg-background-primary-default text-text-secondary hover:border-border-button-hover hover:bg-background-secondary-default hover:text-text-primary"
+                                            ? "bg-emerald-500/15 text-text-primary"
+                                            : "bg-rose-500/10 text-text-primary"
+                                          : "bg-background-primary-default text-text-secondary hover:bg-background-secondary-default hover:text-text-primary"
                                       )}
                                     >
                                       <span className="flex w-full items-start justify-between gap-2">
                                         <span className="flex min-w-0 items-start gap-2.5">
                                           <span
                                             className={cx(
-                                              "mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-lg border font-mono text-caption-2-semibold",
+                                              "mt-0.5 inline-flex size-6 shrink-0 items-center justify-center rounded-lg font-mono text-caption-2-semibold",
                                               isSelected && opt.isCorrect
-                                                ? "border-emerald-600 bg-emerald-600 text-white"
+                                                ? "bg-emerald-600 text-white"
                                                 : isSelected
-                                                  ? "border-rose-600 bg-rose-600 text-white"
-                                                  : "border-border-button-default bg-background-secondary-default text-text-tertiary"
+                                                  ? "bg-rose-600 text-white"
+                                                  : "bg-background-secondary-default text-text-tertiary"
                                             )}
                                           >
                                             {opt.label}
@@ -3504,7 +3687,7 @@ export default function StudioPage() {
                                             className={cx(
                                               "inline-flex size-5 shrink-0 items-center justify-center rounded-full",
                                               opt.isCorrect
-                                                ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300"
+                                                ? "bg-emerald-500/20 text-state-success-text"
                                                 : "bg-rose-500/20 text-text-error-primary"
                                             )}
                                           >
@@ -3521,7 +3704,7 @@ export default function StudioPage() {
                                 })}
                               </div>
 
-                              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-separator-border pt-3">
+                              <div className="flex flex-wrap items-center justify-between gap-2 pt-3">
                                 <span className="text-caption-2-regular text-text-tertiary">
                                   {selectedOption
                                     ? isCorrect
@@ -3623,8 +3806,8 @@ export default function StudioPage() {
                 {activeTab === "slides" && processedDoc.slideDeck && (
                   <div className="space-y-6">
                     {/* Presentation Preview Card */}
-                    <div className="p-8 rounded-3xl bg-background-secondary-default border border-border-button-default shadow-card min-h-[300px] flex flex-col justify-between space-y-6">
-                      <div className="flex items-center justify-between border-b border-separator-border pb-3">
+                    <div className="p-8 rounded-3xl bg-background-secondary-default shadow-card min-h-[300px] flex flex-col justify-between space-y-6">
+                      <div className="flex items-center justify-between pb-3">
                         <span className="text-caption-2-medium text-text-tertiary font-mono">
                           {isEn
                             ? `Slide ${activeSlideIndex + 1} of ${processedDoc.slideDeck.length}`
@@ -3650,7 +3833,7 @@ export default function StudioPage() {
                       </div>
 
                       {/* Presenter Notes */}
-                      <div className="p-3.5 rounded-2xl bg-background-primary-default border border-border-button-default text-caption-1-regular text-text-secondary">
+                      <div className="p-3.5 rounded-2xl bg-background-primary-default text-caption-1-regular text-text-secondary">
                         <strong className="text-caption-2-semibold text-text-primary block mb-1">
                           {isEn ? "Presenter notes:" : "Catatan pengajar:"}
                         </strong>
@@ -3671,7 +3854,7 @@ export default function StudioPage() {
                             }}
                             className={cx(
                               "size-2.5 rounded-full transition-all cursor-pointer",
-                              activeSlideIndex === i ? "bg-accent-700 w-6" : "bg-border-button-default"
+                              activeSlideIndex === i ? "bg-background-tertiary-default border border-border-button-default w-6" : "bg-border-button-default"
                             )}
                             title={`Slide ${i + 1}`}
                           />
@@ -3759,9 +3942,9 @@ export default function StudioPage() {
                       </div>
                     </div>
 
-                    <div className="p-5 sm:p-6 rounded-3xl bg-background-secondary-default/50 border border-border-button-default shadow-card space-y-6">
+                    <div className="p-5 sm:p-6 rounded-3xl bg-background-secondary-default/50 shadow-card space-y-6">
                       {/* Root Node */}
-                      <div className="mx-auto max-w-2xl rounded-2xl border border-accent-500/35 bg-accent-500/10 p-5 text-center space-y-1.5">
+                      <div className="mx-auto max-w-2xl rounded-2xl bg-accent-500/10 p-5 text-center space-y-1.5">
                         <span className="text-caption-2-medium text-accent-700 block">
                           {isEn ? "Central concept" : "Akar konsep utama"}
                         </span>
@@ -3781,7 +3964,7 @@ export default function StudioPage() {
                           return (
                             <div
                               key={branch.id || bIdx}
-                              className="rounded-2xl border border-border-button-default bg-background-primary-default p-4 space-y-3 flex flex-col justify-between"
+                              className="rounded-2xl bg-background-primary-default p-4 space-y-3 flex flex-col justify-between"
                             >
                               <div className="space-y-2.5">
                                 <div className="flex items-start justify-between gap-2">
@@ -3820,7 +4003,7 @@ export default function StudioPage() {
                                             [branch.id]: !prev[branch.id],
                                           }));
                                         }}
-                                        className="inline-flex items-center gap-1 rounded-lg border border-border-button-default bg-background-secondary-default px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:text-text-primary cursor-pointer"
+                                        className="inline-flex items-center gap-1 rounded-lg bg-background-secondary-default px-2 py-0.5 font-mono text-[11px] text-text-secondary hover:text-text-primary cursor-pointer"
                                       >
                                         <span>{childCount}</span>
                                         {isCollapsed ? (
@@ -3839,7 +4022,7 @@ export default function StudioPage() {
 
                                 {/* Sub-children */}
                                 {!isCollapsed && branch.children && branch.children.length > 0 && (
-                                  <div className="pt-2 border-t border-separator-border space-y-2">
+                                  <div className="pt-2 space-y-2">
                                     {branch.children.map((leaf: MindMapNode, lIdx) => (
                                       <button
                                         key={leaf.id || lIdx}
@@ -3849,10 +4032,10 @@ export default function StudioPage() {
                                           setSelectedMindMapNode(leaf);
                                         }}
                                         className={cx(
-                                          "w-full text-start p-2.5 rounded-xl border transition-colors cursor-pointer space-y-0.5",
+                                          "w-full text-start p-2.5 rounded-xl transition-colors cursor-pointer space-y-0.5",
                                           selectedMindMapNode?.id === leaf.id
-                                            ? "border-accent-500/50 bg-accent-500/10"
-                                            : "bg-background-secondary-default/60 border-border-button-default hover:border-accent-500/35"
+                                            ? "bg-accent-500/10"
+                                            : "bg-background-secondary-default/60 hover:bg-background-secondary-default/80"
                                         )}
                                       >
                                         <span className="font-semibold text-xs text-text-primary block">
@@ -3867,7 +4050,7 @@ export default function StudioPage() {
                                 )}
                               </div>
 
-                              <div className="pt-2 border-t border-separator-border/60 flex items-center justify-end">
+                              <div className="pt-2 /60 flex items-center justify-end">
                                 <button
                                   type="button"
                                   disabled={expandingArtifact === "mindmap"}
@@ -3930,7 +4113,7 @@ export default function StudioPage() {
                 {activeTab === "report" && processedDoc.report && (
                   <div className="space-y-6">
                     {/* Executive Summary */}
-                    <div className="p-5 rounded-2xl bg-background-secondary-default/50 border border-border-button-default space-y-2">
+                    <div className="p-5 rounded-2xl bg-background-secondary-default/50 space-y-2">
                       <span className="text-caption-2-medium text-text-tertiary block">
                         {isEn ? "Executive briefing document" : "Dokumen rangkuman laporan"}
                       </span>
@@ -3941,7 +4124,7 @@ export default function StudioPage() {
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Core Competencies */}
-                      <div className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/30 space-y-3">
+                      <div className="p-5 rounded-2xl bg-background-secondary-default/30 space-y-3">
                         <h4 className="text-body-1-semibold text-text-primary flex items-center gap-2">
                           <RiCheckDoubleLine className="size-4 text-emerald-500" />
                           <span>
@@ -3959,7 +4142,7 @@ export default function StudioPage() {
                       </div>
 
                       {/* Difficulty Hotspots */}
-                      <div className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/30 space-y-3">
+                      <div className="p-5 rounded-2xl bg-background-secondary-default/30 space-y-3">
                         <h4 className="text-body-1-semibold text-text-primary flex items-center gap-2">
                           <RiFireLine className="size-4 text-rose-500" />
                           <span>
@@ -3980,7 +4163,7 @@ export default function StudioPage() {
                     {/* Prerequisite Knowledge */}
                     {processedDoc.report.prerequisiteKnowledge &&
                       processedDoc.report.prerequisiteKnowledge.length > 0 && (
-                        <div className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/25 space-y-2.5">
+                        <div className="p-5 rounded-2xl bg-background-secondary-default/25 space-y-2.5">
                           <h4 className="text-body-2-semibold text-text-primary">
                             {isEn ? "Prerequisite foundation" : "Pengetahuan prasyarat"}
                           </h4>
@@ -3988,7 +4171,7 @@ export default function StudioPage() {
                             {processedDoc.report.prerequisiteKnowledge.map((pre, idx) => (
                               <span
                                 key={idx}
-                                className="rounded-xl border border-border-button-default bg-background-primary-default px-3 py-1.5 text-caption-1-regular text-text-secondary"
+                                className="rounded-xl bg-background-primary-default px-3 py-1.5 text-caption-1-regular text-text-secondary"
                               >
                                 {pre}
                               </span>
@@ -4008,7 +4191,7 @@ export default function StudioPage() {
                             {processedDoc.report.sections.map((sec, idx) => (
                               <div
                                 key={idx}
-                                className="rounded-2xl border border-border-button-default bg-background-primary-default p-5 space-y-3"
+                                className="rounded-2xl bg-background-primary-default p-5 space-y-3"
                               >
                                 <h5 className="text-body-1-semibold text-text-primary">
                                   {sec.heading}
@@ -4017,7 +4200,7 @@ export default function StudioPage() {
                                   {sec.content}
                                 </p>
                                 {sec.keyPoints && sec.keyPoints.length > 0 && (
-                                  <ul className="space-y-1.5 pt-2 border-t border-separator-border text-caption-1-regular text-text-secondary">
+                                  <ul className="space-y-1.5 pt-2 text-caption-1-regular text-text-secondary">
                                     {sec.keyPoints.map((kp, kIdx) => (
                                       <li key={kIdx} className="flex items-start gap-2">
                                         <span className="text-accent-700 font-bold">•</span>
@@ -4034,7 +4217,7 @@ export default function StudioPage() {
 
                     {/* Recommended Action */}
                     {processedDoc.report.recommendedAction && (
-                      <div className="p-4 rounded-2xl bg-accent-500/10 border border-accent-500/25 text-caption-1-regular text-text-primary space-y-1">
+                      <div className="p-4 rounded-2xl bg-accent-500/10 text-caption-1-regular text-text-primary space-y-1">
                         <strong className="text-accent-700 font-semibold block">
                           {isEn
                             ? "Recommended learning progression:"
@@ -4123,14 +4306,14 @@ export default function StudioPage() {
                             ? "Filter table rows by keyword..."
                             : "Cari kata kunci di dalam tabel data..."
                         }
-                        className="h-9 w-full rounded-xl border border-border-button-default bg-background-secondary-default/50 px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        className="h-9 w-full rounded-xl ring-1 ring-inset ring-[var(--vb-border)] bg-background-secondary-default/50 px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500"
                       />
                     </div>
 
-                    <div className="rounded-2xl border border-border-button-default overflow-hidden bg-background-secondary-default/40">
+                    <div className="rounded-2xl overflow-hidden bg-background-secondary-default/40">
                       <div className="overflow-x-auto">
                         <table className="w-full text-start text-caption-1-regular">
-                          <thead className="bg-background-primary-default border-b border-separator-border text-text-secondary">
+                          <thead className="bg-background-primary-default text-text-secondary">
                             <tr>
                               {processedDoc.dataTable.columns.map((col, i) => (
                                 <th key={i} className="py-3 px-4 font-semibold text-xs">
@@ -4139,7 +4322,7 @@ export default function StudioPage() {
                               ))}
                             </tr>
                           </thead>
-                          <tbody className="divide-y divide-separator-border">
+                          <tbody className="">
                             {processedDoc.dataTable.rows
                               .filter((row) => {
                                 const q = tableSearchQuery.trim().toLowerCase();
@@ -4223,11 +4406,11 @@ export default function StudioPage() {
                       {processedDoc.infographic.pillars.map((pillar, i) => (
                         <div
                           key={i}
-                          className="p-5 rounded-2xl border border-border-button-default bg-background-secondary-default/50 space-y-3 flex flex-col justify-between"
+                          className="p-5 rounded-2xl bg-background-secondary-default/50 space-y-3 flex flex-col justify-between"
                         >
                           <div className="space-y-2.5">
                             <div className="flex items-center gap-2.5">
-                              <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-lg bg-accent-700 text-text-white font-mono text-xs font-bold">
+                              <span className="inline-flex size-6 shrink-0 items-center justify-center rounded-lg bg-background-tertiary-default text-text-primary border border-border-button-default font-mono text-xs font-bold">
                                 {i + 1}
                               </span>
                               <h4 className="text-body-1-semibold text-text-primary">
@@ -4244,7 +4427,7 @@ export default function StudioPage() {
                             </ul>
                           </div>
                           {pillar.quoteOrMnemonic && (
-                            <div className="pt-3 border-t border-separator-border text-caption-2-semibold text-accent-700 dark:text-accent-300 italic">
+                            <div className="pt-3 text-caption-2-semibold text-accent-700 italic">
                               &ldquo;{pillar.quoteOrMnemonic}&rdquo;
                             </div>
                           )}
@@ -4289,400 +4472,145 @@ export default function StudioPage() {
             )}
           </section>
 
-          <aside className="space-y-4 lg:col-span-12 lg:grid lg:grid-cols-2 lg:gap-4 lg:space-y-0 xl:col-span-3 xl:block xl:space-y-4">
-            {/* Topic-to-quiz generator: no source document required */}
-            <ScrollReveal
-              variant="slide-up"
-              delay={60}
-              className="space-y-3 rounded-2xl border border-separator-border bg-background-full p-4 shadow-card"
+        </div>
+      </main>
+
+      {/* Floating Exile Copilot toggle button */}
+      <button
+        type="button"
+        onClick={() => {
+          soundEffects.playClick();
+          setIsCopilotDrawerOpen((prev) => !prev);
+        }}
+        aria-label={
+          isCopilotDrawerOpen
+            ? isEn
+              ? "Close Exile copilot"
+              : "Tutup Exile copilot"
+            : isEn
+              ? "Open Exile copilot"
+              : "Buka Exile copilot"
+        }
+        title="Exile copilot"
+        className={cx(
+          "fixed bottom-5 end-5 z-50 size-12 rounded-full",
+          "bg-background-primary-default hover:bg-background-secondary-default text-text-primary shadow-xl",
+          "flex items-center justify-center transition-all cursor-pointer border-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+          isCopilotDrawerOpen && "scale-95"
+        )}
+      >
+        {isCopilotDrawerOpen ? (
+          <RiCloseLine className="size-5 shrink-0" aria-hidden="true" />
+        ) : (
+          <RiCopilotFill className="size-5 shrink-0 text-accent-700" aria-hidden="true" />
+        )}
+      </button>
+
+      {/* Exile Copilot Right-Side Drawer */}
+      <AnimatePresence>
+        {isCopilotDrawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setIsCopilotDrawerOpen(false)}
+              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-xs"
+              aria-hidden="true"
+            />
+
+            {/* Drawer */}
+            <motion.aside
+              role="dialog"
+              aria-label="Exile copilot"
+              aria-modal="true"
+              initial={{ opacity: 0, x: 40, scale: 0.98 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 40, scale: 0.98 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed top-3 bottom-20 end-4 z-50 flex w-full max-w-[420px] flex-col rounded-3xl bg-background-primary-default shadow-2xl border-0 overflow-hidden"
             >
-              <div className="flex items-center justify-between border-b border-separator-border pb-3">
-                <div className="flex items-center gap-2.5">
-                  <div className="size-8 rounded-xl bg-accent-700/10 text-accent-700 border border-accent-700/20 flex items-center justify-center">
+              {/* Pinned Drawer Header */}
+              <div className="flex shrink-0 items-center justify-between px-5 py-4 bg-background-secondary-default/50">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="size-8 rounded-xl bg-background-tertiary-default text-text-primary flex items-center justify-center shrink-0">
                     <RiCopilotFill className="size-4" />
                   </div>
-                  <h4 className="text-body-2-semibold text-text-primary">
-                    {isEn ? "Instant quiz" : "Kuis instan"}
-                  </h4>
+                  <div>
+                    <h3 className="text-body-1-semibold text-text-primary truncate">
+                      Exile copilot
+                    </h3>
+                    <p className="text-caption-2-regular text-text-secondary">
+                      {isEn ? "Context-aware AI tutor & studio assistant" : "Asisten studio & tutor AI kontekstual"}
+                    </p>
+                  </div>
                 </div>
-              </div>
-
-              <Input
-                label={isEn ? "Quiz topic" : "Topik kuis"}
-                placeholder={
-                  isEn
-                    ? "E.g. basa bali alus for grade 8"
-                    : "Mis. basa bali alus kelas 8"
-                }
-                hint={
-                  isEn
-                    ? "Multiple-choice questions are generated automatically."
-                    : "Soal pilihan ganda dibuat otomatis."
-                }
-                value={aiQuizTopic}
-                onChange={setAiQuizTopic}
-                maxLength={140}
-              />
-
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-caption-1-medium text-text-secondary">
-                    {isEn ? "Questions" : "Jumlah soal"}
-                  </span>
-                  <span className="rounded-lg border border-border-button-default bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
-                    {aiQuizCount} {isEn ? "questions" : "soal"}
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  min={3}
-                  max={15}
-                  step={1}
-                  aria-label={isEn ? "Questions" : "Jumlah soal"}
-                  value={aiQuizCount}
-                  onChange={(e) => {
+                <button
+                  type="button"
+                  onClick={() => {
                     soundEffects.playClick();
-                    setAiQuizCount(Number(e.target.value));
+                    setIsCopilotDrawerOpen(false);
                   }}
-                  className="w-full h-2 rounded-lg bg-border-button-default accent-accent-700 cursor-pointer"
-                />
-                <div className="flex justify-between px-0.5 font-mono text-[11px] text-text-tertiary">
-                  <span>3</span>
-                  <span>8</span>
-                  <span>15</span>
-                </div>
+                  className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-background-secondary-default transition-colors cursor-pointer shrink-0 border-0"
+                  aria-label={isEn ? "Close" : "Tutup"}
+                  title={isEn ? "Close exile copilot" : "Tutup exile copilot"}
+                >
+                  <RiCloseLine className="size-4" />
+                </button>
               </div>
 
-              <div className="space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-caption-1-medium text-text-secondary">
-                    {isEn ? "Difficulty" : "Tingkat kesulitan"}
-                  </span>
-                  <span className="rounded-lg border border-border-button-default bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
-                    {aiQuizDifficulty === "mudah"
-                      ? isEn
-                        ? "Easy"
-                        : "Mudah"
-                      : aiQuizDifficulty === "sedang"
-                        ? isEn
-                          ? "Medium"
-                          : "Sedang"
-                        : aiQuizDifficulty === "sulit"
-                          ? isEn
-                            ? "Hard"
-                            : "Sulit"
-                          : isEn
-                            ? "Mixed"
-                            : "Campuran"}
-                  </span>
-                </div>
-                <div className="grid grid-cols-4 gap-1 rounded-xl border border-border-button-default bg-background-secondary-default p-1">
-                  {(
-                    [
-                      { id: "mudah", labelId: "Mudah", labelEn: "Easy" },
-                      { id: "sedang", labelId: "Sedang", labelEn: "Medium" },
-                      { id: "sulit", labelId: "Sulit", labelEn: "Hard" },
-                      { id: "campuran", labelId: "Campuran", labelEn: "Mixed" },
-                    ] as const
-                  ).map((lvl) => {
-                    const active = aiQuizDifficulty === lvl.id;
-                    return (
-                      <button
-                        key={lvl.id}
-                        type="button"
-                        disabled={aiQuizLoading}
-                        onClick={() => {
-                          soundEffects.playClick();
-                          setAiQuizDifficulty(lvl.id);
-                        }}
-                        className={cx(
-                          "rounded-lg px-1.5 py-1 text-center text-caption-1-medium transition-colors cursor-pointer",
-                          active
-                            ? "bg-accent-700 text-text-white font-semibold shadow-2xs"
-                            : "text-text-secondary hover:text-text-primary hover:bg-background-tertiary-default"
-                        )}
-                      >
-                        {isEn ? lvl.labelEn : lvl.labelId}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              <Button
-                type="button"
-                variant="primary"
-                size="medium"
-                onClick={handleGenerateAiQuiz}
-                disabled={
-                  aiQuizLoading ||
-                  (aiQuizTopic.trim().length < 2 && docText.trim().length < 20)
-                }
-                className="w-full justify-center gap-1.5"
-              >
-                <RiCopilotFill
-                  className={cx("size-4", aiQuizLoading && "animate-spin")}
-                />
-                <span>
-                  {aiQuizLoading
-                    ? isEn
-                      ? "Generating..."
-                      : "Menyusun soal..."
-                    : isEn
-                      ? "Create quiz"
-                      : "Buat kuis"}
-                </span>
-              </Button>
-
-              {aiQuiz && (
-                <div className="overflow-hidden rounded-2xl border border-accent-500/25 bg-background-primary-default">
-                  <div className="space-y-3 border-b border-separator-border bg-accent-500/5 p-4">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="min-w-0 space-y-1">
-                        <span className="block text-caption-2-medium tracking-wide text-text-tertiary">
-                          {isEn ? "Study set" : "Set belajar"}
-                        </span>
-                        <h5 className="text-body-1-semibold leading-snug text-text-primary">
-                          {aiQuiz.quiz.title}
-                        </h5>
+              {/* Scrollable Message History with ScrollFade */}
+              <div className="relative flex min-h-0 flex-1 flex-col">
+                <div
+                  onScroll={copilotScrollFade.onScroll}
+                  className="min-h-0 flex-1 overflow-y-auto p-4 space-y-3"
+                >
+                  {chatMessages.map((msg, i) => (
+                    <div
+                      key={i}
+                      className={cx(
+                        "p-3 rounded-2xl leading-relaxed text-xs space-y-1.5",
+                        msg.role === "user"
+                          ? "bg-accent-500/15 text-text-primary ms-4"
+                          : "bg-background-secondary-default text-text-secondary me-4"
+                      )}
+                    >
+                      <div className="font-semibold text-caption-2-medium text-text-tertiary">
+                        {msg.role === "user" ? (isEn ? "You" : "Anda") : "Exile copilot"}
                       </div>
-                      <Chip variant="caption" color="blue">
-                        {aiQuiz.quiz.questions.length} {isEn ? "questions" : "soal"}
-                      </Chip>
-                    </div>
-                    {aiQuizConcepts.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5">
-                        {aiQuizConcepts.map((concept) => (
-                          <Chip key={concept} variant="caption" color="gray">
-                            {concept}
-                          </Chip>
-                        ))}
-                      </div>
-                    )}
-                    <div className="flex items-center gap-2 pt-1">
-                      <Button
-                        type="button"
-                        variant="primary"
-                        size="small"
-                        onClick={openAiInstantQuiz}
-                        leadingIcon={RiPlayCircleLine}
-                        className="flex-1 justify-center"
-                      >
-                        {isEn ? "Play now" : "Main sekarang"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="small"
-                        onClick={handleLaunchAiQuiz}
-                        disabled={launchingRoom}
-                        leadingIcon={RiPlayCircleLine}
-                        className="flex-1 justify-center"
-                      >
-                        {launchingRoom
-                          ? isEn
-                            ? "Opening..."
-                            : "Membuka..."
-                          : isEn
-                            ? "Launch live"
-                            : "Luncurkan live"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="small"
-                        iconOnly
-                        onClick={handleGenerateAiQuiz}
-                        disabled={aiQuizLoading}
-                        leadingIcon={RiRefreshLine}
-                        aria-label={isEn ? "Regenerate quiz" : "Buat ulang kuis"}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2 p-3">
-                    {aiQuiz.quiz.questions.map((question, index) => {
-                      const isOpen = expandedAiQuestionIndex === index;
-                      const pickedLabel = aiQuizAnswers[index];
-                      return (
-                        <div
-                          key={`${index}-${question.conceptTag}`}
-                          className="overflow-hidden rounded-xl border border-border-button-default bg-background-primary-default"
-                        >
-                          <button
-                            type="button"
-                            onClick={() => {
-                              soundEffects.playClick();
-                              setExpandedAiQuestionIndex(isOpen ? null : index);
-                            }}
-                            aria-expanded={isOpen}
-                            aria-controls={`ai-question-explanation-${index}`}
-                            className="flex w-full items-start gap-2.5 p-3 text-start transition-colors hover:bg-background-secondary-default/60 cursor-pointer"
-                          >
-                            <span className="mt-0.5 font-mono text-caption-2-medium text-text-tertiary">
-                              {String(index + 1).padStart(2, "0")}
-                            </span>
-                            <span className="flex min-w-0 flex-1 flex-col gap-1">
-                              <span className="block text-caption-1-medium leading-snug text-text-primary">
-                                {question.question}
-                              </span>
-                              <Chip variant="caption" color="gray">
-                                {question.conceptTag}
-                              </Chip>
-                            </span>
-                            <span className="mt-0.5 flex shrink-0 items-center gap-1 text-caption-2-medium text-accent-700">
-                              <span className="hidden sm:inline">
-                                {isOpen
-                                  ? isEn
-                                    ? "Hide"
-                                    : "Tutup"
-                                  : isEn
-                                    ? "Answer"
-                                    : "Jawab"}
-                              </span>
-                              {isOpen ? (
-                                <RiArrowUpSLine className="size-4" />
-                              ) : (
-                                <RiArrowDownSLine className="size-4" />
-                              )}
-                            </span>
-                          </button>
-                          <AnimatePresence initial={false}>
-                            {isOpen && (
-                              <motion.div
-                                id={`ai-question-explanation-${index}`}
-                                initial={{ height: 0, opacity: 0 }}
-                                animate={{ height: "auto", opacity: 1 }}
-                                exit={{ height: 0, opacity: 0 }}
-                                className="overflow-hidden border-t border-separator-border"
-                              >
-                                <div className="space-y-3 p-3">
-                                  <div className="grid grid-cols-1 gap-2">
-                                    {question.options.map((opt) => {
-                                      const isSelected = pickedLabel === opt.label;
-                                      return (
-                                        <button
-                                          key={opt.label}
-                                          type="button"
-                                          onClick={() => {
-                                            soundEffects.playClick();
-                                            setAiQuizAnswers((prev) => ({
-                                              ...prev,
-                                              [index]: opt.label,
-                                            }));
-                                          }}
-                                          className={cx(
-                                            "flex w-full items-start justify-between gap-2 rounded-xl border p-2.5 text-start text-caption-2-regular transition-colors cursor-pointer",
-                                            isSelected
-                                              ? opt.isCorrect
-                                                ? "border-emerald-500 bg-emerald-500/15 text-text-primary"
-                                                : "border-border-error-default bg-rose-500/10 text-text-primary"
-                                              : "border-border-button-default bg-background-primary-default text-text-secondary hover:bg-background-secondary-default"
-                                          )}
-                                        >
-                                          <span className="flex items-start gap-2 min-w-0">
-                                            <span
-                                              className={cx(
-                                                "inline-flex size-5 shrink-0 items-center justify-center rounded-md border font-mono text-[11px] font-semibold",
-                                                isSelected && opt.isCorrect
-                                                  ? "border-emerald-600 bg-emerald-600 text-white"
-                                                  : isSelected
-                                                    ? "border-rose-600 bg-rose-600 text-white"
-                                                    : "border-border-button-default bg-background-secondary-default text-text-tertiary"
-                                              )}
-                                            >
-                                              {opt.label}
-                                            </span>
-                                            <span className="leading-snug">{opt.text}</span>
-                                          </span>
-                                          {isSelected ? (
-                                            opt.isCorrect ? (
-                                              <RiCheckLine className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                                            ) : (
-                                              <RiCloseLine className="size-4 shrink-0 text-text-error-primary" />
-                                            )
-                                          ) : null}
-                                        </button>
-                                      );
-                                    })}
-                                  </div>
-                                  {pickedLabel && (
-                                    <ExplanationPanel
-                                      question={question}
-                                      selectedLabel={pickedLabel}
-                                      isEn={isEn}
-                                      showDistractorBreakdown={showDistractorRationale}
-                                      contextLabel={aiQuizTopic.trim() || sourceLabel}
-                                      compact
-                                    />
-                                  )}
-                                </div>
-                              </motion.div>
-                            )}
-                          </AnimatePresence>
+                      {msg.imagePreview && (
+                        <div className="rounded-lg overflow-hidden max-w-[160px]">
+                          <Image
+                            src={msg.imagePreview}
+                            alt="Lampiran tangkapan layar"
+                            width={320}
+                            height={180}
+                            unoptimized
+                            className="w-full h-auto object-cover max-h-24"
+                          />
                         </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </ScrollReveal>
-
-            {/* Studio Copilot Multi-turn Chat Panel with Screenshot Image Upload */}
-            <ScrollReveal variant="slide-up" delay={80} className="space-y-3 rounded-2xl border border-separator-border bg-background-full p-4 shadow-card">
-              <div className="flex items-center justify-between border-b border-separator-border pb-3">
-                <div className="flex items-center gap-2">
-                  <RiCopilotFill className="size-4 text-accent-700" />
-                  <h4 className="text-body-2-semibold text-text-primary">
-                    {t.studio.copilotTitle}
-                  </h4>
-                </div>
-                <span className="text-caption-2-regular text-text-tertiary">
-                  {t.studio.copilotSubtitle}
-                </span>
-              </div>
-
-              {/* Message History */}
-              <div className="space-y-3 max-h-64 overflow-y-auto pr-1 text-caption-1-regular">
-                {chatMessages.map((msg, i) => (
-                  <div
-                    key={i}
-                    className={cx(
-                      "p-3 rounded-2xl leading-relaxed text-xs space-y-1.5",
-                      msg.role === "user"
-                        ? "bg-accent-500/15 text-text-primary ml-4 border border-accent-500/20"
-                        : "bg-background-secondary-default text-text-secondary mr-4 border border-border-button-default"
-                    )}
-                  >
-                    <div className="font-semibold text-caption-2-medium text-text-tertiary">
-                      {msg.role === "user" ? (isEn ? "You" : "Anda") : "Exile copilot"}
+                      )}
+                      <FormattedMessage content={msg.content} />
                     </div>
-                    {msg.imagePreview && (
-                      <div className="rounded-lg overflow-hidden border border-border-button-default max-w-[160px]">
-                        <Image
-                          src={msg.imagePreview}
-                          alt="Lampiran tangkapan layar"
-                          width={320}
-                          height={180}
-                          unoptimized
-                          className="w-full h-auto object-cover max-h-24"
-                        />
-                      </div>
-                    )}
-                    <FormattedMessage content={msg.content} />
-                  </div>
-                ))}
-                {chatLoading && (
-                  <div className="p-3 rounded-2xl bg-background-secondary-default text-text-tertiary text-xs animate-pulse">
-                    {isEn ? "Exile Copilot is reasoning through context..." : "Exile Copilot sedang menganalisis masukan..."}
-                  </div>
-                )}
-                <div ref={chatBottomRef} />
+                  ))}
+                  {chatLoading && (
+                    <div className="p-3 rounded-2xl bg-background-secondary-default text-text-tertiary text-xs animate-pulse">
+                      {isEn ? "Exile Copilot is reasoning through context..." : "Exile Copilot sedang menganalisis masukan..."}
+                    </div>
+                  )}
+                  <div ref={chatBottomRef} />
+                </div>
+                <ScrollFade
+                  progress={copilotScrollFade.progress}
+                  surfaceClassName="from-background-primary-default"
+                />
               </div>
 
-              {/* Attached Screenshot Preview in Chat */}
+              {/* Attached Screenshot Preview */}
               {copilotAttachedImage && (
-                <div className="p-2 rounded-xl bg-background-secondary-default border border-border-button-default flex items-center justify-between gap-2 text-xs">
+                <div className="mx-4 mb-2 p-2 rounded-xl bg-background-secondary-default flex items-center justify-between gap-2 text-xs">
                   <div className="flex items-center gap-2 truncate">
                     <Image
                       src={copilotAttachedImage.base64}
@@ -4690,7 +4618,7 @@ export default function StudioPage() {
                       width={32}
                       height={32}
                       unoptimized
-                      className="size-8 rounded-lg object-cover border border-border-button-default shrink-0"
+                      className="size-8 rounded-lg object-cover shrink-0"
                     />
                     <span className="truncate text-caption-2-medium text-text-primary">
                       {copilotAttachedImage.name}
@@ -4699,7 +4627,7 @@ export default function StudioPage() {
                   <button
                     type="button"
                     onClick={() => setCopilotAttachedImage(null)}
-                    className="p-1 text-text-tertiary hover:text-rose-500 transition-colors cursor-pointer"
+                    className="p-1 text-text-tertiary hover:text-rose-500 transition-colors cursor-pointer border-0"
                     title="Hapus lampiran"
                   >
                     <RiCloseLine className="size-4" />
@@ -4707,43 +4635,391 @@ export default function StudioPage() {
                 </div>
               )}
 
-              {/* Chat Input with Image Attachment Button */}
-              <form onSubmit={handleSendChatMessage} className="flex items-center gap-2 pt-1">
-                <input
-                  ref={copilotImageInputRef}
-                  type="file"
-                  accept="image/png,image/jpeg,image/webp"
-                  onChange={handleCopilotImageSelect}
-                  className="hidden"
-                />
-                <button
-                  type="button"
-                  onClick={() => copilotImageInputRef.current?.click()}
-                  className="p-2.5 rounded-xl border border-border-button-default bg-background-secondary-default hover:bg-background-secondary-default/80 text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0"
-                  title="Lampirkan tangkapan layar fitur"
-                >
-                  <RiImageAddLine className="size-4" />
-                </button>
-                <input
-                  type="text"
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  placeholder={t.studio.copilotInputPlaceholder}
-                  className="flex-1 p-2.5 rounded-xl bg-background-secondary-default border border-border-button-default text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 text-xs"
-                />
-                <button
-                  type="submit"
-                  disabled={chatLoading || (!chatInput.trim() && !copilotAttachedImage)}
-                  className="p-2.5 rounded-xl bg-accent-700 hover:bg-accent-800 text-white disabled:opacity-50 transition-colors cursor-pointer shrink-0"
-                  title="Kirim pesan"
-                >
-                  <RiSendPlane2Line className="size-4" />
-                </button>
-              </form>
-            </ScrollReveal>
-          </aside>
-        </div>
-      </main>
+              {/* Pinned Input Form */}
+              <div className="shrink-0 p-4 border-t border-separator-border/40 bg-background-primary-default">
+                <form onSubmit={handleSendChatMessage} className="flex items-center gap-2">
+                  <input
+                    ref={copilotImageInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    onChange={handleCopilotImageSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => copilotImageInputRef.current?.click()}
+                    className="p-2.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-default/80 text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0 border-0"
+                    title="Lampirkan tangkapan layar fitur"
+                  >
+                    <RiImageAddLine className="size-4" />
+                  </button>
+                  <input
+                    type="text"
+                    value={chatInput}
+                    onChange={(e) => setChatInput(e.target.value)}
+                    placeholder={t.studio.copilotInputPlaceholder}
+                    className="flex-1 p-2.5 rounded-xl bg-background-secondary-default text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 text-xs border-0"
+                  />
+                  <button
+                    type="submit"
+                    disabled={chatLoading || (!chatInput.trim() && !copilotAttachedImage)}
+                    className="p-2.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover text-text-primary disabled:opacity-50 transition-colors cursor-pointer shrink-0 border-0"
+                    title="Kirim pesan"
+                  >
+                    <RiSendPlane2Line className="size-4" />
+                  </button>
+                </form>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Quick Quiz Modal */}
+      <Modal
+        isOpen={isQuickQuizOpen}
+        onOpenChange={setIsQuickQuizOpen}
+        size="lg"
+        aria-label={isEn ? "Quick quiz" : "Kuis cepat"}
+        className="max-h-[85vh] rounded-3xl overflow-clip flex flex-col border-0"
+      >
+        <ModalHeader
+          title={isEn ? "Quick quiz" : "Kuis cepat"}
+          description={
+            isEn
+              ? "Standalone one-time quiz without material. For quizzes anchored to your material, use the Adaptive quiz artifact."
+              : "Kuis satu kali tanpa materi. Untuk kuis dari materi, pakai artefak Kuis adaptif."
+          }
+          icon={RiQuestionnaireLine}
+        />
+
+        <ModalBody className="space-y-4">
+          <Input
+            label={isEn ? "Quiz topic" : "Topik kuis"}
+            placeholder={
+              isEn
+                ? "E.g. basa bali alus for grade 8"
+                : "Mis. basa bali alus kelas 8"
+            }
+            hint={
+              isEn
+                ? "Multiple-choice questions are generated automatically."
+                : "Soal pilihan ganda dibuat otomatis."
+            }
+            value={aiQuizTopic}
+            onChange={setAiQuizTopic}
+            maxLength={140}
+          />
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-caption-1-medium text-text-secondary">
+                {isEn ? "Questions" : "Jumlah soal"}
+              </span>
+              <span className="rounded-lg bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+                {aiQuizCount} {isEn ? "questions" : "soal"}
+              </span>
+            </div>
+            <input
+              type="range"
+              min={3}
+              max={15}
+              step={1}
+              aria-label={isEn ? "Questions" : "Jumlah soal"}
+              value={aiQuizCount}
+              onChange={(e) => {
+                soundEffects.playClick();
+                setAiQuizCount(Number(e.target.value));
+              }}
+              className="w-full h-2 rounded-lg bg-border-button-default accent-accent-700 cursor-pointer"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-caption-1-medium text-text-secondary">
+                {isEn ? "Difficulty" : "Tingkat kesulitan"}
+              </span>
+              <span className="rounded-lg bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+                {aiQuizDifficulty === "mudah"
+                  ? isEn
+                    ? "Easy"
+                    : "Mudah"
+                  : aiQuizDifficulty === "sedang"
+                    ? isEn
+                      ? "Medium"
+                      : "Sedang"
+                    : isEn
+                      ? "Hard"
+                      : "Sulit"}
+              </span>
+            </div>
+            <div className="grid grid-cols-3 gap-1 rounded-xl bg-background-secondary-default p-1">
+              {(
+                [
+                  { id: "mudah" as const, labelId: "Mudah", labelEn: "Easy" },
+                  { id: "sedang" as const, labelId: "Sedang", labelEn: "Medium" },
+                  { id: "sulit" as const, labelId: "Sulit", labelEn: "Hard" },
+                ]
+              ).map((lvl) => {
+                const active = aiQuizDifficulty === lvl.id;
+                return (
+                  <button
+                    key={lvl.id}
+                    type="button"
+                    disabled={aiQuizLoading}
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setAiQuizDifficulty(lvl.id);
+                    }}
+                    className={cx(
+                      "rounded-lg px-1.5 py-1 text-center text-caption-1-medium transition-colors cursor-pointer border-0",
+                      active
+                        ? "bg-background-tertiary-default text-text-primary font-semibold shadow-2xs"
+                        : "text-text-secondary hover:text-text-primary hover:bg-background-tertiary-default"
+                    )}
+                  >
+                    {isEn ? lvl.labelEn : lvl.labelId}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {aiQuiz && (
+            <div className="overflow-hidden rounded-2xl bg-background-secondary-default/40 border-0">
+              <div className="space-y-3 bg-accent-500/5 p-4">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 space-y-1">
+                    <span className="block text-caption-2-medium tracking-wide text-text-tertiary">
+                      {isEn ? "Study set" : "Set belajar"}
+                    </span>
+                    <h5 className="text-body-1-semibold leading-snug text-text-primary">
+                      {aiQuiz.quiz.title}
+                    </h5>
+                  </div>
+                  <Chip variant="caption" color="blue">
+                    {aiQuiz.quiz.questions.length} {isEn ? "questions" : "soal"}
+                  </Chip>
+                </div>
+                {aiQuizConcepts.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {aiQuizConcepts.map((concept) => (
+                      <Chip key={concept} variant="caption" color="gray">
+                        {concept}
+                      </Chip>
+                    ))}
+                  </div>
+                )}
+                <div className="flex items-center gap-2 pt-1">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={openAiInstantQuiz}
+                    leadingIcon={RiPlayCircleLine}
+                    className="flex-1 justify-center"
+                  >
+                    {isEn ? "Play now" : "Main sekarang"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    onClick={() => {
+                      setIsQuickQuizOpen(false);
+                      void handleLaunchAiQuiz();
+                    }}
+                    disabled={launchingRoom}
+                    leadingIcon={RiPlayCircleLine}
+                    className="flex-1 justify-center"
+                  >
+                    {launchingRoom
+                      ? isEn
+                        ? "Opening..."
+                        : "Membuka..."
+                      : isEn
+                        ? "Create quiz room"
+                        : "Buat ruang kuis"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="small"
+                    iconOnly
+                    onClick={handleGenerateAiQuiz}
+                    disabled={aiQuizLoading}
+                    leadingIcon={RiRefreshLine}
+                    aria-label={isEn ? "Regenerate quiz" : "Buat ulang kuis"}
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2 p-3">
+                {aiQuiz.quiz.questions.map((question, index) => {
+                  const isOpen = expandedAiQuestionIndex === index;
+                  const pickedLabel = aiQuizAnswers[index];
+                  return (
+                    <div
+                      key={`${index}-${question.conceptTag}`}
+                      className="overflow-hidden rounded-xl bg-background-primary-default border-0"
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          soundEffects.playClick();
+                          setExpandedAiQuestionIndex(isOpen ? null : index);
+                        }}
+                        aria-expanded={isOpen}
+                        aria-controls={`ai-question-explanation-${index}`}
+                        className="flex w-full items-start gap-2.5 p-3 text-start transition-colors hover:bg-background-secondary-default/60 cursor-pointer border-0"
+                      >
+                        <span className="mt-0.5 font-mono text-caption-2-medium text-text-tertiary">
+                          {String(index + 1).padStart(2, "0")}
+                        </span>
+                        <span className="flex min-w-0 flex-1 flex-col gap-1">
+                          <span className="block text-caption-1-medium leading-snug text-text-primary">
+                            {question.question}
+                          </span>
+                          <Chip variant="caption" color="gray">
+                            {question.conceptTag}
+                          </Chip>
+                        </span>
+                        <span className="mt-0.5 flex shrink-0 items-center gap-1 text-caption-2-medium text-accent-700">
+                          <span className="hidden sm:inline">
+                            {isOpen
+                              ? isEn
+                                ? "Hide"
+                                : "Tutup"
+                              : isEn
+                                ? "Answer"
+                                : "Jawab"}
+                          </span>
+                          {isOpen ? (
+                            <RiArrowUpSLine className="size-4" />
+                          ) : (
+                            <RiArrowDownSLine className="size-4" />
+                          )}
+                        </span>
+                      </button>
+                      <AnimatePresence initial={false}>
+                        {isOpen && (
+                          <motion.div
+                            id={`ai-question-explanation-${index}`}
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: "auto", opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            className="overflow-hidden"
+                          >
+                            <div className="space-y-3 p-3">
+                              <div className="grid grid-cols-1 gap-2">
+                                {question.options.map((opt) => {
+                                  const isSelected = pickedLabel === opt.label;
+                                  return (
+                                    <button
+                                      key={opt.label}
+                                      type="button"
+                                      onClick={() => {
+                                        soundEffects.playClick();
+                                        setAiQuizAnswers((prev) => ({
+                                          ...prev,
+                                          [index]: opt.label,
+                                        }));
+                                      }}
+                                      className={cx(
+                                        "flex w-full items-start justify-between gap-2 rounded-xl p-2.5 text-start text-caption-2-regular transition-colors cursor-pointer border-0",
+                                        isSelected
+                                          ? opt.isCorrect
+                                            ? "bg-emerald-500/15 text-text-primary"
+                                            : "bg-rose-500/10 text-text-primary"
+                                          : "bg-background-secondary-default/50 text-text-secondary hover:bg-background-secondary-default"
+                                      )}
+                                    >
+                                      <span className="flex items-start gap-2 min-w-0">
+                                        <span
+                                          className={cx(
+                                            "inline-flex size-5 shrink-0 items-center justify-center rounded-md font-mono text-[11px] font-semibold",
+                                            isSelected && opt.isCorrect
+                                              ? "bg-emerald-600 text-text-white"
+                                              : isSelected
+                                                ? "bg-rose-600 text-text-white"
+                                                : "bg-background-secondary-default text-text-tertiary"
+                                          )}
+                                        >
+                                          {opt.label}
+                                        </span>
+                                        <span className="leading-snug">{opt.text}</span>
+                                      </span>
+                                      {isSelected ? (
+                                        opt.isCorrect ? (
+                                          <RiCheckLine className="size-4 shrink-0 text-state-success-text" />
+                                        ) : (
+                                          <RiCloseLine className="size-4 shrink-0 text-text-error-primary" />
+                                        )
+                                      ) : null}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                              {pickedLabel && (
+                                <ExplanationPanel
+                                  question={question}
+                                  selectedLabel={pickedLabel}
+                                  isEn={isEn}
+                                  showDistractorBreakdown={showDistractorRationale}
+                                  contextLabel={aiQuizTopic.trim() || sourceLabel}
+                                  compact
+                                />
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </ModalBody>
+
+        <ModalFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            size="medium"
+            onClick={() => setIsQuickQuizOpen(false)}
+          >
+            {isEn ? "Cancel" : "Batal"}
+          </Button>
+          <Button
+            type="button"
+            variant="primary"
+            size="medium"
+            onClick={handleGenerateAiQuiz}
+            disabled={
+              aiQuizLoading ||
+              (aiQuizTopic.trim().length < 2 && docText.trim().length < 20)
+            }
+            className="gap-2 font-semibold"
+          >
+            <span className="inline-flex items-center gap-2">
+              <RiCopilotFill
+                className={cx("size-4", aiQuizLoading && "animate-spin")}
+              />
+              <span>
+                {aiQuizLoading
+                  ? isEn
+                    ? "Generating..."
+                    : "Menyusun soal..."
+                  : isEn
+                    ? "Create quiz"
+                    : "Buat kuis"}
+              </span>
+            </span>
+          </Button>
+        </ModalFooter>
+      </Modal>
 
       <InstantQuizDialog
         key={instantQuiz?.id ?? "closed-instant-quiz"}
@@ -4767,7 +5043,7 @@ export default function StudioPage() {
         aria-label={isEn ? "Saved history" : "Riwayat tersimpan"}
         className="space-y-4 p-5 sm:p-6"
       >
-        <div className="flex items-center justify-between border-b border-separator-border pb-4">
+        <div className="flex items-center justify-between pb-4">
           <div className="space-y-0.5">
             <h3 className="text-title-3-semibold text-text-primary">
               {isEn ? "Saved notebooks & files" : "Riwayat dokumen & artifak"}
@@ -4801,14 +5077,14 @@ export default function StudioPage() {
         </div>
 
         {historyEntries.length === 0 ? (
-          <div className="rounded-2xl border border-border-button-default bg-background-secondary-default/40 p-8 text-center space-y-2">
+          <div className="rounded-2xl bg-background-secondary-default/40 p-8 text-center space-y-2">
             <p className="text-body-2-medium text-text-primary">
               {isEn ? "No saved history yet" : "Belum ada riwayat tersimpan"}
             </p>
             <p className="text-caption-1-regular text-text-secondary">
               {isEn
-                ? "Upload a pdf or craft an artifact and it will be saved here automatically."
-                : "Unggah berkas pdf atau buat artifak untuk menyimpannya secara otomatis di sini."}
+                ? "Upload a document or craft an artifact and it will be saved here automatically."
+                : "Unggah berkas dokumen atau buat artifak untuk menyimpannya secara otomatis di sini."}
             </p>
           </div>
         ) : (
@@ -4843,10 +5119,10 @@ export default function StudioPage() {
                 <div
                   key={entry.id}
                   className={cx(
-                    "flex flex-col gap-3 rounded-2xl border p-4 sm:flex-row sm:items-center sm:justify-between",
+                    "flex flex-col gap-3 rounded-2xl p-4 sm:flex-row sm:items-center sm:justify-between",
                     isCurrent
-                      ? "border-accent-500/40 bg-accent-500/5"
-                      : "border-border-button-default bg-background-secondary-default/40"
+                      ? "bg-accent-500/5"
+                      : "bg-background-secondary-default/40"
                   )}
                 >
                   <div className="min-w-0 space-y-1.5">
@@ -4887,20 +5163,29 @@ export default function StudioPage() {
                   <div className="flex shrink-0 items-center gap-2">
                     <Button
                       type="button"
-                      variant="primary"
+                      variant="secondary"
                       size="small"
                       onClick={() => handleLoadHistoryEntry(entry)}
                     >
                       {isEn ? "Open" : "Buka"}
                     </Button>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="small"
-                      iconOnly
-                      leadingIcon={RiDeleteBinLine}
-                      onClick={() => handleDeleteHistoryEntry(entry.id)}
-                      aria-label={isEn ? "Delete" : "Hapus"}
+                    <MoreMenu
+                      items={[
+                        {
+                          id: `history-delete-${entry.id}`,
+                          label: isEn ? "Delete entry" : "Hapus riwayat",
+                          icon: RiDeleteBinLine,
+                          isDestructive: true,
+                          destructiveTitle: isEn ? "Delete history entry" : "Hapus riwayat",
+                          destructiveDescription: isEn
+                            ? `Are you sure you want to delete "${entry.title}"?`
+                            : `Apakah anda yakin ingin menghapus "${entry.title}"?`,
+                          confirmLabel: isEn ? "Delete" : "Hapus",
+                          cancelLabel: isEn ? "Cancel" : "Batal",
+                          onAction: () => handleDeleteHistoryEntry(entry.id),
+                        },
+                      ]}
+                      aria-label={isEn ? "History entry options" : "Opsi entri riwayat"}
                     />
                   </div>
                 </div>
@@ -4909,6 +5194,11 @@ export default function StudioPage() {
           </div>
         )}
       </Modal>
+
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
+      />
     </div>
   );
 }

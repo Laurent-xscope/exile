@@ -15,7 +15,7 @@ export const DICTIONARY = {
     hero: {
       categoryPill: "Platform asesmen & bahan ajar interaktif",
       headingLine1: "Foto modul, buku ajar, atau lembar kerja.",
-      headingLine2: "Ubah jadi kuis interaktif, kartu 3d, & ringkasan.",
+      headingLine2: "Ubah jadi kuis interaktif, kartu 3D, & ringkasan.",
       subheading:
         "Dukungan untuk semua mata pelajaran — dari sains, bahasa indonesia, hingga muatan lokal & budaya daerah. Unggah materi apa pun, sistem langsung menghasilkan materi ajar interaktif dan menutup siklus belajar siswa.",
       inputTitle: "Pilih materi atau tempel dokumen",
@@ -78,7 +78,7 @@ export const DICTIONARY = {
     },
     tabs: {
       summary: "Intisari & glosarium",
-      flashcards: "Kartu 3d",
+      flashcards: "Kartu 3D",
       quiz: "Latihan soal & kuis",
     },
     metrics: {
@@ -110,7 +110,7 @@ export const DICTIONARY = {
       backHome: "Beranda",
       studentPovLabel: "Sudut pandang siswa",
       teacherPovLabel: "Sudut pandang pengajar",
-      launchRoomBtn: "Buka ruang kuis",
+      launchRoomBtn: "Buat Ruang Kuis",
       launchingRoomBtn: "Membuka...",
       studentPovBannerTitle: "Mode simulasi sudut pandang siswa",
       studentPovBannerDesc:
@@ -118,7 +118,7 @@ export const DICTIONARY = {
       studentPovBannerBack: "Kembali ke mode pengajar",
       sourceTitle: "Sumber bahan ajar",
       sourceSubtitle: "Masukan materi",
-      uploadTitle: "Unggah berkas pdf, word, atau teks",
+      uploadTitle: "Unggah berkas dokumen",
       uploadHint: "Klik untuk memilih dokumen dari perangkat anda",
       fileSelected: "Berkas terpilih:",
       textEditorLabel: "Isi teks materi ajar",
@@ -133,7 +133,7 @@ export const DICTIONARY = {
       copilotInputPlaceholder: "Tanyakan fitur, konsep, atau lampirkan foto...",
       tabs: {
         summary: "Intisari",
-        flashcards: "Kartu 3d",
+        flashcards: "Kartu 3D",
         quiz: "Kuis adaptif",
         slides: "Slide deck",
         mindmap: "Peta konsep",
@@ -147,12 +147,12 @@ export const DICTIONARY = {
         {
           num: 1,
           title: "Masukkan bahan ajar",
-          desc: "Ketik atau tempel teks modul di panel sebelah kiri, atau unggah dokumen dalam format pdf, word, maupun teks biasa.",
+          desc: "Ketik atau tempel teks modul di panel sebelah kiri, atau unggah berkas dokumen.",
         },
         {
           num: 2,
           title: "Pilih artifak & tekan create",
-          desc: "Centang artifak yang ingin dibuat (kartu 3d, kuis adaptif, intisari, peta konsep, infografik, tabel data, atau laporan) lalu tekan create.",
+          desc: "Centang artifak yang ingin dibuat (kartu 3D, kuis adaptif, intisari, peta konsep, infografik, tabel data, atau laporan) lalu tekan create.",
         },
         {
           num: 3,
@@ -161,8 +161,8 @@ export const DICTIONARY = {
         },
         {
           num: 4,
-          title: "Buka ruang kuis kelas",
-          desc: "Tekan tombol buka ruang kuis di kanan atas untuk mendapatkan kode pin 6 digit agar siswa dapat bergabung secara langsung.",
+          title: "Buat ruang kuis kelas",
+          desc: "Tekan tombol Buat Ruang Kuis di kanan atas untuk mendapatkan kode pin 6 digit agar siswa dapat bergabung secara langsung.",
         },
       ],
       calloutReady: "Siap membuat artifak pembelajaran pertama anda?",
@@ -190,7 +190,7 @@ export const DICTIONARY = {
       title: "Gabung ruang kuis exile",
       subtitle: "Asesmen interaktif & telaah pemahaman kelas",
       pinLabel: "Pin ruang kuis (6 digit)",
-      pinPlaceholder: "123456",
+      pinPlaceholder: "xxxxxx",
       pinHint: "Kode ruangan dari layar pengajar.",
       nickLabel: "Nama panggilan (tamu sesi ini)",
       nickPlaceholder: "Masukkan nama panggilanmu di kelas...",
@@ -199,20 +199,20 @@ export const DICTIONARY = {
       avatarSubtitle: "Pilih 1 karakter",
       joinBtn: "Masuk ke ruang kuis",
       connecting: "Menghubungkan...",
-      teacherStudioLink: "Pengajar? buka studio pembuat kuis",
+      teacherStudioLink: "Pengajar? Buka Studio",
     },
   },
   en: {
     nav: {
       badge: "Platform ajar interaktif",
-      tagline: "Closed-loop learning & cultural evaluation",
+      tagline: "Exile & cultural evaluation",
       hostBtn: "Teacher cockpit",
       studentBtn: "Join as student",
     },
     hero: {
       categoryPill: "Interactive courseware & assessment engine",
       headingLine1: "Upload any textbook, pdf, or handout.",
-      headingLine2: "Turn them into live quizzes, 3d flashcards, & summaries.",
+      headingLine2: "Turn them into live quizzes, 3D flashcards, & summaries.",
       subheading:
         "Built for any subject — from stem and general science to world languages, indonesian literature, and local heritage. Upload any material to instantly generate interactive courseware and close student learning gaps.",
       inputTitle: "Select subject sample or paste content",
@@ -275,7 +275,7 @@ export const DICTIONARY = {
     },
     tabs: {
       summary: "Summary & glossary",
-      flashcards: "3d flashcards",
+      flashcards: "3D flashcards",
       quiz: "Practice quiz",
     },
     metrics: {
@@ -307,7 +307,7 @@ export const DICTIONARY = {
       backHome: "Home",
       studentPovLabel: "Student perspective",
       teacherPovLabel: "Teacher perspective",
-      launchRoomBtn: "Launch live room",
+      launchRoomBtn: "Create Quiz Room",
       launchingRoomBtn: "Launching...",
       studentPovBannerTitle: "Student perspective simulation active",
       studentPovBannerDesc:
@@ -315,7 +315,7 @@ export const DICTIONARY = {
       studentPovBannerBack: "Return to educator mode",
       sourceTitle: "Learning source material",
       sourceSubtitle: "Input content",
-      uploadTitle: "Upload pdf, word, or text file",
+      uploadTitle: "Upload document",
       uploadHint: "Click to select a document from your device",
       fileSelected: "Selected file:",
       textEditorLabel: "Direct lesson notes & text",
@@ -330,7 +330,7 @@ export const DICTIONARY = {
       copilotInputPlaceholder: "Ask about features, concepts, or attach a photo...",
       tabs: {
         summary: "Summary",
-        flashcards: "3d cards",
+        flashcards: "3D cards",
         quiz: "Adaptive quiz",
         slides: "Slide deck",
         mindmap: "Mind map",
@@ -344,12 +344,12 @@ export const DICTIONARY = {
         {
           num: 1,
           title: "Input source material",
-          desc: "Paste lesson text on the left panel, or upload pdf, word, or plain text notes.",
+          desc: "Paste lesson text on the left panel, or upload document files.",
         },
         {
           num: 2,
           title: "Select artifact & click create",
-          desc: "Check which artifacts to craft (3d cards, adaptive quiz, summary, mind map, infographic, data table, or reports) and click create.",
+          desc: "Check which artifacts to craft (3D cards, adaptive quiz, summary, mind map, infographic, data table, or reports) and click create.",
         },
         {
           num: 3,
@@ -358,8 +358,8 @@ export const DICTIONARY = {
         },
         {
           num: 4,
-          title: "Launch live classroom session",
-          desc: "Click launch live room at the top right to generate a 6-digit pin so students can join in real time.",
+          title: "Create live classroom session",
+          desc: "Click Create Quiz Room at the top right to generate a 6-digit pin so students can join in real time.",
         },
       ],
       calloutReady: "Ready to create your first learning artifact?",
@@ -387,7 +387,7 @@ export const DICTIONARY = {
       title: "Join exile quiz arena",
       subtitle: "Interactive assessment & live classroom insights",
       pinLabel: "Quiz room pin (6 digits)",
-      pinPlaceholder: "123456",
+      pinPlaceholder: "xxxxxx",
       pinHint: "Room code displayed on teacher's screen.",
       nickLabel: "Nickname (session guest)",
       nickPlaceholder: "Enter your class nickname...",
@@ -396,7 +396,7 @@ export const DICTIONARY = {
       avatarSubtitle: "Select 1 avatar",
       joinBtn: "Enter quiz arena",
       connecting: "Connecting...",
-      teacherStudioLink: "Educator? open courseware studio",
+      teacherStudioLink: "Educator? Open Studio",
     },
   },
 } as const;

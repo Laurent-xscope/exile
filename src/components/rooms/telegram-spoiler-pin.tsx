@@ -7,12 +7,6 @@ import {
   useEffect,
 } from "react";
 import { motion } from "framer-motion";
-import {
-  RiFileCopyLine,
-  RiCheckLine,
-  RiEyeLine,
-  RiEyeOffLine,
-} from "@remixicon/react";
 import { cx } from "@/utils/cx";
 import { toast } from "sonner";
 import { soundEffects } from "@/lib/audio/sounds";
@@ -46,8 +40,9 @@ export function TelegramSpoilerPin({
   isEn = false,
   label,
 }: TelegramSpoilerPinProps) {
-  const [isRevealed, setIsRevealed] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const isRevealed = isHovered;
+
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
   const particlesRef = useRef<Particle[]>([]);
@@ -159,57 +154,62 @@ export function TelegramSpoilerPin({
     };
   }, [isRevealed, size]);
 
-  const handleToggleReveal = useCallback(() => {
-    soundEffects.playClick();
-    setIsRevealed((prev) => {
-      const next = !prev;
-      if (next) {
-        // Trigger particle radial burst
-        const canvas = canvasRef.current;
-        if (canvas) {
-          const rect = canvas.getBoundingClientRect();
-          const cx = rect.width / 2;
-          const cy = rect.height / 2;
-          const burstColors = ["#0284c7", "#38bdf8", "#f59e0b", "#10b981", "#ffffff"];
-          const burstParticles: Particle[] = [];
-          const count = 35;
-          for (let i = 0; i < count; i++) {
-            const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
-            const speed = Math.random() * 2.8 + 1.2;
-            burstParticles.push({
-              x: cx,
-              y: cy,
-              vx: Math.cos(angle) * speed,
-              vy: Math.sin(angle) * speed,
-              size: Math.random() * 2 + 1,
-              alpha: 1,
-              color: burstColors[Math.floor(Math.random() * burstColors.length)],
-              life: 30,
-              maxLife: 30,
-            });
-          }
-          particlesRef.current = burstParticles;
-          isBurstingRef.current = true;
-          if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-        }
-      }
-      return next;
-    });
+  const triggerBurst = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const rect = canvas.getBoundingClientRect();
+    const cx = rect.width / 2;
+    const cy = rect.height / 2;
+    const burstColors = ["#0284c7", "#38bdf8", "#f59e0b", "#10b981", "#ffffff"];
+    const burstParticles: Particle[] = [];
+    const count = 35;
+    for (let i = 0; i < count; i++) {
+      const angle = (Math.PI * 2 * i) / count + (Math.random() - 0.5) * 0.4;
+      const speed = Math.random() * 2.8 + 1.2;
+      burstParticles.push({
+        x: cx,
+        y: cy,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed,
+        size: Math.random() * 2 + 1,
+        alpha: 1,
+        color: burstColors[Math.floor(Math.random() * burstColors.length)],
+        life: 30,
+        maxLife: 30,
+      });
+    }
+    particlesRef.current = burstParticles;
+    isBurstingRef.current = true;
+    if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
   }, []);
 
-  const handleCopy = useCallback(
-    (e: React.MouseEvent) => {
-      e.stopPropagation();
-      soundEffects.playClick();
+  const prevRevealedRef = useRef(false);
+  useEffect(() => {
+    if (isRevealed && !prevRevealedRef.current) {
+      triggerBurst();
+    }
+    prevRevealedRef.current = isRevealed;
+  }, [isRevealed, triggerBurst]);
+
+  const handleClick = useCallback(() => {
+    soundEffects.playClick();
+    if (copyable) {
       navigator.clipboard.writeText(pin);
-      setCopied(true);
       toast.success(
-        isEn ? "Room pin copied to clipboard" : "Pin ruang berhasil disalin"
+        isEn
+          ? `Room pin ${pin} copied to clipboard`
+          : `Pin ruang ${pin} berhasil disalin`
       );
-      setTimeout(() => setCopied(false), 2000);
-    },
-    [pin, isEn]
-  );
+    }
+  }, [copyable, pin, isEn]);
+
+  const handleMouseEnter = useCallback(() => {
+    setIsHovered(true);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    setIsHovered(false);
+  }, []);
 
   const containerSizes = {
     sm: "px-2.5 py-1 gap-1.5 rounded-lg",
@@ -227,38 +227,32 @@ export function TelegramSpoilerPin({
     <div
       role="button"
       tabIndex={0}
-      onClick={handleToggleReveal}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+      onClick={handleClick}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          handleToggleReveal();
+          handleClick();
         }
       }}
       aria-label={
-        isRevealed
-          ? isEn
-            ? "Room pin visible. Click to hide."
-            : "Pin ruangan terbuka. Klik untuk menyembunyikan."
-          : isEn
-            ? "Room pin obscured. Click to reveal."
-            : "Pin ruangan tertutup. Klik untuk menampilkan."
+        isEn
+          ? `Room pin ${isRevealed ? pin : "obscured"}. Click to copy.`
+          : `Pin ruang ${isRevealed ? pin : "tersembunyi"}. Klik untuk menyalin.`
+      }
+      title={
+        isEn
+          ? "Hover to reveal, click to copy"
+          : "Arahkan kursor untuk melihat, klik untuk menyalin"
       }
       className={cx(
-        "group relative inline-flex items-center select-none cursor-pointer border transition-colors",
-        "bg-background-primary-default hover:bg-background-primary-hover border-border-button-default shadow-xs",
+        "group relative inline-flex items-center select-none cursor-pointer transition-colors",
+        "bg-background-secondary-default hover:bg-background-secondary-hover",
         "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
         containerSizes[size],
         className
       )}
-      title={
-        isRevealed
-          ? isEn
-            ? "Click to obscure pin"
-            : "Klik untuk menyembunyikan pin"
-          : isEn
-            ? "Click to reveal pin"
-            : "Klik untuk melihat pin"
-      }
     >
       {/* The PIN Container with Telegram spoiler effect */}
       <div className={cx(label ? "flex flex-col text-start justify-center" : "inline-flex items-center")}>
@@ -268,20 +262,19 @@ export function TelegramSpoilerPin({
           </span>
         )}
         <div className="relative inline-flex items-center justify-center overflow-hidden rounded-md px-1 py-0.5 min-w-[58px]">
-          <motion.bdi
-            animate={{
+          <bdi
+            style={{
               filter: isRevealed ? "blur(0px)" : "blur(8px)",
               opacity: isRevealed ? 1 : 0.4,
-              scale: isRevealed ? 1 : 0.98,
+              transition: "filter 180ms ease, opacity 180ms ease",
             }}
-            transition={{ type: "spring", stiffness: 320, damping: 24 }}
             className={cx(
               "font-mono text-text-primary tabular-nums select-none",
               fontSizes[size]
             )}
           >
             {pin}
-          </motion.bdi>
+          </bdi>
 
           {/* Telegram Canvas Particle Overlay */}
           <canvas
@@ -307,54 +300,6 @@ export function TelegramSpoilerPin({
           )}
         </div>
       </div>
-
-      {/* Eye indicator icon */}
-      <span
-        className="text-foreground-icon-secondary group-hover:text-foreground-icon-primary transition-colors shrink-0"
-        aria-hidden="true"
-      >
-        {isRevealed ? (
-          <RiEyeOffLine className="size-3.5" />
-        ) : (
-          <RiEyeLine className="size-3.5" />
-        )}
-      </span>
-
-      {/* Copy Action button */}
-      {copyable && (
-        <button
-          type="button"
-          onClick={handleCopy}
-          aria-label={
-            copied
-              ? isEn
-                ? "Pin copied"
-                : "Pin disalin"
-              : isEn
-                ? "Copy pin"
-                : "Salin pin"
-          }
-          className={cx(
-            "p-1 rounded-md text-foreground-icon-secondary hover:text-foreground-icon-primary hover:bg-background-tertiary-default transition shrink-0 cursor-pointer",
-            "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
-          )}
-          title={
-            copied
-              ? isEn
-                ? "Copied"
-                : "Disalin"
-              : isEn
-                ? "Copy pin"
-                : "Salin pin"
-          }
-        >
-          {copied ? (
-            <RiCheckLine className="size-3.5 text-accent-700" />
-          ) : (
-            <RiFileCopyLine className="size-3.5" />
-          )}
-        </button>
-      )}
     </div>
   );
 }

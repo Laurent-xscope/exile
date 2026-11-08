@@ -117,10 +117,11 @@ export function JoinRoomForm({
         );
       }
 
+      const finalNickname = data.nickname || cleanNickname;
       savePlayerIdentity(cleanCode, data.playerId, data.playerToken);
-      localStorage.setItem("exile_player_nickname", cleanNickname);
+      localStorage.setItem("exile_player_nickname", finalNickname);
       localStorage.setItem("exile_player_avatar", selectedAvatar);
-      sessionStorage.setItem("exile_nickname", cleanNickname);
+      sessionStorage.setItem("exile_nickname", finalNickname);
       sessionStorage.setItem("exile_avatar", selectedAvatar);
 
       onJoined({
@@ -147,18 +148,18 @@ export function JoinRoomForm({
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
       {codeLocked ? (
-        <div className="rounded-2xl border border-border-button-default bg-background-secondary-default px-4 py-3 text-center">
+        <div className="rounded-2xl bg-background-secondary-default px-4 py-3 text-center">
           <span className="text-caption-2-semibold tracking-wide text-text-tertiary">
             {isEn ? "Room pin" : "Pin ruangan"}
           </span>
           <div className="mt-1 font-mono text-title-2-semibold tracking-[0.3em] text-text-primary">
-            {code || "------"}
+            {code || "xxxxxx"}
           </div>
         </div>
       ) : (
         <Input
           label={isEn ? "Quiz room pin (6 digits)" : "Pin ruang kuis (6 digit)"}
-          placeholder="123456"
+          placeholder="xxxxxx"
           hint={
             isEn
               ? "The room code shown on your teacher's screen."
@@ -172,7 +173,7 @@ export function JoinRoomForm({
           pattern="[0-9]*"
           autoFocus
           inputDir="ltr"
-          fieldClassName="h-12 bg-background-primary-default border border-border-button-default shadow-2xs"
+          fieldClassName="h-12 bg-background-primary-default"
           inputClassName="text-center font-mono text-title-2-semibold tracking-[0.28em]"
           isRequired
         />
@@ -198,7 +199,7 @@ export function JoinRoomForm({
       {error && (
         <div
           role="alert"
-          className="rounded-xl border border-border-error-default bg-background-tertiary-error px-3.5 py-2.5 text-caption-1-medium text-text-error-primary"
+          className="rounded-xl bg-background-tertiary-error px-3.5 py-2.5 text-caption-1-medium text-text-error-primary"
         >
           {error}
         </div>
@@ -206,15 +207,15 @@ export function JoinRoomForm({
 
       <Button
         type="submit"
-        variant="primary"
+        variant="secondary"
         size="medium"
         disabled={loading}
         trailingIcon={loading ? undefined : RiArrowRightLine}
-        className="w-full"
+        className="w-full border border-border-button-default text-text-primary"
       >
         {loading ? (
           <span className="inline-flex items-center gap-2">
-            <Spinner size="sm" aria-hidden className="text-text-white" />
+            <Spinner size="sm" aria-hidden className="text-text-primary" />
             <span>{isEn ? "Joining room..." : "Bergabung..."}</span>
           </span>
         ) : isEn ? (

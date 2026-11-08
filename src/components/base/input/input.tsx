@@ -134,9 +134,9 @@ const inputStyles = sortCx({
   field: [
     "relative flex w-full items-center",
     "rounded-xl",
-    "bg-paper text-muted",
-    "ring-2 ring-inset ring-line2",
-    "transition-[background-color,box-shadow,color] duration-100 ease",
+    "bg-background-primary-default text-text-primary",
+    "ring-1 ring-inset ring-[var(--vb-border)]",
+    "transition-[background-color,box-shadow,color] duration-150 ease",
   ].join(" "),
 
   fieldSize: {
@@ -155,12 +155,12 @@ const inputStyles = sortCx({
 
   input: [
     "min-w-0 flex-1 bg-transparent border-0 outline-none p-0 m-0",
-    "font-sans text-[14px] leading-6 text-ink",
+    "font-sans text-[14px] leading-6 text-text-primary",
     "placeholder:text-text-tertiary",
     "focus:placeholder:text-text-primary",
-    "disabled:text-input-disabled-text disabled:placeholder:text-input-disabled-text",
+    "disabled:text-text-disabled disabled:placeholder:text-text-disabled",
     "disabled:cursor-not-allowed",
-    "aria-invalid:placeholder:text-text-error-placeholder",
+    "aria-invalid:placeholder:text-text-error-primary",
   ].join(" "),
 
   icon: "size-5 shrink-0",
@@ -186,14 +186,14 @@ function inputFieldClassName(
   return cx(
     inputStyles.field,
     hasAddon ? inputStyles.fieldWithAddonSize[size] : inputStyles.fieldSize[size],
-    // Hover: idle, no focus, no disabled, no invalid
-    isHovered && !isFocusWithin && !isDisabled && !isInvalid && "ring-faint",
+    // Hover: idle, no focus, no disabled, no invalid (soft semantic background tint, no hover outline)
+    isHovered && !isFocusWithin && !isDisabled && !isInvalid && "bg-background-primary-hover",
     // Focus wins over hover
-    isFocusWithin && !isDisabled && !isInvalid && "ring-ink shadow-[0_0_0_2px_var(--vb-paper),0_0_0_4px_var(--vb-ink)]",
+    isFocusWithin && !isDisabled && !isInvalid && "ring-2 ring-inset ring-border-focus-ring",
     // Disabled
-    isDisabled && "bg-surface opacity-50",
+    isDisabled && "bg-background-secondary-default opacity-50",
     // Invalid
-    isInvalid && "ring-red-500 text-text-error-primary",
+    isInvalid && "ring-border-error-default text-text-error-primary",
   );
 }
 

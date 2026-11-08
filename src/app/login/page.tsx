@@ -118,21 +118,23 @@ export default function LoginPage() {
   };
 
   return (
-    <main className="min-h-screen bg-background-full text-text-primary flex flex-col justify-center items-center px-4 py-16 relative">
-      <header className="fixed inset-x-0 top-0 z-30 flex items-center justify-between px-4 sm:px-6 py-4">
-        <ButtonLink
-          href="/"
-          variant="secondary"
-          size="small"
-          leadingIcon={RiArrowLeftLine}
-        >
-          {t.login.backHome}
-        </ButtonLink>
+    <main className="min-h-screen bg-background-full text-text-primary flex flex-col justify-center items-center px-3 sm:px-4 py-16 relative overflow-x-hidden">
+      <header className="fixed inset-x-0 top-0 z-30">
+        <div className="mx-auto max-w-[960px] flex items-center justify-between px-3 sm:px-6 py-3 sm:py-4 gap-2">
+          <ButtonLink
+            href="/"
+            variant="secondary"
+            size="small"
+            leadingIcon={RiArrowLeftLine}
+          >
+            {t.login.backHome}
+          </ButtonLink>
 
-        <div className="flex items-center gap-2">
-          <LanguageToggle />
-          <ThemeToggle />
-          <SettingsButton />
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            <LanguageToggle />
+            <ThemeToggle />
+            <SettingsButton />
+          </div>
         </div>
       </header>
 
@@ -140,10 +142,10 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
-        className="w-full max-w-md rounded-3xl border border-border-button-default bg-background-primary-default p-6 sm:p-8 shadow-card"
+        className="w-full max-w-md mx-auto rounded-2xl bg-background-primary-default p-4 sm:p-8 border border-border-button-default shadow-xs"
       >
-        <div className="flex flex-col gap-3 pb-5 border-b border-separator-border">
-          <div className="size-11 rounded-2xl bg-background-secondary-default border border-border-button-default flex items-center justify-center text-foreground-icon-primary shadow-2xs">
+        <div className="flex flex-col gap-3 pb-5">
+          <div className="size-11 rounded-xl bg-background-secondary-default flex items-center justify-center text-foreground-icon-primary">
             <RiBookOpenLine className="size-5" aria-hidden />
           </div>
           <div className="space-y-1">
@@ -221,7 +223,7 @@ export default function LoginPage() {
             >
               {submitting ? (
                 <span className="inline-flex items-center gap-2">
-                  <Spinner size="sm" aria-hidden className="text-text-white" />
+                  <Spinner size="sm" aria-hidden />
                   <span>{t.login.processing}</span>
                 </span>
               ) : mode === "signin" ? (
@@ -233,11 +235,11 @@ export default function LoginPage() {
           </form>
 
           <div className="relative flex items-center py-1">
-            <div className="grow border-t border-separator-border" />
+            <div className="grow h-px bg-background-secondary-default" />
             <span className="mx-3 shrink-0 text-caption-1-medium text-text-tertiary">
               {lang === "en" ? "Or" : "Atau"}
             </span>
-            <div className="grow border-t border-separator-border" />
+            <div className="grow h-px bg-background-secondary-default" />
           </div>
 
           <Button

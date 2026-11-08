@@ -2,13 +2,24 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
+  compress: true,
   poweredByHeader: false,
   devIndicators: false,
   cacheComponents: true,
   partialPrefetching: true,
   serverExternalPackages: ["unpdf", "mammoth"],
+  images: {
+    formats: ["image/avif", "image/webp"],
+  },
   experimental: {
-    optimizePackageImports: ["@remixicon/react", "framer-motion"],
+    optimizePackageImports: [
+      "@remixicon/react",
+      "lucide-react",
+      "framer-motion",
+      "three",
+      "sonner",
+      "react-aria-components",
+    ],
   },
   turbopack: {
     rules: {
@@ -17,6 +28,23 @@ const nextConfig: NextConfig = {
         as: "*.css",
       },
     },
+  },
+  async redirects() {
+    return [
+      {
+        source: "/host/:code",
+        destination: "/buat-ruang-kuis/:code",
+        permanent: true,
+      },
+    ];
+  },
+  async rewrites() {
+    return [
+      {
+        source: "/host/:code",
+        destination: "/buat-ruang-kuis/:code",
+      },
+    ];
   },
   async headers() {
     return [

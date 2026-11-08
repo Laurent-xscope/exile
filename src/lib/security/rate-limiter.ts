@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getSupabaseAdmin } from "@/lib/supabase-admin";
 
 const MAX_MEMORY_BUCKETS = 10_000;
+const PRUNE_MAP_THRESHOLD = 2_000;
+const PRUNE_INTERVAL_MS = 60_000;
 
 interface RateLimitRecord {
   timestamps: number[];
@@ -10,6 +12,7 @@ interface RateLimitRecord {
 interface RateLimitState {
   store: Map<string, RateLimitRecord>;
   cleanup?: ReturnType<typeof setInterval>;
+  lastPrunedAt: number;
 }
 
 const globalForRateLimit = globalThis as typeof globalThis & {
@@ -18,18 +21,44 @@ const globalForRateLimit = globalThis as typeof globalThis & {
 
 const state: RateLimitState =
   globalForRateLimit.__exileRateLimit ??
-  (globalForRateLimit.__exileRateLimit = { store: new Map() });
+  (globalForRateLimit.__exileRateLimit = {
+    store: new Map(),
+    lastPrunedAt: Date.now(),
+  });
+
+if (!state.lastPrunedAt) {
+  state.lastPrunedAt = Date.now();
+}
+
+/**
+ * Prune expired entries in O(n) over the in-memory map.
+ * Executed periodically or when the map size passes threshold.
+ */
+function pruneExpiredEntries(now: number, maxAgeMs = 60_000) {
+  state.lastPrunedAt = now;
+  for (const [key, record] of state.store.entries()) {
+    const list = record.timestamps;
+    let validStart = 0;
+    while (validStart < list.length && now - list[validStart] >= maxAgeMs) {
+      validStart++;
+    }
+    if (validStart > 0) {
+      if (validStart >= list.length) {
+        state.store.delete(key);
+        continue;
+      }
+      list.splice(0, validStart);
+    }
+    if (list.length === 0) {
+      state.store.delete(key);
+    }
+  }
+}
 
 if (!state.cleanup) {
   state.cleanup = setInterval(() => {
-    const now = Date.now();
-    for (const [key, record] of state.store.entries()) {
-      record.timestamps = record.timestamps.filter((t) => now - t < 3_600_000);
-      if (record.timestamps.length === 0) {
-        state.store.delete(key);
-      }
-    }
-  }, 5 * 60 * 1000);
+    pruneExpiredEntries(Date.now(), 60_000);
+  }, PRUNE_INTERVAL_MS);
   state.cleanup.unref?.();
 }
 
@@ -78,6 +107,7 @@ function buildResponse(
         "X-RateLimit-Limit": String(limit),
         "X-RateLimit-Remaining": "0",
         "X-RateLimit-Reset": String(resetInSec),
+        "Cache-Control": "no-store",
       },
     }
   );
@@ -133,6 +163,12 @@ export async function checkRateLimit(
 
   // Local/demo fallback. Not shared across instances.
   const now = Date.now();
+
+  // Prune expired entries periodically when map exceeds threshold, throttled to 1s to prevent per-request full scans
+  if (state.store.size > PRUNE_MAP_THRESHOLD && now - state.lastPrunedAt > 1_000) {
+    pruneExpiredEntries(now, windowMs);
+  }
+
   let record = state.store.get(bucket);
   if (!record) {
     if (state.store.size >= MAX_MEMORY_BUCKETS) {
@@ -143,10 +179,18 @@ export async function checkRateLimit(
     state.store.set(bucket, record);
   }
 
-  record.timestamps = record.timestamps.filter((t) => now - t < windowMs);
+  // In-place prune of only this bucket's timestamps in O(k) without full map scan
+  const list = record.timestamps;
+  let validStart = 0;
+  while (validStart < list.length && now - list[validStart] >= windowMs) {
+    validStart++;
+  }
+  if (validStart > 0) {
+    list.splice(0, validStart);
+  }
 
-  if (record.timestamps.length >= limit) {
-    const oldest = record.timestamps[0];
+  if (list.length >= limit) {
+    const oldest = list[0];
     const resetInSec = Math.max(
       1,
       Math.ceil((oldest + windowMs - now) / 1000)
@@ -159,10 +203,10 @@ export async function checkRateLimit(
     };
   }
 
-  record.timestamps.push(now);
+  list.push(now);
   return {
     allowed: true,
-    remaining: Math.max(0, limit - record.timestamps.length),
+    remaining: Math.max(0, limit - list.length),
     resetInSec: Math.ceil(windowMs / 1000),
   };
 }

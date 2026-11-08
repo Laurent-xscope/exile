@@ -46,7 +46,7 @@ export function Label({
       {...props}
       className={cx(
         "flex cursor-default items-center gap-0.5",
-        "text-[12px] leading-4 font-semibold tracking-[0.01em] text-ink mb-1.5",
+        "text-caption-1-semibold text-text-primary mb-1.5",
         className,
       )}
     >
