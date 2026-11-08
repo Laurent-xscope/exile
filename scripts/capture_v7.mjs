@@ -2,6 +2,7 @@ import { chromium } from "playwright";
 import fs from "fs";
 
 const SCRATCH_DIR = "/Users/blessed/.gemini/antigravity/brain/4c9cbcaf-e3e7-4a55-90fa-c8522eec4979/scratch";
+const BASE_URL = process.env.BASE_URL || "http://localhost:3000";
 
 if (!fs.existsSync(SCRATCH_DIR)) {
   fs.mkdirSync(SCRATCH_DIR, { recursive: true });
@@ -27,12 +28,12 @@ async function main() {
   // ---------------------------------------------------------
   // 1. Credits Modal: Click Exile logo in header to open credits modal
   // ---------------------------------------------------------
-  console.log("1. Navigating to http://localhost:3000 to capture credits modal...");
-  await page.goto("http://localhost:3000", { waitUntil: "networkidle" });
+  console.log(`1. Navigating to ${BASE_URL} to capture credits modal...`);
+  await page.goto(BASE_URL, { waitUntil: "networkidle" });
   await page.waitForTimeout(1000);
 
   // Click Exile logo
-  const logoTrigger = page.locator('div[title="Klik untuk melihat kredit tim"]');
+  const logoTrigger = page.locator('[aria-label="Kredit tim exile"], [title="Klik untuk melihat kredit tim"]').first();
   await logoTrigger.waitFor({ state: "visible" });
   await logoTrigger.click();
 
@@ -105,7 +106,7 @@ async function main() {
   // 4. Buat Ruang Kuis Calm (/buat-ruang-kuis)
   // ---------------------------------------------------------
   console.log("4. Creating room via API directly to obtain code and hostToken...");
-  const createRes = await page.request.post("http://localhost:3000/api/rooms/create", {
+  const createRes = await page.request.post(`${BASE_URL}/api/rooms/create`, {
     data: {
       hostName: "Pengajar exile",
       settings: {
@@ -119,7 +120,7 @@ async function main() {
   console.log("Created room:", roomData.roomCode);
 
   // Navigate to root to ensure origin context before setting storage
-  await page.goto("http://localhost:3000", { waitUntil: "commit" });
+  await page.goto(BASE_URL, { waitUntil: "commit" });
   await page.evaluate(({ roomCode, hostToken }) => {
     localStorage.setItem(`exile_host_token:${roomCode}`, hostToken);
     sessionStorage.setItem(`exile_host_token:${roomCode}`, hostToken);
@@ -127,7 +128,7 @@ async function main() {
   }, { roomCode: roomData.roomCode, hostToken: roomData.hostToken });
 
   console.log(`Navigating directly to /buat-ruang-kuis/${roomData.roomCode}...`);
-  await page.goto(`http://localhost:3000/buat-ruang-kuis/${roomData.roomCode}`, {
+  await page.goto(`${BASE_URL}/buat-ruang-kuis/${roomData.roomCode}`, {
     waitUntil: "networkidle",
   });
 
@@ -146,8 +147,8 @@ async function main() {
   // ---------------------------------------------------------
   // 5. Play Page PIN xxxxxx (/play)
   // ---------------------------------------------------------
-  console.log("5. Navigating to http://localhost:3000/play...");
-  await page.goto("http://localhost:3000/play", { waitUntil: "networkidle" });
+  console.log(`5. Navigating to ${BASE_URL}/play...`);
+  await page.goto(`${BASE_URL}/play`, { waitUntil: "networkidle" });
   await page.waitForTimeout(1000);
 
   // Check pin input placeholder
