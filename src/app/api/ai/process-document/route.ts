@@ -86,7 +86,7 @@ export async function POST(req: Request) {
       fileBase64 &&
       (fileType === "image" ||
         mimeType?.startsWith("image/") ||
-        /\.(jpe?g|png|webp)$/i.test(fileName))
+        /\.(jpe?g|png|webp|bmp|gif|heic|heif|jfif|tiff?)$/i.test(fileName))
     ) {
       imageList.push({ base64: fileBase64, mimeType });
     }

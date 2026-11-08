@@ -144,13 +144,13 @@ summary,
 .touch-slider::-webkit-slider-thumb {
   appearance: none;
   -webkit-appearance: none;
-  width: 44px;
-  height: 44px;
+  width: 26px;
+  height: 26px;
   border-radius: 9999px;
   background-color: var(--color-text-primary);
-  border: 12px solid transparent;
-  background-clip: padding-box;
-  margin-top: -19px;
+  border: 2px solid var(--color-background-primary-default);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
+  margin-top: -10px;
   cursor: pointer;
   transition: transform 0.15s ease;
 }
@@ -160,12 +160,12 @@ summary,
 }
 
 .touch-slider::-moz-range-thumb {
-  width: 44px;
-  height: 44px;
+  width: 26px;
+  height: 26px;
   border-radius: 9999px;
   background-color: var(--color-text-primary);
-  border: 12px solid transparent;
-  background-clip: padding-box;
+  border: 2px solid var(--color-background-primary-default);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25), 0 2px 8px rgba(0, 0, 0, 0.15);
   cursor: pointer;
   transition: transform 0.15s ease;
 }
@@ -208,6 +208,16 @@ html {
   background-color: var(--color-background-full);
   scroll-behavior: smooth;
   scroll-padding-top: var(--header-height, 4.5rem);
+}
+
+html[data-font-size="small"] {
+  font-size: 14.5px;
+}
+html[data-font-size="medium"] {
+  font-size: 16px;
+}
+html[data-font-size="large"] {
+  font-size: 17.5px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -358,11 +368,11 @@ input[type="search"]::-webkit-search-cancel-button {
  * under 16px — our text-body-regular/medium tokens are 14px by design, so
  * bump just the font-size (not the whole token) on small screens instead of
  * changing the design system's type scale. */
-@media (max-width: 639px) {
+@media screen and (max-width: 768px) {
   input,
-  select,
-  textarea {
-    font-size: 16px;
+  textarea,
+  select {
+    font-size: 16px !important;
   }
 }
 

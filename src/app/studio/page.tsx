@@ -95,6 +95,11 @@ import {
   type StudioHistoryEntry,
 } from "@/lib/studio/history-store";
 import {
+  loadSavedCopilotChat,
+  saveCopilotChat,
+  clearCopilotChat,
+} from "@/lib/studio/copilot-chat-store";
+import {
   calculateResponseScore,
   evaluateQuizResponse,
 } from "@/lib/quiz/scoring";
@@ -259,17 +264,17 @@ function ArtifactExpansionBar({
   suggestions: string[];
 }) {
   return (
-    <div className="space-y-3 rounded-2xl bg-background-secondary-default/40 p-4">
+    <div className="space-y-3 rounded-2xl bg-background-secondary-default/40 p-4 max-w-full overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <RiCopilotFill className="size-4 text-accent-700" />
-          <span className="text-caption-1-semibold text-text-primary">
+        <div className="flex items-center gap-2 min-w-0">
+          <RiCopilotFill className="size-4 shrink-0 text-accent-700" />
+          <span className="text-caption-1-semibold text-text-primary break-words">
             {isEn
               ? "Expand this artifact with a question"
               : "Perluas artifak ini dengan pertanyaan"}
           </span>
         </div>
-        <span className="text-caption-2-regular text-text-tertiary">
+        <span className="text-caption-2-regular text-text-tertiary break-words">
           {isEn
             ? "Keep asking until the artifact covers everything you need"
             : "Tanyakan terus sampai bahasan artifak ini terasa cukup"}
@@ -277,7 +282,7 @@ function ArtifactExpansionBar({
       </div>
 
       {suggestions.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 max-w-full">
           {suggestions.map((suggestion) => (
             <button
               key={`${artifact}-${suggestion}`}
@@ -300,7 +305,7 @@ function ArtifactExpansionBar({
           e.preventDefault();
           onSubmit();
         }}
-        className="flex flex-col gap-2 sm:flex-row sm:items-center"
+        className="flex flex-col gap-2 sm:flex-row sm:items-center w-full min-w-0"
       >
         <input
           type="text"
@@ -308,17 +313,17 @@ function ArtifactExpansionBar({
           onChange={(e) => onChange(e.target.value)}
           disabled={loading}
           placeholder={placeholder}
-          className="h-10 flex-1 rounded-xl ring-1 ring-inset ring-[var(--vb-border)] bg-background-primary-default px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 disabled:opacity-60"
+          className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-border-button-default bg-background-primary-default px-3.5 py-2 text-body-medium text-text-primary placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus-ring disabled:opacity-60 shadow-xs"
         />
         <Button
           type="submit"
           variant="secondary"
           size="small"
           disabled={loading || value.trim().length < 2}
-          className="shrink-0 justify-center"
+          className="min-h-[44px] shrink-0 justify-center"
         >
-          <RiCopilotFill className={cx("size-3.5", loading && "animate-spin")} />
-          <span>
+          <RiCopilotFill className={cx("size-3.5 shrink-0", loading && "animate-spin")} />
+          <span className="truncate">
             {loading
               ? isEn
                 ? "Expanding..."
@@ -1146,6 +1151,36 @@ export default function StudioPage() {
     name: string;
   } | null>(null);
 
+  const hasLoadedCopilotChatRef = useRef(false);
+
+  useEffect(() => {
+    const saved = loadSavedCopilotChat<typeof chatMessages[number]>();
+    if (saved && saved.length > 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- hydrate saved chat from localStorage after mount
+      setChatMessages(saved);
+    }
+    hasLoadedCopilotChatRef.current = true;
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedCopilotChatRef.current) return;
+    saveCopilotChat(chatMessages);
+  }, [chatMessages]);
+
+  const handleClearCopilotChat = () => {
+    soundEffects.playClick();
+    clearCopilotChat();
+    setChatMessages([
+      {
+        role: "assistant",
+        content: isEn
+          ? "Ask me anything about your material or Exile. I can read uploaded files, fix typos directly in your text, or explain how any feature works."
+          : "Tanyakan apa saja soal materi Anda atau cara pakai Exile. Saya bisa membaca berkas yang diunggah, memperbaiki salah ketik langsung di teks materi, atau menjelaskan konsep tertentu.",
+      },
+    ]);
+    toast.success(isEn ? "Chat cleared" : "Obrolan dibersihkan");
+  };
+
   const teacherName = useMemo(() => {
     return (
       user?.user_metadata?.full_name ||
@@ -1184,69 +1219,83 @@ export default function StudioPage() {
     const mime = file.type || "text/plain";
     setUploadedMimeType(mime);
 
-    if (file.name.toLowerCase().endsWith(".docx")) {
+    const lowerName = file.name.toLowerCase();
+
+    // 1. Standard text files: read directly in client via readAsText
+    const isStandardText =
+      /\.(txt|md|csv|tsv|json|yaml|yml)$/i.test(lowerName) ||
+      (mime.startsWith("text/") &&
+        !/\.(pdf|docx?|pptx?|xlsx?|odt|ods|odp|epub|rtf|jpe?g|png|webp|bmp|gif|heic|heif|jfif|tiff?)$/i.test(
+          lowerName
+        ));
+
+    if (isStandardText) {
       setUploadedFileType("text");
       setUploadedFileBase64("");
       const reader = new FileReader();
+      reader.onload = (event) => {
+        const content =
+          typeof event.target?.result === "string" ? event.target.result : "";
+        setDocText(content);
+        toast.success(
+          isEn
+            ? `Text file "${file.name}" loaded successfully.`
+            : `Berkas teks "${file.name}" berhasil dimuat.`
+        );
+      };
+      reader.readAsText(file);
+      return;
+    }
+
+    // 2. Office / rich docs: .pptx, .xlsx, .odt, .ods, .odp, .epub, .rtf, .doc, .docx
+    // Handled via server extractText with detectedType: "text" (so they don't get routed to image vision)
+    const isOfficeDoc =
+      /\.(pptx|xlsx|odt|ods|odp|epub|rtf|docx?|ppt|xls)$/i.test(lowerName);
+
+    if (isOfficeDoc) {
+      setUploadedFileType("text");
+      const reader = new FileReader();
       reader.onload = async (event) => {
-        try {
-          const res = event.target?.result as string;
-          const base64 = res.includes(",") ? res.split(",")[1] : res;
-          const apiRes = await fetch("/api/ai/process-document", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "transcribe",
-              fileName: file.name,
-              fileType: "text",
-              mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-              fileBase64: base64,
-            }),
-          });
-          const data = await apiRes.json();
-          if (!apiRes.ok || !data.success) {
-            throw new Error(data.error || "Gagal membaca dokumen Word (.docx)");
-          }
-          const cleanedText = String(data.transcription || "").trim();
-          setDocText(cleanedText);
-          toast.success(`Dokumen Word "${file.name}" berhasil diekstrak (${cleanedText.length} karakter).`);
-        } catch {
-          toast.error("Gagal membaca dokumen Word (.docx). Pastikan berkas tidak terenkripsi atau rusak.");
-        }
+        const dataUrl =
+          typeof event.target?.result === "string" ? event.target.result : "";
+        setUploadedFileBase64(dataUrl);
+        await transcribeUploadedFile(dataUrl, file.name, "text", mime);
       };
       reader.readAsDataURL(file);
       return;
     }
 
-    const isText =
-      file.name.endsWith(".txt") ||
-      file.name.endsWith(".md") ||
-      mime.startsWith("text/");
-
-    if (isText) {
-      setUploadedFileType("text");
-      setUploadedFileBase64("");
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const content = typeof event.target?.result === "string" ? event.target.result : "";
-        setDocText(content);
-        toast.success(`Berkas teks "${file.name}" berhasil dimuat.`);
-      };
-      reader.readAsText(file);
-    } else {
-      const isPdf = mime === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
-      const detectedType: "pdf" | "image" = isPdf ? "pdf" : "image";
-      setUploadedFileType(detectedType);
-
+    // 3. PDF documents
+    const isPdf = mime === "application/pdf" || lowerName.endsWith(".pdf");
+    if (isPdf) {
+      setUploadedFileType("pdf");
       const reader = new FileReader();
       reader.onload = async (event) => {
-        const dataUrl = typeof event.target?.result === "string" ? event.target.result : "";
+        const dataUrl =
+          typeof event.target?.result === "string" ? event.target.result : "";
         setUploadedFileBase64(dataUrl);
-
-        await transcribeUploadedFile(dataUrl, file.name, detectedType, mime);
+        await transcribeUploadedFile(dataUrl, file.name, "pdf", mime);
       };
       reader.readAsDataURL(file);
+      return;
     }
+
+    // 4. Images: .jpg, .jpeg, .png, .webp, .bmp, .gif, .heic, .heif or mime.startsWith("image/")
+    const isImage =
+      /\.(jpe?g|png|webp|bmp|gif|heic|heif|jfif|tiff?)$/i.test(lowerName) ||
+      mime.startsWith("image/");
+
+    const detectedType: "image" | "text" = isImage ? "image" : "text";
+    setUploadedFileType(detectedType);
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      const dataUrl =
+        typeof event.target?.result === "string" ? event.target.result : "";
+      setUploadedFileBase64(dataUrl);
+      await transcribeUploadedFile(dataUrl, file.name, detectedType, mime);
+    };
+    reader.readAsDataURL(file);
   };
 
   const transcribeUploadedFile = async (
@@ -1256,13 +1305,22 @@ export default function StudioPage() {
     mimeType: string
   ) => {
     setIsTranscribing(true);
-    const statusMsg = isEn
-      ? `Analyzing & transcribing "${fileName}" directly via AI Multimodal...`
-      : `Menganalisis & mentranskripsi "${fileName}" langsung via AI Multimodal...`;
+    const statusMsg =
+      fileType === "text"
+        ? isEn
+          ? `Extracting text from "${fileName}"...`
+          : `Mengekstrak teks dari "${fileName}"...`
+        : isEn
+        ? `Analyzing & transcribing "${fileName}" directly via AI Multimodal...`
+        : `Menganalisis & mentranskripsi "${fileName}" langsung via AI Multimodal...`;
     setTranscriptionStatus(statusMsg);
 
     const toastId = toast.loading(
-      isEn
+      fileType === "text"
+        ? isEn
+          ? `Extracting text from "${fileName}"...`
+          : `Mengekstrak teks dari "${fileName}"...`
+        : isEn
         ? `Transcribing "${fileName}" via AI Multimodal Vision...`
         : `Mentranskripsi "${fileName}" langsung via AI Multimodal Vision...`
     );
@@ -1289,7 +1347,11 @@ export default function StudioPage() {
       if (data.transcription && data.transcription.trim().length > 0) {
         setDocText(data.transcription.trim());
         toast.success(
-          isEn
+          fileType === "text"
+            ? isEn
+              ? `Document "${fileName}" text extracted successfully (${data.transcription.length} chars).`
+              : `Teks dokumen "${fileName}" berhasil diekstrak (${data.transcription.length} karakter).`
+            : isEn
             ? `Direct AI multimodal transcription complete (${data.transcription.length} chars).`
             : `Transkripsi visual AI multimodal selesai (${data.transcription.length} karakter).`,
           { id: toastId }
@@ -1521,7 +1583,63 @@ export default function StudioPage() {
         const transcription: string = json.transcription || "";
         setDirectAnswers(answers);
         setScanTranscription(transcription);
-        setIsDirectAnswerCardOpen(true);
+        setIsDirectAnswerCardOpen(false);
+
+        const userPrompt = isEn
+          ? "Please check and provide direct answers for this scanned homework sheet."
+          : "Tolong periksa dan berikan jawaban langsung untuk lembar tugas terpindai ini.";
+
+        const lines: string[] = [];
+        if (answers.length > 0) {
+          lines.push(
+            isEn
+              ? "Here are the direct answers and key explanations for your scanned assignment:"
+              : "Berikut adalah jawaban langsung dan penjelasan kunci untuk lembar tugas terpindai Anda:"
+          );
+          lines.push("");
+          answers.forEach((item) => {
+            lines.push(
+              isEn ? `### Question ${item.number}` : `### Soal ${item.number}`
+            );
+            if (item.questionSnippet?.trim()) {
+              lines.push(`> ${item.questionSnippet.trim()}`);
+              lines.push("");
+            }
+            lines.push(`**${isEn ? "Answer" : "Jawaban"}:** ${item.answer.trim()}`);
+            if (item.keyExplanation?.trim()) {
+              lines.push(
+                `**${isEn ? "Explanation" : "Penjelasan"}:** ${item.keyExplanation.trim()}`
+              );
+            }
+            lines.push("");
+          });
+
+          if (transcription?.trim()) {
+            lines.push("---");
+            lines.push(
+              isEn ? "**Scanned transcription:**" : "**Transkripsi hasil pindai:**"
+            );
+            lines.push(transcription.trim());
+          }
+        } else {
+          lines.push(
+            transcription?.trim() ||
+              (isEn
+                ? "No questions or answers could be detected from the scanned sheet."
+                : "Tidak ada soal atau jawaban yang berhasil dideteksi dari lembar pindaian.")
+          );
+        }
+
+        const assistantReply = lines.join("\n").trim();
+
+        setChatMessages((prev) => [
+          ...prev,
+          { role: "user", content: userPrompt },
+          { role: "assistant", content: assistantReply },
+        ]);
+
+        setIsCopilotDrawerOpen(true);
+
         toast.success(
           isEn
             ? "Answer keys scanned successfully"
@@ -2540,7 +2658,7 @@ export default function StudioPage() {
           <input
             ref={currentFileInputRef}
             type="file"
-            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp,.rtf,.txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.epub,image/*,text/*,application/*"
+            accept=".jpg,.jpeg,.png,.webp,.bmp,.gif,.heic,.heif,.jfif,.tiff,.tif,.pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp,.rtf,.txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.epub,image/*,text/*,application/*"
             onChange={handleFileChange}
             className="hidden"
           />
@@ -2603,8 +2721,7 @@ export default function StudioPage() {
             disabled={isScanProcessing}
             onClick={() => {
               soundEffects.playClick();
-              setScannerMode("learning");
-              setIsScannerOpen(true);
+              setIsPreScanModalOpen(true);
             }}
             title={isEn ? "Scan homework with camera" : "Pindai tugas kamera"}
             aria-label={isEn ? "Scan homework with camera" : "Pindai tugas kamera"}
@@ -3969,7 +4086,7 @@ export default function StudioPage() {
                             ? "Optional focus for new cards (e.g. compare concepts, formulas)..."
                             : "Fokus kartu tambahan (opsional, mis. perbandingan konsep, studi kasus)..."
                         }
-                        className="h-10 flex-1 rounded-xl ring-1 ring-inset ring-[var(--vb-border)] bg-background-primary-default px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        className="min-h-[44px] min-w-0 flex-1 rounded-xl border border-border-button-default bg-background-primary-default px-3.5 py-2 text-body-medium text-text-primary placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus-ring disabled:opacity-60 shadow-xs"
                       />
                       <Button
                         type="button"
@@ -3977,7 +4094,7 @@ export default function StudioPage() {
                         size="small"
                         onClick={handleGenerateMoreCards}
                         disabled={generatingMoreCards}
-                        className="shrink-0"
+                        className="min-h-[44px] shrink-0"
                       >
                         {generatingMoreCards
                           ? isEn
@@ -4396,48 +4513,66 @@ export default function StudioPage() {
                 {/* ========================================================= */}
                 {activeTab === "mindmap" && processedDoc.mindMap && (
                   <div className="space-y-6">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <Chip variant="caption" color="blue">
-                          {isEn
-                            ? `${(processedDoc.mindMap.children || []).length} main branches`
-                            : `${(processedDoc.mindMap.children || []).length} cabang utama`}
-                        </Chip>
-                        <span className="text-caption-2-regular text-text-tertiary">
-                          {isEn
-                            ? "Click any branch to collapse or expand sub-concepts"
-                            : "Klik cabang untuk membuka/menutup sub-konsep atau memperluasnya"}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="secondary"
-                          size="small"
-                          onClick={() => {
-                            soundEffects.playClick();
-                            setCollapsedBranches({});
-                          }}
-                        >
-                          {isEn ? "Expand all" : "Buka semua"}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="small"
-                          onClick={() => {
-                            soundEffects.playClick();
-                            const next: Record<string, boolean> = {};
-                            (processedDoc.mindMap?.children || []).forEach((b) => {
-                              next[b.id] = true;
-                            });
-                            setCollapsedBranches(next);
-                          }}
-                        >
-                          {isEn ? "Collapse all" : "Ringkas semua"}
-                        </Button>
-                      </div>
-                    </div>
+                    {(() => {
+                      const allBranches = processedDoc.mindMap?.children || [];
+                      const totalBranches = allBranches.length;
+                      const collapsedCount = Object.values(collapsedBranches).filter(Boolean).length;
+                      const isAllCollapsed = totalBranches > 0 && collapsedCount >= totalBranches;
+                      const isAllExpanded = collapsedCount === 0;
+
+                      return (
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2">
+                            <Chip variant="caption" color="blue">
+                              {isEn
+                                ? `${totalBranches} main branches`
+                                : `${totalBranches} cabang utama`}
+                            </Chip>
+                            <span className="text-caption-2-regular text-text-tertiary">
+                              {isEn
+                                ? "Click any branch to collapse or expand sub-concepts"
+                                : "Klik cabang untuk membuka/menutup sub-konsep atau memperluasnya"}
+                            </span>
+                          </div>
+                          <div className="inline-flex items-center p-1 rounded-xl bg-background-secondary-default border border-border-button-default">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundEffects.playClick();
+                                setCollapsedBranches({});
+                              }}
+                              className={cx(
+                                "px-3 py-1.5 rounded-lg text-caption-1-medium transition-all cursor-pointer border-0",
+                                isAllExpanded
+                                  ? "bg-background-tertiary-default text-text-primary shadow-xs font-semibold"
+                                  : "text-text-secondary hover:text-text-primary"
+                              )}
+                            >
+                              {isEn ? "Expand all" : "Buka semua"}
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                soundEffects.playClick();
+                                const next: Record<string, boolean> = {};
+                                (processedDoc.mindMap?.children || []).forEach((b) => {
+                                  next[b.id] = true;
+                                });
+                                setCollapsedBranches(next);
+                              }}
+                              className={cx(
+                                "px-3 py-1.5 rounded-lg text-caption-1-medium transition-all cursor-pointer border-0",
+                                isAllCollapsed
+                                  ? "bg-background-tertiary-default text-text-primary shadow-xs font-semibold"
+                                  : "text-text-secondary hover:text-text-primary"
+                              )}
+                            >
+                              {isEn ? "Collapse all" : "Ringkas semua"}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })()}
 
                     <div className="p-5 sm:p-6 rounded-3xl bg-background-secondary-default/50 shadow-card space-y-6">
                       {/* Root Node */}
@@ -4803,7 +4938,7 @@ export default function StudioPage() {
                             ? "Filter table rows by keyword..."
                             : "Cari kata kunci di dalam tabel data..."
                         }
-                        className="h-9 w-full rounded-xl ring-1 ring-inset ring-[var(--vb-border)] bg-background-secondary-default/50 px-3.5 text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500"
+                        className="min-h-[40px] w-full rounded-xl border border-border-button-default bg-background-secondary-default/50 px-3.5 py-2 text-body-medium text-text-primary placeholder:text-text-placeholder focus:outline-none focus:ring-2 focus:ring-border-focus-ring shadow-xs"
                       />
                     </div>
 
@@ -5049,18 +5184,29 @@ export default function StudioPage() {
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    soundEffects.playClick();
-                    setIsCopilotDrawerOpen(false);
-                  }}
-                  className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-background-secondary-default transition-colors cursor-pointer shrink-0 border-0"
-                  aria-label={isEn ? "Close" : "Tutup"}
-                  title={isEn ? "Close exile copilot" : "Tutup exile copilot"}
-                >
-                  <RiCloseLine className="size-4" />
-                </button>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button
+                    type="button"
+                    onClick={handleClearCopilotChat}
+                    className="p-1.5 rounded-lg text-text-tertiary hover:text-text-error-primary hover:bg-background-secondary-default transition-colors cursor-pointer border-0"
+                    aria-label={isEn ? "Clear chat" : "Bersihkan obrolan"}
+                    title={isEn ? "Clear chat" : "Bersihkan obrolan"}
+                  >
+                    <RiDeleteBinLine className="size-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      soundEffects.playClick();
+                      setIsCopilotDrawerOpen(false);
+                    }}
+                    className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-background-secondary-default transition-colors cursor-pointer shrink-0 border-0"
+                    aria-label={isEn ? "Close" : "Tutup"}
+                    title={isEn ? "Close exile copilot" : "Tutup exile copilot"}
+                  >
+                    <RiCloseLine className="size-4" />
+                  </button>
+                </div>
               </div>
 
               {/* Scrollable Message History with ScrollFade */}
@@ -5168,7 +5314,7 @@ export default function StudioPage() {
                   <input
                     ref={copilotImageInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/webp"
+                    accept=".jpg,.jpeg,.png,.webp,.bmp,.gif,.heic,.heif,.jfif,.tiff,.tif,image/*"
                     onChange={handleCopilotImageSelect}
                     className="hidden"
                   />

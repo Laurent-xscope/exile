@@ -10,7 +10,7 @@ import type { QuizDifficultyLevel } from "@/lib/quiz/options";
 import { cx } from "@/utils/cx";
 
 const ACCEPT =
-  ".pdf,.docx,.doc,.pptx,.xlsx,.odt,.odp,.ods,.epub,.rtf,.csv,.tsv,.xml,.yaml,.yml,.json,.html,.htm,.tex,.srt,.vtt,.log,.txt,.md,text/*";
+  ".jpg,.jpeg,.png,.webp,.bmp,.gif,.heic,.heif,image/*,.pdf,.docx,.doc,.pptx,.xlsx,.odt,.odp,.ods,.epub,.rtf,.csv,.tsv,.xml,.yaml,.yml,.json,.html,.htm,.tex,.srt,.vtt,.log,.txt,.md,text/*";
 const MAX_BYTES = 20 * 1024 * 1024;
 
 interface QuizUploadProps {

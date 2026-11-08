@@ -257,7 +257,19 @@ export async function extractText(file: UploadedFile): Promise<string> {
     mime === "image/png" ||
     mime === "image/webp" ||
     mime.startsWith("image/") ||
-    ["jpg", "jpeg", "png", "webp"].includes(ext);
+    [
+      "jpg",
+      "jpeg",
+      "png",
+      "webp",
+      "bmp",
+      "gif",
+      "heic",
+      "heif",
+      "jfif",
+      "tiff",
+      "tif",
+    ].includes(ext);
 
   if (isImage) {
     const effectiveMime =
@@ -267,6 +279,10 @@ export async function extractText(file: UploadedFile): Promise<string> {
         ? "image/png"
         : ext === "webp"
         ? "image/webp"
+        : ext === "gif"
+        ? "image/gif"
+        : ext === "bmp"
+        ? "image/bmp"
         : "image/jpeg";
 
     try {

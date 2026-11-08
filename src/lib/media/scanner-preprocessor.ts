@@ -268,28 +268,60 @@ export async function compressAndResizeImage(
   const commaIndex = dataUrl.indexOf(",");
   const rawBase64 = commaIndex !== -1 ? dataUrl.slice(commaIndex + 1) : dataUrl;
 
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      (resultBlob) => {
-        if (resultBlob) {
-          resolve(resultBlob);
-          return;
+  const createBlobFallback = async (): Promise<Blob> => {
+    // 1. Try native fetch(dataUrl) first (WebKit safe, avoids atob pattern exceptions)
+    if (typeof fetch === "function") {
+      try {
+        const res = await fetch(dataUrl);
+        const b = await res.blob();
+        if (b && b.size > 0) {
+          return b;
         }
+      } catch {
+        // Fall back to sanitized atob below
+      }
+    }
 
-        try {
-          const binary = atob(rawBase64);
-          const bytes = new Uint8Array(binary.length);
-          for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
-          }
-          resolve(new Blob([bytes], { type: mimeType }));
-        } catch (err) {
-          reject(err);
-        }
-      },
-      mimeType,
-      quality
-    );
+    // 2. Fall back to atob with sanitization and try/catch to guarantee zero pattern errors
+    try {
+      let sanitized = rawBase64.replace(/[^A-Za-z0-9+/=]/g, "");
+      const remainder = sanitized.length % 4;
+      if (remainder === 2) {
+        sanitized += "==";
+      } else if (remainder === 3) {
+        sanitized += "=";
+      }
+      const binary = atob(sanitized);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new Blob([bytes], { type: mimeType });
+    } catch {
+      return new Blob([], { type: mimeType });
+    }
+  };
+
+  const blob = await new Promise<Blob>((resolve) => {
+    if (typeof canvas.toBlob === "function") {
+      try {
+        canvas.toBlob(
+          async (resultBlob) => {
+            if (resultBlob) {
+              resolve(resultBlob);
+            } else {
+              resolve(await createBlobFallback());
+            }
+          },
+          mimeType,
+          quality
+        );
+      } catch {
+        void createBlobFallback().then(resolve);
+      }
+    } else {
+      void createBlobFallback().then(resolve);
+    }
   });
 
   return {

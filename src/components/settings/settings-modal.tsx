@@ -84,6 +84,7 @@ function SettingToggleRow({
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { settings, updateSetting, mounted } = useExileSettings();
   const { theme, setTheme } = useTheme();
+  const isEn = settings.language === "en";
   const [activeTab, setActiveTab] = useState<
     "audio" | "display" | "profile"
   >("audio");
@@ -299,6 +300,62 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <span>Sistem</span>
                     </SegmentedControlItem>
                   </SegmentedControl>
+                </div>
+
+                <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-2.5">
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-body-medium text-text-primary">
+                      {isEn ? "Font size" : "Ukuran font"}
+                    </span>
+                    <span className="text-caption-1-regular text-text-secondary">
+                      {isEn
+                        ? "Adjust text scale for comfortable reading across all screens"
+                        : "Sesuaikan kenyamanan membaca teks di seluruh antarmuka"}
+                    </span>
+                  </div>
+                  <SegmentedControl
+                    aria-label={isEn ? "Font size" : "Ukuran font"}
+                    selectedKeys={new Set([settings.fontSize || "medium"])}
+                    onSelectionChange={(keys) => {
+                      const selected = Array.from(keys)[0];
+                      if (selected != null) {
+                        updateSetting(
+                          "fontSize",
+                          selected as "small" | "medium" | "large"
+                        );
+                      }
+                    }}
+                    className="w-full grid grid-cols-3"
+                  >
+                    <SegmentedControlItem id="small" className="w-full gap-1.5 font-medium">
+                      <span className="text-xs font-bold leading-none select-none" aria-hidden>
+                        A
+                      </span>
+                      <span>{isEn ? "Small" : "Kecil"}</span>
+                    </SegmentedControlItem>
+                    <SegmentedControlItem id="medium" className="w-full gap-1.5 font-medium">
+                      <span className="text-sm font-bold leading-none select-none" aria-hidden>
+                        A
+                      </span>
+                      <span>{isEn ? "Medium" : "Sedang"}</span>
+                    </SegmentedControlItem>
+                    <SegmentedControlItem id="large" className="w-full gap-1.5 font-medium">
+                      <span className="text-base font-bold leading-none select-none" aria-hidden>
+                        A
+                      </span>
+                      <span>{isEn ? "Large" : "Besar"}</span>
+                    </SegmentedControlItem>
+                  </SegmentedControl>
+                  <div className="rounded-xl border border-border-button-default bg-background-primary-default p-3 mt-1.5 space-y-1">
+                    <p className="text-caption-2-medium text-text-tertiary">
+                      {isEn ? "Typography preview" : "Pratinjau tipografi"}
+                    </p>
+                    <p className="text-body-medium text-text-primary leading-snug">
+                      {isEn
+                        ? "Interactive quizzes and flashcards adapt to your preferred reading size."
+                        : "Kuis interaktif dan kartu belajar menyesuaikan ukuran teks pilihan anda."}
+                    </p>
+                  </div>
                 </div>
               </div>
             )}

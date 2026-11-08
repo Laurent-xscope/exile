@@ -6,6 +6,7 @@ import { soundEffects } from "@/lib/audio/sounds";
 export interface ExileSettings {
   language: "id" | "en";
   theme: "system" | "light" | "dark";
+  fontSize: "small" | "medium" | "large";
   soundEnabled: boolean;
   soundVolume: number; // 0 - 100
   countdownTicks: boolean;
@@ -21,6 +22,7 @@ export interface ExileSettings {
 export const DEFAULT_SETTINGS: ExileSettings = {
   language: "id",
   theme: "system",
+  fontSize: "medium",
   soundEnabled: true,
   soundVolume: 80,
   countdownTicks: true,
@@ -56,12 +58,21 @@ function applySettingsEffects(settings: ExileSettings): void {
   soundEffects.setCountdownTicks(settings.countdownTicks);
   if (typeof document !== "undefined" && document.documentElement) {
     document.documentElement.lang = settings.language || "id";
+    document.documentElement.setAttribute("data-font-size", settings.fontSize || "medium");
     document.documentElement.classList.toggle("high-contrast", Boolean(settings.highContrast));
     document.documentElement.classList.toggle("compact-density", Boolean(settings.compactDensity));
   }
 }
 
 let currentSettings: ExileSettings = DEFAULT_SETTINGS;
+if (typeof window !== "undefined") {
+  try {
+    currentSettings = loadSettings();
+    applySettingsEffects(currentSettings);
+  } catch {
+    // Ignore initialization errors
+  }
+}
 const settingsListeners = new Set<() => void>();
 
 function subscribeToSettings(listener: () => void): () => void {

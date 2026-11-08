@@ -302,6 +302,127 @@ describe("compressAndResizeImage", () => {
       globalEnv.createImageBitmap = originalCreateImageBitmap;
     }
   });
+
+  it("falls back to fetch(dataUrl) when canvas.toBlob returns null", async () => {
+    const originalWindow = globalThis.window;
+    const originalDocument = globalThis.document;
+    const originalCreateImageBitmap = globalThis.createImageBitmap;
+    const originalFetch = globalThis.fetch;
+
+    const dummyJpegBase64 = "/9j/4AAQSkZJRg==";
+    const dummyDataUrl = `data:image/jpeg;base64,${dummyJpegBase64}`;
+
+    let fetchCalled = false;
+    globalThis.fetch = (async (url: string | URL | Request) => {
+      fetchCalled = true;
+      expect(String(url)).toBe(dummyDataUrl);
+      return new Response(new Blob(["fetched-bytes"], { type: "image/jpeg" }));
+    }) as typeof fetch;
+
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        drawImage: () => {},
+      }),
+      toDataURL: () => dummyDataUrl,
+      toBlob: (callback: (blob: Blob | null) => void) => {
+        // Simulate WebKit/Safari returning null blob
+        callback(null);
+      },
+    };
+
+    const globalEnv = globalThis as unknown as {
+      window?: unknown;
+      document?: unknown;
+      createImageBitmap?: unknown;
+    };
+
+    globalEnv.window = {} as unknown as Window & typeof globalThis;
+    globalEnv.document = {
+      createElement: (tag: string) => (tag === "canvas" ? mockCanvas : {}),
+    } as unknown as Document;
+
+    globalEnv.createImageBitmap = async () => ({
+      width: 800,
+      height: 600,
+      close: () => {},
+    });
+
+    try {
+      const dummyBlob = new Blob(["test"], { type: "image/jpeg" });
+      const result = await compressAndResizeImage(dummyBlob);
+
+      expect(fetchCalled).toBe(true);
+      expect(result.blob).toBeDefined();
+      expect(result.mimeType).toBe("image/jpeg");
+    } finally {
+      globalEnv.window = originalWindow;
+      globalEnv.document = originalDocument;
+      globalEnv.createImageBitmap = originalCreateImageBitmap;
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("sanitizes base64 and avoids atob pattern error when toBlob and fetch fail", async () => {
+    const originalWindow = globalThis.window;
+    const originalDocument = globalThis.document;
+    const originalCreateImageBitmap = globalThis.createImageBitmap;
+    const originalFetch = globalThis.fetch;
+
+    // Simulate unsanitized base64 string with invalid characters / newlines / spaces that WebKit atob rejects
+    const dirtyBase64 = " /9j/\n4AAQ\r\nSkZJRg== \t#$*";
+    const dirtyDataUrl = `data:image/jpeg;base64,${dirtyBase64}`;
+
+    // Simulate fetch throwing error
+    globalThis.fetch = (async () => {
+      throw new Error("fetch not supported for data URL");
+    }) as unknown as typeof fetch;
+
+    const mockCanvas = {
+      width: 0,
+      height: 0,
+      getContext: () => ({
+        drawImage: () => {},
+      }),
+      toDataURL: () => dirtyDataUrl,
+      toBlob: (callback: (blob: Blob | null) => void) => {
+        callback(null);
+      },
+    };
+
+    const globalEnv = globalThis as unknown as {
+      window?: unknown;
+      document?: unknown;
+      createImageBitmap?: unknown;
+    };
+
+    globalEnv.window = {} as unknown as Window & typeof globalThis;
+    globalEnv.document = {
+      createElement: (tag: string) => (tag === "canvas" ? mockCanvas : {}),
+    } as unknown as Document;
+
+    globalEnv.createImageBitmap = async () => ({
+      width: 400,
+      height: 300,
+      close: () => {},
+    });
+
+    try {
+      const dummyBlob = new Blob(["test"], { type: "image/jpeg" });
+      // Must not throw "Failed to execute 'atob' on 'Window': The string did not match the expected pattern."
+      const result = await compressAndResizeImage(dummyBlob);
+
+      expect(result.blob).toBeDefined();
+      expect(result.blob.type).toBe("image/jpeg");
+      expect(result.mimeType).toBe("image/jpeg");
+    } finally {
+      globalEnv.window = originalWindow;
+      globalEnv.document = originalDocument;
+      globalEnv.createImageBitmap = originalCreateImageBitmap;
+      globalThis.fetch = originalFetch;
+    }
+  });
 });
 
 describe("assembleMultiPageDocument", () => {
