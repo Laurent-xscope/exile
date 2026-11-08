@@ -125,10 +125,10 @@ const CURRICULUM_ARTIFACTS_SHOWCASE: CurriculumArtifactShowcaseItem[] = [
     titleEn: "Adaptive quiz",
     tagId: "Formatif",
     tagEn: "Formative",
-    descId: "Soal HOTS bertingkat dengan analisis distraktor otomatis dan evaluasi langsung.",
-    descEn: "Multi-tier HOTS questions with automatic distractor analysis and instant diagnosis.",
-    badgeId: "HOTS formatif",
-    badgeEn: "HOTS formative",
+    descId: "Soal formatif bertingkat dengan analisis distraktor otomatis dan evaluasi langsung.",
+    descEn: "Tiered formative questions with automatic distractor analysis and instant diagnosis.",
+    badgeId: "Formatif bertingkat",
+    badgeEn: "Tiered formative",
     spanClass: "col-span-1",
   },
   {
@@ -138,8 +138,8 @@ const CURRICULUM_ARTIFACTS_SHOWCASE: CurriculumArtifactShowcaseItem[] = [
     titleEn: "Summary",
     tagId: "Struktur",
     tagEn: "Structured",
-    descId: "Ekstraksi konsep hierarkis dari modul panjang tanpa membuang nuansa penting.",
-    descEn: "Hierarchical concept extraction from long modules without dropping critical nuance.",
+    descId: "Ekstraksi konsep hierarkis dari dokumen panjang tanpa membuang nuansa penting.",
+    descEn: "Hierarchical concept extraction from long documents without dropping critical nuance.",
     badgeId: "Hierarkis",
     badgeEn: "Hierarchical",
     spanClass: "col-span-1",
@@ -200,7 +200,8 @@ const CURRICULUM_ARTIFACTS_SHOWCASE: CurriculumArtifactShowcaseItem[] = [
 
 interface TeamMemberProfile {
   handle: string;
-  role: string;
+  roleId: string;
+  roleEn: string;
   roleTitleId: string;
   roleTitleEn: string;
   href: string;
@@ -211,7 +212,8 @@ interface TeamMemberProfile {
 const TEAM_PROFILES: TeamMemberProfile[] = [
   {
     handle: "@dear.sidd",
-    role: "Leader",
+    roleId: "Ketua tim",
+    roleEn: "Team lead",
     roleTitleId: "Arsitektur sistem & rekayasa pedagogi",
     roleTitleEn: "System architecture & pedagogy",
     href: "https://www.instagram.com/dear.sidd/",
@@ -220,7 +222,8 @@ const TEAM_PROFILES: TeamMemberProfile[] = [
   },
   {
     handle: "@wstra__",
-    role: "Team 1",
+    roleId: "Anggota tim 1",
+    roleEn: "Team member 1",
     roleTitleId: "Desain interaksi & visual 3d",
     roleTitleEn: "Interaction & 3d visual design",
     href: "https://www.instagram.com/wstra__/",
@@ -229,7 +232,8 @@ const TEAM_PROFILES: TeamMemberProfile[] = [
   },
   {
     handle: "@ekaprtama_",
-    role: "Team 2",
+    roleId: "Anggota tim 2",
+    roleEn: "Team member 2",
     roleTitleId: "Pengalaman belajar formatif & data",
     roleTitleEn: "Formative learning experience & data",
     href: "https://www.instagram.com/ekaprtama_/",
@@ -475,44 +479,44 @@ export default function LandingPage() {
 
       <main className="flex-1 overflow-x-clip">
         {/* SECTION 1: ASYMMETRIC EDITORIAL HERO + OPEN 3D STUDY DESK */}
-        <section className="relative pt-6 sm:pt-16 pb-12 sm:pb-24 border-b border-separator-border/60 lg:min-h-[155vh] overflow-x-clip">
+        <section className="relative pt-4 sm:pt-16 pb-8 sm:pb-14 lg:pb-20 border-b border-separator-border/60 lg:min-h-[155vh] overflow-x-clip">
           <div className="mx-auto max-w-[1160px] px-4 sm:px-6 lg:sticky lg:top-20 space-y-6 sm:space-y-10">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-12 items-start">
               {/* Left Column: Editorial Display Typography & CTAs */}
               <div className="lg:col-span-5 space-y-6">
                 <div className="space-y-4">
                   <h1
                     className={cx(
-                      "text-title-1-semibold sm:text-display-3-bold md:text-display-2-bold lg:text-display-1-bold text-text-primary tracking-tight leading-[1.15] font-display"
+                      "text-display-4-bold sm:text-display-2-bold lg:text-display-1-bold text-text-primary tracking-tight leading-[1.15] font-display text-balance"
                     )}
                   >
-                    <span className="block">
-                      {isEn ? "Curriculum documents into" : "Olah modul & materi ajar"}
-                    </span>
-                    <span className="block text-text-secondary">
+                    <span>
+                      {isEn ? "Curriculum documents into" : "Olah dokumen materi ajar"}
+                    </span>{" "}
+                    <span className="text-text-secondary">
                       {isEn ? "living 3d learning cards." : "menjadi kartu 3d interaktif."}
                     </span>
                   </h1>
 
-                  <div className="h-[3px] w-20 bg-border-button-default rounded-full" aria-hidden />
+                  <div className="h-[3px] w-14 sm:w-20 bg-border-button-default rounded-full" aria-hidden />
 
-                  <p className="text-body-regular sm:text-body-medium text-text-secondary leading-relaxed pt-1">
+                  <p className="text-pretty max-w-xl text-body-regular sm:text-body-medium text-text-secondary leading-relaxed pt-1">
                     {isEn
-                      ? "Transform lesson manuscripts into tactile 3d cards and synchronous quiz rooms in seconds. Experience deep student comprehension with zero application setup."
-                      : "Ubah naskah materi ajar menjadi kartu 3d taktil dan ruang kuis formatif interaktif dalam hitungan detik. Pantau pemahaman siswa secara langsung tanpa instalasi aplikasi."}
+                      ? "Convert teaching documents into 3d cards and live quiz rooms quickly. Track student progress directly with no app installation."
+                      : "Ubah dokumen materi ajar menjadi kartu 3d dan ruang kuis interaktif dengan cepat. Pantau pemahaman siswa langsung tanpa memasang aplikasi."}
                   </p>
                 </div>
 
                 {/* Primary & Secondary Hero Actions */}
-                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 pt-2 w-full sm:w-auto">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-3 pt-2">
                   <ButtonLink
                     href={studioHref}
                     variant="secondary"
                     size="medium"
                     leadingIcon={RiQuillPenLine}
-                    className="w-full sm:w-auto min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
+                    className="min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
                   >
-                    Studio
+                    {isEn ? "Open studio" : "Buka studio ajar"}
                   </ButtonLink>
 
                   <Button
@@ -522,7 +526,7 @@ export default function LandingPage() {
                     onClick={handleQuickCreateRoom}
                     disabled={creatingQuickRoom}
                     leadingIcon={creatingQuickRoom ? undefined : RiPlayCircleLine}
-                    className="w-full sm:w-auto min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
+                    className="min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
                   >
                     {creatingQuickRoom ? (
                       <span className="inline-flex items-center gap-2">
@@ -530,9 +534,9 @@ export default function LandingPage() {
                         <span>{isEn ? "Preparing room..." : "Menyiapkan ruangan..."}</span>
                       </span>
                     ) : isEn ? (
-                      "Ruang kuis"
+                      "Create quiz room"
                     ) : (
-                      "Ruang kuis"
+                      "Buat ruang kuis"
                     )}
                   </Button>
 
@@ -542,14 +546,14 @@ export default function LandingPage() {
                     size="medium"
                     onClick={() => setShowStudentJoinPanel((prev) => !prev)}
                     leadingIcon={RiHashtag}
-                    className="w-full sm:w-auto min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
+                    className="min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
                   >
                     {showStudentJoinPanel
                       ? isEn
                         ? "Hide pin panel"
                         : "Tutup panel pin"
                       : isEn
-                      ? "Masukkan pin"
+                      ? "Enter pin"
                       : "Masukkan pin"}
                   </Button>
                 </div>
@@ -566,7 +570,7 @@ export default function LandingPage() {
                       <p className="text-caption-1-regular text-text-secondary">
                         {isEn
                           ? "Join your teacher's live formative quiz session."
-                          : "Bergabung ke sesi kuis formatif aktif dengan pin guru."}
+                          : "Bergabung ke sesi kuis formatif aktif dengan pin pengajar."}
                       </p>
 
                       <form onSubmit={handleStudentJoin} className="space-y-3">
@@ -613,7 +617,7 @@ export default function LandingPage() {
         </section>
 
         {/* SECTION 2: ANIMATED STACKED 3D FLASHCARD DECK (#uji-cepat) */}
-        <section id="uji-cepat" className="py-20 sm:py-28 bg-background-full">
+        <section id="uji-cepat" className="pt-8 sm:pt-14 lg:pt-20 pb-16 sm:pb-24 bg-background-full overflow-x-clip">
           <div className="mx-auto max-w-[1160px] px-4 sm:px-6 space-y-8">
             <ScrollReveal
               variant="slide-up"
@@ -643,7 +647,7 @@ export default function LandingPage() {
                     type="button"
                     onClick={() => handleCategorySelect(tab.id)}
                     className={cx(
-                      "px-3.5 py-1.5 rounded-xl text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+                      "min-h-[44px] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-xl text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring flex items-center justify-center shrink-0 select-none",
                       isActive
                         ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-medium shadow-xs"
                         : "border border-transparent bg-background-secondary-default text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
@@ -747,7 +751,7 @@ export default function LandingPage() {
                                     soundEffects.playClick();
                                     setShowHint((prev) => !prev);
                                   }}
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-border-button-default bg-background-primary-default hover:bg-background-secondary-hover text-caption-1-medium text-text-secondary hover:text-text-primary transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+                                  className="inline-flex items-center gap-1.5 min-h-[44px] px-3.5 py-2 rounded-xl border border-border-button-default bg-background-primary-default hover:bg-background-secondary-hover text-caption-1-medium text-text-secondary hover:text-text-primary transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring select-none"
                                 >
                                   <RiLightbulbLine
                                     className={cx(
@@ -759,10 +763,10 @@ export default function LandingPage() {
                                   <span>
                                     {showHint
                                       ? isEn
-                                        ? "Hide pedagogical clue"
+                                        ? "Hide hint"
                                         : "Tutup petunjuk soal"
                                       : isEn
-                                      ? "Need a pedagogical hint?"
+                                      ? "Need a hint?"
                                       : "Butuh petunjuk soal?"}
                                   </span>
                                 </button>
@@ -774,7 +778,7 @@ export default function LandingPage() {
                                   >
                                     <div className="flex items-center gap-1.5 text-caption-2-semibold text-text-primary">
                                       <RiLightbulbLine className="size-3.5 text-text-secondary shrink-0" aria-hidden="true" />
-                                      <span>{isEn ? "Pedagogical clue:" : "Petunjuk pemahaman:"}</span>
+                                      <span>{isEn ? "Clue:" : "Petunjuk pemahaman:"}</span>
                                     </div>
                                     <p className="break-words">{isEn ? currentCard.hintEn : currentCard.hint}</p>
                                   </div>
@@ -785,8 +789,8 @@ export default function LandingPage() {
                             <div className="pt-3 border-t border-separator-border text-center text-caption-1-medium text-text-tertiary">
                               <span>
                                 {isEn
-                                  ? "Click anywhere to flip & reveal scientific answer"
-                                  : "Klik di mana saja untuk membalik & melihat jawaban ilmiah"}
+                                  ? "Click anywhere to flip and view the answer"
+                                  : "Klik kartu untuk membalik dan melihat jawaban"}
                               </span>
                             </div>
                           </div>
@@ -839,7 +843,10 @@ export default function LandingPage() {
                               </div>
                             </div>
 
-                            <div className="space-y-3.5 my-auto py-2 overflow-y-auto max-h-[300px] pe-1 text-start">
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="space-y-3.5 my-auto py-2 overflow-y-auto max-h-[300px] pe-1 text-start"
+                            >
                               <div>
                                 <span className="text-caption-2-semibold tracking-wider text-text-tertiary block mb-1">
                                   {isEn ? "Core scientific rationale" : "Prinsip inti & rasional"}
@@ -901,14 +908,14 @@ export default function LandingPage() {
                 )}
               >
                 {isEn
-                  ? "From raw document sheets to live interactive classrooms"
-                  : "Dari lembar dokumen mentah menjadi ruang kuis kelas interaktif"}
+                  ? "From raw teaching documents to live classroom quizzes"
+                  : "Dari berkas dokumen ajar menjadi ruang kuis kelas interaktif"}
               </h2>
 
               <p className="text-body-regular sm:text-body-medium text-text-secondary leading-relaxed break-words">
                 {isEn
-                  ? "Exile unifies curriculum ingestion, multi-artifact authoring, and synchronous classroom evaluation in one fluid tactile desk experience."
-                  : "Exile menyatukan pembacaan berkas ajar, penyusunan artifak terstruktur, dan evaluasi kelas serentak dalam satu alur kerja meja ajar yang mulus."}
+                  ? "Exile combines document processing, structured learning artifacts, and live classroom quizzes in one simple workspace."
+                  : "Exile menggabungkan pembacaan berkas ajar, artifak belajar terstruktur, dan kuis kelas langsung dalam satu alur kerja yang rapi."}
               </p>
             </div>
 
@@ -1040,8 +1047,8 @@ export default function LandingPage() {
 
                   <p className="text-body-regular text-text-secondary leading-relaxed max-w-3xl break-words">
                     {isEn
-                      ? "Students join via a 6-digit PIN with zero app installation required. The educator orchestrates pace and question reveals, while Exile Copilot assists live student inquiry."
-                      : "Buka arena interaktif dengan kode PIN 6 digit dalam satu klik. Pengajar memegang kendali tempo soal, sementara Exile Copilot mendampingi diskusi konsep siswa di ruang obrolan."}
+                      ? "Students join with a 6-digit pin without installing any app. The educator controls question pace, while Exile Copilot assists live student discussion."
+                      : "Siswa bergabung dengan kode pin 6 digit tanpa memasang aplikasi. Pengajar memegang kendali tempo soal, sementara Exile Copilot mendampingi diskusi konsep siswa di ruang obrolan."}
                   </p>
                 </div>
               </div>
@@ -1066,8 +1073,8 @@ export default function LandingPage() {
               </div>
               <p className="text-caption-1-regular text-text-secondary max-w-md">
                 {isEn
-                  ? "Transforming lesson manuscripts into tactile 3d cards and synchronous quiz rooms."
-                  : "Mengubah naskah materi ajar menjadi kartu 3d taktil dan ruang kuis interaktif."}
+                  ? "Transform teaching documents into 3d cards and interactive quiz rooms."
+                  : "Mengubah dokumen materi ajar menjadi kartu 3d dan ruang kuis interaktif."}
               </p>
             </div>
 
@@ -1093,7 +1100,7 @@ export default function LandingPage() {
                         {member.handle}
                       </span>
                       <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-background-tertiary-default text-text-secondary text-caption-2-medium border border-border-button-default">
-                        {member.role}
+                        {isEn ? member.roleEn : member.roleId}
                       </span>
                     </div>
 

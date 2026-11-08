@@ -140,20 +140,24 @@ export function LetterpressCard3D({
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       className={cx(
-        "relative w-full cursor-pointer select-none outline-none group rounded-2xl overflow-hidden",
+        "relative w-full cursor-pointer select-none outline-none group rounded-2xl",
         "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
         className
       )}
-      style={{ perspective: "1200px" }}
+      style={{
+        perspective: "1200px",
+        WebkitPerspective: "1200px",
+      }}
     >
       <motion.div
         style={{
           transformStyle: "preserve-3d",
+          WebkitTransformStyle: "preserve-3d",
           rotateY,
           rotateX,
         }}
         className={cx(
-          "relative w-full rounded-2xl overflow-hidden will-change-transform",
+          "relative w-full rounded-2xl will-change-transform",
           minHeightClassName
         )}
       >
@@ -166,9 +170,9 @@ export function LetterpressCard3D({
             right: 0,
             bottom: 0,
             transform: "translateZ(1.5px)",
+            WebkitTransform: "translateZ(1.5px)",
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
-            visibility: flipped ? "hidden" : "visible",
             pointerEvents: flipped ? "none" : "auto",
           }}
           className={cx(
@@ -234,9 +238,9 @@ export function LetterpressCard3D({
             right: 0,
             bottom: 0,
             transform: "rotateY(180deg) translateZ(1.5px)",
+            WebkitTransform: "rotateY(180deg) translateZ(1.5px)",
             backfaceVisibility: "hidden",
             WebkitBackfaceVisibility: "hidden",
-            visibility: flipped ? "visible" : "hidden",
             pointerEvents: flipped ? "auto" : "none",
           }}
           className={cx(

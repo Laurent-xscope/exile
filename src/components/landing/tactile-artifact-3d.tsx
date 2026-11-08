@@ -268,14 +268,13 @@ function generateOffscreenPaperCanvas(isDark: boolean): HTMLCanvasElement {
 }
 
 // 4. Printed header lines for reference index sheets (neutral slate tones)
-function generateWorksheetTexture(isDark: boolean): THREE.CanvasTexture {
+function renderWorksheetCanvas(canvas: HTMLCanvasElement, isDark: boolean) {
   const sizeW = 256;
   const sizeH = 320;
-  const canvas = document.createElement("canvas");
   canvas.width = sizeW;
   canvas.height = sizeH;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return new THREE.CanvasTexture(canvas);
+  if (!ctx) return;
 
   ctx.fillStyle = isDark ? "#1b1c1e" : "#f7f8fa";
   ctx.fillRect(0, 0, sizeW, sizeH);
@@ -303,7 +302,11 @@ function generateWorksheetTexture(isDark: boolean): THREE.CanvasTexture {
   ctx.fillRect(20, 68, 140, 6);
   ctx.fillRect(20, 104, 180, 6);
   ctx.fillRect(20, 140, 110, 6);
+}
 
+function generateWorksheetTexture(isDark: boolean): THREE.CanvasTexture {
+  const canvas = document.createElement("canvas");
+  renderWorksheetCanvas(canvas, isDark);
   const tex = new THREE.CanvasTexture(canvas);
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
@@ -1062,10 +1065,17 @@ export function isWebGLAvailable(): boolean {
   if (typeof window === "undefined") return false;
   try {
     const canvas = document.createElement("canvas");
-    return Boolean(
+    const gl =
       window.WebGLRenderingContext &&
-        (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
-    );
+      (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"));
+    if (!gl) return false;
+    const loseContextExt = (gl as WebGLRenderingContext).getExtension("WEBGL_lose_context");
+    if (loseContextExt) {
+      loseContextExt.loseContext();
+    }
+    canvas.width = 1;
+    canvas.height = 1;
+    return true;
   } catch {
     return false;
   }
@@ -1091,6 +1101,8 @@ export function TactileFallbackCard({
     if (!canvas) return;
     const baseCanvas = generateOffscreenPaperCanvas(isDark);
     renderSubjectFaceCanvas(canvas, baseCanvas, subject, !isFlipped, isDark);
+    baseCanvas.width = 1;
+    baseCanvas.height = 1;
   }, [subject, isDark, isFlipped]);
 
   return (
@@ -1129,7 +1141,7 @@ export function TactileFallbackCard({
         <button
           type="button"
           onClick={onToggleFlip}
-          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption-1-medium text-text-secondary hover:text-text-primary bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring transition-colors shadow-2xs"
+          className="inline-flex items-center gap-1.5 min-h-[44px] px-4 py-2 rounded-full text-caption-1-medium text-text-secondary hover:text-text-primary bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring transition-colors shadow-2xs select-none"
         >
           <RiRepeatLine className="size-3.5 text-foreground-icon-secondary" aria-hidden="true" />
           <span>{isFlipped ? "Lihat kurva analisis" : "Balik kartu (prinsip)"}</span>
@@ -1137,6 +1149,51 @@ export function TactileFallbackCard({
       </div>
     </div>
   );
+}
+
+export interface TactileScrollMetrics {
+  isMobile: boolean;
+  containerRectTop?: number;
+  windowHeight: number;
+  heroRectTop?: number;
+  heroHeight?: number;
+  scrollY?: number;
+}
+
+export function calculateTactileScrollProgress({
+  isMobile,
+  containerRectTop,
+  windowHeight,
+  heroRectTop,
+  heroHeight,
+  scrollY = 0,
+}: TactileScrollMetrics): number {
+  if (isMobile) {
+    if (typeof containerRectTop === "number") {
+      const vh = windowHeight > 0 ? windowHeight : 800;
+      // When container is coming into view (~65% down viewport), progress starts at 0.0
+      // Over smooth ~400-500px scroll range ending as container reaches -10% of viewport
+      const start = vh * 0.65;
+      const end = -vh * 0.1;
+      const range = start - end;
+      if (range > 0) {
+        const raw = (start - containerRectTop) / range;
+        return Math.min(1, Math.max(0, raw));
+      }
+    }
+    return 0;
+  }
+
+  // Desktop: Hero sticky runway calculation
+  if (typeof heroRectTop === "number" && typeof heroHeight === "number") {
+    const scrollDist = -heroRectTop;
+    const runway = heroHeight - windowHeight;
+    if (runway > 0) {
+      return Math.min(1, Math.max(0, scrollDist / runway));
+    }
+  }
+
+  return Math.min(1, Math.max(0, scrollY / 450));
 }
 
 export interface TactileArtifact3DProps {
@@ -1205,9 +1262,11 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       let tex = texturesMapRef.current[key];
       if (tex) return tex;
 
-      const base = isDark
-        ? basePaperCanvasRef.current?.dark
-        : basePaperCanvasRef.current?.light;
+      const base =
+        (isDark
+          ? basePaperCanvasRef.current?.dark
+          : basePaperCanvasRef.current?.light) ||
+        generateOffscreenPaperCanvas(isDark);
       const cvs = document.createElement("canvas");
       if (base) {
         renderSubjectFaceCanvas(cvs, base, subject, isFront, isDark);
@@ -1234,7 +1293,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       const isDark =
         typeof document !== "undefined" && document.documentElement.classList.contains("dark");
       const subj = TACTILE_SUBJECTS.find((s) => s.id === id);
-      if (subj) {
+      if (subj && frontPaperMatRef.current && backPaperMatRef.current) {
         const frontTex = getOrCreateSubjectTexture(subj, true, isDark);
         const backTex = getOrCreateSubjectTexture(subj, false, isDark);
 
@@ -1360,10 +1419,14 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     const initialFrontTex = getOrCreateSubjectTexture(activeSubj, true, isDarkInitial);
     const initialBackTex = getOrCreateSubjectTexture(activeSubj, false, isDarkInitial);
 
+    let isDestroyed = false;
+
     // Generate other subjects lazily via requestIdleCallback or setTimeout
     const generateOtherSubjectsLazily = () => {
+      if (isDestroyed) return;
       const isDark = document.documentElement.classList.contains("dark");
       for (const subj of TACTILE_SUBJECTS) {
+        if (isDestroyed) break;
         if (subj.id !== activeSubjectIdRef.current) {
           getOrCreateSubjectTexture(subj, true, isDark);
           getOrCreateSubjectTexture(subj, false, isDark);
@@ -1604,28 +1667,30 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
 
     scene.add(folioGroup);
 
-    // 8. Passive Window Scroll Tracking (Hero Runway)
+    // 8. Passive Window Scroll Tracking (Hero Runway on Desktop, Viewport Position on Mobile)
     const handleScroll = () => {
       const isMobile = typeof window !== "undefined" && window.innerWidth < 1024;
-      if (isMobile) {
-        // On mobile: the card must always stay facing forward (front face) by default!
-        // Prevent auto-flipping on page scroll so the user never sees it backwards/upside-down.
-        scrollProgressRef.current = 0;
-        return;
-      }
-      const heroEl = document.querySelector("section");
+      const targetEl = mountRef.current || container;
+      const containerRectTop = targetEl ? targetEl.getBoundingClientRect().top : undefined;
+      const windowHeight = typeof window !== "undefined" ? window.innerHeight : 800;
+
+      let heroRectTop: number | undefined;
+      let heroHeight: number | undefined;
+      const heroEl = typeof document !== "undefined" ? document.querySelector("section") : null;
       if (heroEl) {
-        const rect = heroEl.getBoundingClientRect();
-        const scrollDist = -rect.top;
-        const runway = heroEl.offsetHeight - window.innerHeight;
-        if (runway > 0) {
-          const p = Math.min(1, Math.max(0, scrollDist / runway));
-          scrollProgressRef.current = p;
-          return;
-        }
+        heroRectTop = heroEl.getBoundingClientRect().top;
+        heroHeight = heroEl.offsetHeight;
       }
       const scrollY = typeof window !== "undefined" ? window.scrollY || window.pageYOffset || 0 : 0;
-      scrollProgressRef.current = Math.min(1, Math.max(0, scrollY / 450));
+
+      scrollProgressRef.current = calculateTactileScrollProgress({
+        isMobile,
+        containerRectTop,
+        windowHeight,
+        heroRectTop,
+        heroHeight,
+        scrollY,
+      });
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
     handleScroll();
@@ -1641,11 +1706,19 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     const animate = () => {
       if (!isRunning) return;
       animationFrameId = requestAnimationFrame(animate);
-      const elapsed = clock.getElapsedTime();
+
+      // Delta time with safe clamping to guarantee frame-rate independence (30Hz to 120Hz ProMotion)
+      // Note: In Three.js Clock, getDelta() must be called BEFORE accessing elapsedTime
+      const rawDelta = clock.getDelta();
+      const elapsed = clock.elapsedTime;
+      const delta = Math.min(Math.max(rawDelta, 0.001), 0.064);
+      const r = delta * 60; // 1.0 at standard 60fps
+
       const p = physicsRef.current;
 
       const targetScroll = scrollProgressRef.current;
-      currentScrollProgress += (targetScroll - currentScrollProgress) * 0.07;
+      const scrollLerp = 1 - Math.pow(1 - 0.07, r);
+      currentScrollProgress += (targetScroll - currentScrollProgress) * scrollLerp;
 
       const scrollBaseY = 0.34 + currentScrollProgress * (Math.PI - 0.68);
       const breathY = Math.sin(elapsed * 1.2) * 0.03;
@@ -1657,13 +1730,22 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       const stiffness = 0.085;
       const damping = 0.82;
 
+      const effectiveStiffness = 1 - Math.pow(1 - stiffness, r);
+      const effectiveDamping = Math.pow(damping, r);
+
       const diffY = p.targetRotY - p.currentRotY;
-      p.velY = (p.velY + diffY * stiffness) * damping;
-      p.currentRotY += p.velY;
+      p.velY = (p.velY + diffY * effectiveStiffness) * effectiveDamping;
+      p.currentRotY += p.velY * r;
 
       const diffX = p.targetRotX - p.currentRotX;
-      p.velX = (p.velX + diffX * stiffness) * damping;
-      p.currentRotX += p.velX;
+      p.velX = (p.velX + diffX * effectiveStiffness) * effectiveDamping;
+      p.currentRotX += p.velX * r;
+
+      // Self-healing guards against NaN or infinite values
+      if (!Number.isFinite(p.currentRotY)) p.currentRotY = 0.34;
+      if (!Number.isFinite(p.currentRotX)) p.currentRotX = -0.06;
+      if (!Number.isFinite(p.velY)) p.velY = 0;
+      if (!Number.isFinite(p.velX)) p.velX = 0;
 
       deskGroup.rotation.y = -0.22 + currentScrollProgress * 0.44;
       deskGroup.rotation.x = 0.22 + currentScrollProgress * 0.05;
@@ -1682,7 +1764,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       folioGroup.rotation.y = p.currentRotY;
       folioGroup.rotation.x = p.currentRotX;
 
-      p.liftImpulse *= 0.88;
+      p.liftImpulse *= Math.pow(0.88, r);
 
       sheet1.rotation.y = -0.25 - currentScrollProgress * 0.35;
       sheet1.position.x = -1.45 - currentScrollProgress * 0.28;
@@ -1749,6 +1831,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       camera.updateProjectionMatrix();
       renderer.setSize(w, h);
       renderer.setPixelRatio(getTargetPixelRatio());
+      handleScroll();
     };
 
     const resizeObserver = new ResizeObserver(handleResize);
@@ -1768,6 +1851,11 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       blotterMat.color.setHex(isDark ? 0x141517 : 0x1b1c1e);
       walnutMat.color.setHex(isDark ? 0x222427 : 0x2a2d31);
       shadowPlaneMat.opacity = isDark ? 0.35 : 0.2;
+
+      if (worksheetTex.image && worksheetTex.image instanceof HTMLCanvasElement) {
+        renderWorksheetCanvas(worksheetTex.image, isDark);
+        worksheetTex.needsUpdate = true;
+      }
 
       for (const subj of TACTILE_SUBJECTS) {
         const ft = texturesMapRef.current[`${subj.id}-front`];
@@ -1790,6 +1878,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
 
     // Cleanup
     return () => {
+      isDestroyed = true;
       stopLoop();
       glDom.removeEventListener("webglcontextlost", handleContextLost);
       window.removeEventListener("scroll", handleScroll);
@@ -1809,6 +1898,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
         container.removeChild(renderer.domElement);
       }
 
+      // Dispose all 18 geometries
       coverGeom.dispose();
       paperEdgeGeom.dispose();
       frontPaperGeom.dispose();
@@ -1830,6 +1920,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       clipGeom.dispose();
       finialGeom.dispose();
 
+      // Dispose all materials
       coverMat.dispose();
       paperEdgeMat.dispose();
       frontPaperMat.dispose();
@@ -1841,15 +1932,75 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       walnutMat.dispose();
       sheetMat.dispose();
 
+      // Scene graph cleanup & traversal
+      scene.environment = null;
+      scene.traverse((obj) => {
+        if (obj instanceof THREE.Mesh) {
+          if (obj.geometry) obj.geometry.dispose();
+        }
+      });
+      scene.clear();
+
+      // Dispose directional light shadow render target
+      if (keyLight.shadow?.map) {
+        keyLight.shadow.map.dispose();
+      }
+
+      // Truncate canvas memory and dispose shared textures
+      if (sharedNormalMap.image instanceof HTMLCanvasElement) {
+        sharedNormalMap.image.width = 1;
+        sharedNormalMap.image.height = 1;
+      }
       sharedNormalMap.dispose();
+
+      if (sharedRoughnessMap.image instanceof HTMLCanvasElement) {
+        sharedRoughnessMap.image.width = 1;
+        sharedRoughnessMap.image.height = 1;
+      }
       sharedRoughnessMap.dispose();
+
+      if (worksheetTex.image instanceof HTMLCanvasElement) {
+        worksheetTex.image.width = 1;
+        worksheetTex.image.height = 1;
+      }
       worksheetTex.dispose();
-      Object.values(texturesMap).forEach((tex) => tex.dispose());
+
+      // Truncate and dispose all cached subject canvas textures
+      Object.values(texturesMap).forEach((tex) => {
+        if (tex.image instanceof HTMLCanvasElement) {
+          tex.image.width = 1;
+          tex.image.height = 1;
+        }
+        tex.dispose();
+      });
+
+      // Clear texture map and refs so future mounts do not return disposed textures
+      texturesMapRef.current = {};
+      frontPaperMatRef.current = null;
+      backPaperMatRef.current = null;
+
+      // Truncate and release base paper canvases
+      if (basePaperCanvasRef.current) {
+        basePaperCanvasRef.current.dark.width = 1;
+        basePaperCanvasRef.current.dark.height = 1;
+        basePaperCanvasRef.current.light.width = 1;
+        basePaperCanvasRef.current.light.height = 1;
+        basePaperCanvasRef.current = null;
+      }
 
       pmremGenerator.dispose();
       roomEnv.dispose();
       envMap.dispose();
+
+      // Force WebGL hardware context loss to immediately free context slot on mobile devices
+      if (typeof renderer.forceContextLoss === "function") {
+        renderer.forceContextLoss();
+      }
       renderer.dispose();
+      if (glDom) {
+        glDom.width = 1;
+        glDom.height = 1;
+      }
     };
   }, [getOrCreateSubjectTexture, forceFallback, webGlSupported]);
 
@@ -1917,7 +2068,8 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     const width = p.containerWidth || 340;
     const height = p.containerHeight || 480;
 
-    const rotDeltaY = (deltaX / width) * Math.PI;
+    const effectiveDeltaX = p.isTouch ? (deltaX > 0 ? Math.max(0, deltaX - 8) : Math.min(0, deltaX + 8)) : deltaX;
+    const rotDeltaY = (effectiveDeltaX / width) * Math.PI;
     const rotDeltaX = p.isTouch ? 0 : -(deltaY / height) * 0.44;
 
     p.userOffsetY = p.dragStartOffsetY + rotDeltaY;
@@ -1972,7 +2124,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
       >
         {/* Subject switcher pill bar */}
         <div className="flex justify-center px-1.5 sm:px-4 w-full pt-1.5 sm:pt-0">
-          <div className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full overflow-x-auto scrollbar-none">
+          <div className="flex items-center justify-start sm:justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full overflow-x-auto scrollbar-none">
             {TACTILE_SUBJECTS.map((subj) => {
               const isActive = subj.id === activeSubjectId;
               return (
@@ -1981,7 +2133,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
                   type="button"
                   onClick={() => handleSelectSubject(subj.id)}
                   className={cx(
-                    "px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-caption-2-medium sm:text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring flex items-center gap-1.5 shrink-0",
+                    "min-h-[44px] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-caption-2-medium sm:text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring flex items-center gap-1.5 shrink-0 select-none",
                     isActive
                       ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-medium shadow-xs"
                       : "border border-transparent text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
@@ -2024,7 +2176,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
     >
       {/* Subject switcher pill bar */}
       <div className="flex justify-center px-1.5 sm:px-4 w-full pt-1.5 sm:pt-0">
-        <div className="flex items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full overflow-x-auto scrollbar-none">
+        <div className="flex items-center justify-start sm:justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full overflow-x-auto scrollbar-none">
           {TACTILE_SUBJECTS.map((subj) => {
             const isActive = subj.id === activeSubjectId;
             return (
@@ -2033,7 +2185,7 @@ export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3
                 type="button"
                 onClick={() => handleSelectSubject(subj.id)}
                 className={cx(
-                  "px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-caption-2-medium sm:text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring flex items-center gap-1.5 shrink-0",
+                  "min-h-[44px] px-3.5 py-2 sm:px-4 sm:py-2.5 rounded-full text-caption-2-medium sm:text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring flex items-center gap-1.5 shrink-0 select-none",
                   isActive
                     ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-medium shadow-xs"
                     : "border border-transparent text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
