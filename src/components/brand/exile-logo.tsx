@@ -16,30 +16,69 @@ interface ExileLogoProps {
 interface TeamMember {
   role: string;
   handle: string;
+  roleTitle: string;
   href: string;
   avatar: string;
+  initials: string;
 }
 
 const TEAM_MEMBERS: TeamMember[] = [
   {
     role: "Leader",
     handle: "@dear.sidd",
+    roleTitle: "Arsitektur sistem & rekayasa pedagogi",
     href: "https://www.instagram.com/dear.sidd/",
     avatar: "/team/dear-sidd.jpg",
+    initials: "DS",
   },
   {
     role: "Team 1",
     handle: "@wstra__",
+    roleTitle: "Desain interaksi & visual 3d",
     href: "https://www.instagram.com/wstra__/",
     avatar: "/team/wstra.jpg",
+    initials: "WS",
   },
   {
     role: "Team 2",
     handle: "@ekaprtama_",
+    roleTitle: "Pengalaman belajar formatif & data",
     href: "https://www.instagram.com/ekaprtama_/",
     avatar: "/team/ekaprtama.jpg",
+    initials: "EP",
   },
 ];
+
+function ModalTeamAvatar({
+  src,
+  alt,
+  initials,
+}: {
+  src: string;
+  alt: string;
+  initials: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className="relative size-10 sm:size-12 rounded-full overflow-hidden shrink-0 border border-border-button-default bg-background-tertiary-default flex items-center justify-center">
+      {!hasError ? (
+        <Image
+          src={src}
+          alt={alt}
+          width={48}
+          height={48}
+          className="object-cover size-full transition group-hover:scale-105"
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <span className="text-caption-1-semibold text-text-secondary select-none">
+          {initials}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export function ExileLogo({
   className = "",
@@ -151,25 +190,24 @@ export function ExileLogo({
                   rel="noopener noreferrer"
                   className="flex items-center gap-3.5 rounded-2xl bg-background-secondary-default p-3 transition hover:bg-background-secondary-hover border border-border-button-default group"
                 >
-                  <div className="relative size-11 rounded-full overflow-hidden shrink-0 border border-border-button-default bg-background-tertiary-default">
-                    <Image
-                      src={member.avatar}
-                      alt={member.handle}
-                      width={44}
-                      height={44}
-                      className="object-cover size-full transition group-hover:scale-105"
-                    />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-body-2-semibold text-text-primary group-hover:text-text-primary transition truncate">
+                  <ModalTeamAvatar
+                    src={member.avatar}
+                    alt={member.handle}
+                    initials={member.initials}
+                  />
+                  <div className="flex-1 min-w-0 space-y-0.5">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-body-2-semibold text-text-primary group-hover:text-text-primary transition">
                         {member.handle}
                       </span>
                       <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-background-tertiary-default text-text-secondary text-caption-2-medium border border-border-button-default">
                         {member.role}
                       </span>
                     </div>
-                    <span className="text-caption-2-regular text-text-tertiary">
+                    <p className="text-caption-2-regular text-text-secondary leading-snug break-words">
+                      {member.roleTitle}
+                    </p>
+                    <span className="text-caption-2-regular text-text-tertiary block">
                       Instagram
                     </span>
                   </div>

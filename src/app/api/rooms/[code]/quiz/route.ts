@@ -17,12 +17,25 @@ const BodySchema = z.object({
   questionCount: z.coerce.number().int().min(1).max(20).optional().default(8),
   instructions: z.string().max(4000).optional(),
   difficulty: z
-    .enum(["mudah", "sedang", "sulit", "campuran", "adaptif"])
-    .transform((v) => (v === "adaptif" ? "campuran" : v))
+    .preprocess((val) => {
+      if (typeof val === "number") {
+        return val >= 3 ? "sulit" : val === 1 ? "mudah" : "sedang";
+      }
+      if (typeof val === "string") {
+        const lower = val.toLowerCase().trim();
+        if (lower === "3") return "sulit";
+        if (lower === "1") return "mudah";
+        if (lower === "2") return "sedang";
+        if (lower === "adaptif") return "campuran";
+        return lower;
+      }
+      return val;
+    }, z.enum(["mudah", "sedang", "sulit", "campuran"]))
     .optional()
     .default("sedang"),
   timePerQuestionSec: z.coerce.number().int().min(5).max(120).optional(),
   streakBonus: z.boolean().optional(),
+  shuffleQuestions: z.boolean().optional(),
 });
 
 export async function POST(
@@ -55,6 +68,7 @@ export async function POST(
     difficulty,
     timePerQuestionSec,
     streakBonus,
+    shuffleQuestions,
   } = parsed.data;
 
   try {
@@ -90,6 +104,7 @@ export async function POST(
       difficulty,
       timePerQuestionSec,
       streakBonus,
+      shuffleQuestions,
     });
     if (!saved) {
       return NextResponse.json(

@@ -321,6 +321,7 @@ export function Input({
             </Label>
           )}
           <InputBase
+            type={textFieldProps.type}
             dir={inputDir ?? (["email", "url", "tel"].includes(textFieldProps.type ?? "") ? "ltr" : undefined)}
             ref={ref}
             groupRef={groupRef}

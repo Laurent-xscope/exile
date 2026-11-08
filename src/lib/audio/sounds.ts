@@ -1,7 +1,7 @@
 // Web Audio API Procedural Sound Engine
 // Zero external asset dependencies, low latency, native browser synthesis
 
-class SoundEngine {
+export class SoundEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   private isMuted: boolean = false;
@@ -233,6 +233,152 @@ class SoundEngine {
         }));
       });
     });
+  }
+
+  /**
+   * Crisp, subtle mechanical camera shutter click (~0.08s).
+   * Generates two fast micro-impulses with bandpass-filtered noise
+   * and a high-frequency transient burst.
+   */
+  public playCameraShutter() {
+    if (typeof window === "undefined" || this.isMuted || this.volume <= 0) return;
+    const ctx = this.getContext();
+    if (!ctx) return;
+
+    try {
+      const now = ctx.currentTime;
+      const sampleRate = ctx.sampleRate || 44100;
+      const duration = 0.08;
+
+      if (
+        typeof ctx.createBuffer === "function" &&
+        typeof ctx.createBufferSource === "function" &&
+        typeof ctx.createBiquadFilter === "function"
+      ) {
+        // High fidelity procedural noise synthesis for mechanical shutter action
+        const frameCount = Math.floor(sampleRate * duration);
+        const noiseBuffer = ctx.createBuffer(1, frameCount, sampleRate);
+        const channelData = noiseBuffer.getChannelData(0);
+
+        for (let i = 0; i < frameCount; i++) {
+          const t = i / sampleRate;
+          let envelope = 0;
+
+          // Micro-impulse 1: shutter blade forward (0 to 14ms)
+          if (t < 0.014) {
+            envelope = Math.exp(-t / 0.003) * 0.45;
+          }
+          // Micro-impulse 2: shutter blade release (34ms to 75ms)
+          else if (t >= 0.034 && t < 0.075) {
+            const dt = t - 0.034;
+            envelope = Math.exp(-dt / 0.006) * 0.65;
+          }
+
+          channelData[i] = (Math.random() * 2 - 1) * envelope;
+        }
+
+        const noiseSource = ctx.createBufferSource();
+        noiseSource.buffer = noiseBuffer;
+
+        // Bandpass filter to shape crisp mechanical timbre
+        const bandpass = ctx.createBiquadFilter();
+        bandpass.type = "bandpass";
+        bandpass.frequency.setValueAtTime(2600, now);
+        bandpass.Q.setValueAtTime(2.2, now);
+
+        // High-frequency transient burst for tactile click definition
+        const clickOsc = ctx.createOscillator();
+        const clickGain = ctx.createGain();
+        clickOsc.type = "triangle";
+        clickOsc.frequency.setValueAtTime(1600, now);
+        clickOsc.frequency.exponentialRampToValueAtTime(320, now + 0.02);
+
+        clickGain.gain.setValueAtTime(0.08, now);
+        clickGain.gain.exponentialRampToValueAtTime(0.0001, now + 0.02);
+
+        const shutterGain = ctx.createGain();
+        shutterGain.gain.setValueAtTime(0.35, now);
+
+        noiseSource.connect(bandpass);
+        bandpass.connect(shutterGain);
+        clickOsc.connect(clickGain);
+        clickGain.connect(shutterGain);
+
+        this.connectOutput(shutterGain, ctx);
+
+        noiseSource.start(now);
+        noiseSource.stop(now + duration);
+        clickOsc.start(now);
+        clickOsc.stop(now + 0.025);
+
+        noiseSource.onended = () => {
+          try {
+            noiseSource.disconnect();
+            bandpass.disconnect();
+            clickOsc.disconnect();
+            clickGain.disconnect();
+            shutterGain.disconnect();
+          } catch {}
+        };
+      } else {
+        // Fallback for minimal contexts: two fast micro-burst tones
+        this.playTones(() => [
+          {
+            type: "triangle",
+            frequency: 1800,
+            startOffset: 0,
+            duration: 0.02,
+            gain: 0.12,
+            rampTo: { freq: 400, time: 0.015 },
+          },
+          {
+            type: "triangle",
+            frequency: 2200,
+            startOffset: 0.035,
+            duration: 0.035,
+            gain: 0.15,
+            rampTo: { freq: 500, time: 0.025 },
+          },
+        ]);
+      }
+    } catch {
+      // Audio autoplay policy fallback
+    }
+  }
+
+  /**
+   * Pleasant two-tone completion chime (~0.18s).
+   * Generates a warm rising harmonic ramp followed by a dual harmonic chime.
+   */
+  public playScanComplete() {
+    if (typeof window === "undefined" || this.isMuted || this.volume <= 0) return;
+    this.playTones(() => [
+      // First tone: warm rising harmonic ramp
+      {
+        type: "sine",
+        frequency: 587.33, // D5
+        startOffset: 0,
+        duration: 0.12,
+        gain: 0.12,
+        rampTo: { freq: 783.99, time: 0.06 }, // ramp up to G5
+      },
+      // Second tone: harmonious resolution chime (~0.18s)
+      {
+        type: "sine",
+        frequency: 1046.5, // C6
+        startOffset: 0.065,
+        duration: 0.18,
+        gain: 0.15,
+      },
+      // Dual harmonic companion: crisp bell overtone
+      {
+        type: "sine",
+        frequency: 1567.98, // G6 overtone
+        startOffset: 0.065,
+        duration: 0.15,
+        gain: 0.05,
+      },
+    ]);
   }
 }
 

@@ -146,18 +146,19 @@ export function JoinRoomForm({
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-5">
+    <form onSubmit={handleSubmit} className="w-full space-y-5">
       {codeLocked ? (
         <div className="rounded-2xl bg-background-secondary-default px-4 py-3 text-center">
           <span className="text-caption-2-semibold tracking-wide text-text-tertiary">
             {isEn ? "Room pin" : "Pin ruangan"}
           </span>
-          <div className="mt-1 font-mono text-title-2-semibold tracking-[0.3em] text-text-primary">
+          <div className="mt-1 font-mono text-title-2-semibold tracking-[0.2em] sm:tracking-[0.3em] text-text-primary">
             {code || "xxxxxx"}
           </div>
         </div>
       ) : (
         <Input
+          type="text"
           label={isEn ? "Quiz room pin (6 digits)" : "Pin ruang kuis (6 digit)"}
           placeholder="xxxxxx"
           hint={
@@ -171,15 +172,17 @@ export function JoinRoomForm({
           maxLength={6}
           inputMode="numeric"
           pattern="[0-9]*"
+          autoComplete="one-time-code"
           autoFocus
           inputDir="ltr"
-          fieldClassName="h-12 bg-background-primary-default"
-          inputClassName="text-center font-mono text-title-2-semibold tracking-[0.28em]"
+          fieldClassName="min-h-[44px] h-12 bg-background-primary-default"
+          inputClassName="text-center font-mono text-title-2-semibold tracking-[0.2em] sm:tracking-[0.28em]"
           isRequired
         />
       )}
 
       <Input
+        type="text"
         label={isEn ? "Nickname" : "Nama panggilan"}
         placeholder={
           isEn ? "How should your class see you?" : "Nama yang dilihat teman sekelas..."
@@ -193,6 +196,8 @@ export function JoinRoomForm({
         value={nickname}
         onChange={setNickname}
         maxLength={24}
+        autoComplete="nickname"
+        fieldClassName="min-h-[44px] h-12 bg-background-primary-default"
         isRequired
       />
 
@@ -211,7 +216,7 @@ export function JoinRoomForm({
         size="medium"
         disabled={loading}
         trailingIcon={loading ? undefined : RiArrowRightLine}
-        className="w-full border border-border-button-default text-text-primary"
+        className="w-full min-h-[44px] justify-center border border-border-button-default text-text-primary font-medium"
       >
         {loading ? (
           <span className="inline-flex items-center gap-2">

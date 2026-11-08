@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { runExileAgent } from "@/lib/ai/agent";
+import { applyStudioFallback } from "@/lib/ai/studio-fallback";
 import { AIUnavailableError } from "@/lib/ai/llm";
 import { checkRateLimit } from "@/lib/security/rate-limiter";
 
@@ -51,6 +52,12 @@ export async function POST(req: Request) {
       context: currentTab ? `Pengguna sedang di Studio, tab "${currentTab}".` : "Pengguna sedang di Studio.",
     });
 
+    const fallback = applyStudioFallback(
+      result.reply,
+      result.studioActions,
+      documentTitle
+    );
+
     const notes = [
       image ? "Gambar yang dilampirkan belum bisa dibaca model ini; tempel teksnya jika perlu." : "",
       result.attachmentErrors.length
@@ -60,9 +67,10 @@ export async function POST(req: Request) {
     const note = notes.length ? `\n\n${notes.join("\n")}` : "";
 
     return NextResponse.json({
-      reply: result.reply + note,
+      reply: fallback.reply + note,
       steps: result.steps,
       changedDocuments: result.changedDocuments,
+      studioActions: fallback.studioActions,
     });
   } catch (err) {
     const status = err instanceof AIUnavailableError ? 502 : 500;

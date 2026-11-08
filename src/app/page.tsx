@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, type FormEvent } from "react";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -10,6 +11,14 @@ import {
   RiPlayCircleLine,
   RiHashtag,
   RiLightbulbLine,
+  RiInstagramLine,
+  RiCompass3Line,
+  RiQuestionnaireLine,
+  RiBookOpenLine,
+  RiNodeTree,
+  RiBarChartBoxLine,
+  RiTableLine,
+  RiFileList3Line,
 } from "@remixicon/react";
 import { toast } from "sonner";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
@@ -46,7 +55,7 @@ const TactileArtifact3D = dynamic(
     ssr: false,
     loading: () => (
       <div
-        className="w-full min-h-[380px] sm:min-h-[540px] rounded-3xl border border-border-button-default bg-background-secondary-default flex items-center justify-center p-6 animate-pulse"
+        className="w-full min-h-[360px] sm:min-h-[480px] rounded-3xl border border-border-button-default bg-background-secondary-default flex items-center justify-center p-6 animate-pulse"
         aria-hidden="true"
       >
         <div className="w-48 sm:w-64 h-32 sm:h-44 rounded-2xl bg-background-tertiary-default/60 border border-border-button-default/50" />
@@ -80,6 +89,185 @@ const ORDERED_CATEGORIES: Array<CurriculumCardItem["category"]> = [
   "heritage",
   "social",
 ];
+
+interface CurriculumArtifactShowcaseItem {
+  id: string;
+  icon: typeof RiCompass3Line;
+  titleId: string;
+  titleEn: string;
+  tagId: string;
+  tagEn: string;
+  descId: string;
+  descEn: string;
+  badgeId: string;
+  badgeEn: string;
+  spanClass: string;
+}
+
+const CURRICULUM_ARTIFACTS_SHOWCASE: CurriculumArtifactShowcaseItem[] = [
+  {
+    id: "cards",
+    icon: RiCompass3Line,
+    titleId: "Kartu 3d",
+    titleEn: "3d tactile cards",
+    tagId: "Interaktif",
+    tagEn: "Interactive",
+    descId: "Kartu fisik digital dengan simulasi inersia rotasi 3d dan penjelasan ilmiah dua sisi.",
+    descEn: "Digital cardstock with real 3d inertia simulation and dual-sided scientific rationale.",
+    badgeId: "Inersia 3d",
+    badgeEn: "3d inertia",
+    spanClass: "col-span-1 md:col-span-2 lg:col-span-2",
+  },
+  {
+    id: "quiz",
+    icon: RiQuestionnaireLine,
+    titleId: "Kuis adaptif",
+    titleEn: "Adaptive quiz",
+    tagId: "Formatif",
+    tagEn: "Formative",
+    descId: "Soal HOTS bertingkat dengan analisis distraktor otomatis dan evaluasi langsung.",
+    descEn: "Multi-tier HOTS questions with automatic distractor analysis and instant diagnosis.",
+    badgeId: "HOTS formatif",
+    badgeEn: "HOTS formative",
+    spanClass: "col-span-1",
+  },
+  {
+    id: "summary",
+    icon: RiBookOpenLine,
+    titleId: "Intisari",
+    titleEn: "Summary",
+    tagId: "Struktur",
+    tagEn: "Structured",
+    descId: "Ekstraksi konsep hierarkis dari modul panjang tanpa membuang nuansa penting.",
+    descEn: "Hierarchical concept extraction from long modules without dropping critical nuance.",
+    badgeId: "Hierarkis",
+    badgeEn: "Hierarchical",
+    spanClass: "col-span-1",
+  },
+  {
+    id: "mindmap",
+    icon: RiNodeTree,
+    titleId: "Peta konsep",
+    titleEn: "Concept map",
+    tagId: "Relasional",
+    tagEn: "Relational",
+    descId: "Visualisasi cabang hubungan antar-konsep untuk memperkuat pemahaman holistik.",
+    descEn: "Relational branching tree visualising links across core concepts for holistic grasp.",
+    badgeId: "Pohon konsep",
+    badgeEn: "Concept tree",
+    spanClass: "col-span-1",
+  },
+  {
+    id: "infographic",
+    icon: RiBarChartBoxLine,
+    titleId: "Infografik",
+    titleEn: "Infographic",
+    tagId: "Visual",
+    tagEn: "Visual",
+    descId: "Pilar visualisasi data dan ringkasan grafis yang memudahkan retensi memori.",
+    descEn: "Visual data pillars and graphical summaries engineered for high memory retention.",
+    badgeId: "Pilar grafis",
+    badgeEn: "Graphic pillars",
+    spanClass: "col-span-1",
+  },
+  {
+    id: "table",
+    icon: RiTableLine,
+    titleId: "Tabel data",
+    titleEn: "Data table",
+    tagId: "Komparatif",
+    tagEn: "Comparative",
+    descId: "Klasifikasi taksonomi, variabel, dan parameter komparasi dalam tabel rapi.",
+    descEn: "Taxonomies, variables, and comparative parameters organized in structured rows.",
+    badgeId: "Klasifikasi",
+    badgeEn: "Classification",
+    spanClass: "col-span-1",
+  },
+  {
+    id: "report",
+    icon: RiFileList3Line,
+    titleId: "Laporan penguasaan",
+    titleEn: "Mastery report",
+    tagId: "Capaian",
+    tagEn: "Outcomes",
+    descId: "Pemetaan capaian kompetensi siswa secara komprehensif untuk evaluasi pengajar.",
+    descEn: "Comprehensive student learning outcomes mapping for real-time teacher evaluation.",
+    badgeId: "Analitik kelas",
+    badgeEn: "Class analytics",
+    spanClass: "col-span-1 md:col-span-2 lg:col-span-2",
+  },
+];
+
+interface TeamMemberProfile {
+  handle: string;
+  role: string;
+  roleTitleId: string;
+  roleTitleEn: string;
+  href: string;
+  avatar: string;
+  initials: string;
+}
+
+const TEAM_PROFILES: TeamMemberProfile[] = [
+  {
+    handle: "@dear.sidd",
+    role: "Leader",
+    roleTitleId: "Arsitektur sistem & rekayasa pedagogi",
+    roleTitleEn: "System architecture & pedagogy",
+    href: "https://www.instagram.com/dear.sidd/",
+    avatar: "/team/dear-sidd.jpg",
+    initials: "DS",
+  },
+  {
+    handle: "@wstra__",
+    role: "Team 1",
+    roleTitleId: "Desain interaksi & visual 3d",
+    roleTitleEn: "Interaction & 3d visual design",
+    href: "https://www.instagram.com/wstra__/",
+    avatar: "/team/wstra.jpg",
+    initials: "WS",
+  },
+  {
+    handle: "@ekaprtama_",
+    role: "Team 2",
+    roleTitleId: "Pengalaman belajar formatif & data",
+    roleTitleEn: "Formative learning experience & data",
+    href: "https://www.instagram.com/ekaprtama_/",
+    avatar: "/team/ekaprtama.jpg",
+    initials: "EP",
+  },
+];
+
+function TeamAvatar({
+  src,
+  alt,
+  initials,
+}: {
+  src: string;
+  alt: string;
+  initials: string;
+}) {
+  const [hasError, setHasError] = useState(false);
+
+  return (
+    <div className="relative size-10 sm:size-12 rounded-full overflow-hidden shrink-0 border border-border-button-default bg-background-tertiary-default flex items-center justify-center">
+      {!hasError ? (
+        <Image
+          src={src}
+          alt={alt}
+          width={48}
+          height={48}
+          className="object-cover size-full transition group-hover:scale-105"
+          onError={() => setHasError(true)}
+        />
+      ) : (
+        <span className="text-caption-1-semibold text-text-secondary select-none">
+          {initials}
+        </span>
+      )}
+    </div>
+  );
+}
 
 export default function LandingPage() {
   const router = useRouter();
@@ -288,21 +476,21 @@ export default function LandingPage() {
       <main className="flex-1">
         {/* SECTION 1: ASYMMETRIC EDITORIAL HERO + OPEN 3D STUDY DESK */}
         <section className="relative pt-6 sm:pt-16 pb-12 sm:pb-24 border-b border-separator-border/60 lg:min-h-[155vh]">
-          <div className="mx-auto max-w-[1160px] px-4 sm:px-6 lg:sticky lg:top-20 space-y-8 sm:space-y-16">
+          <div className="mx-auto max-w-[1160px] px-4 sm:px-6 lg:sticky lg:top-20 space-y-6 sm:space-y-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start">
               {/* Left Column: Editorial Display Typography & CTAs */}
               <div className="lg:col-span-5 space-y-6">
                 <div className="space-y-4">
                   <h1
                     className={cx(
-                      "text-title-1-bold sm:text-display-1-bold text-text-primary tracking-tight leading-[1.12] font-display"
+                      "text-title-1-semibold sm:text-display-3-bold md:text-display-2-bold lg:text-display-1-bold text-text-primary tracking-tight leading-[1.15] font-display"
                     )}
                   >
                     <span className="block">
                       {isEn ? "Curriculum documents into" : "Olah modul & materi ajar"}
                     </span>
                     <span className="block text-text-secondary">
-                      {isEn ? "living 3D learning cards." : "menjadi kartu 3D interaktif."}
+                      {isEn ? "living 3d learning cards." : "menjadi kartu 3d interaktif."}
                     </span>
                   </h1>
 
@@ -310,21 +498,21 @@ export default function LandingPage() {
 
                   <p className="text-body-regular sm:text-body-medium text-text-secondary leading-relaxed pt-1">
                     {isEn
-                      ? "Transform lesson manuscripts into tactile 3D cards and synchronous quiz rooms in seconds. Experience deep student comprehension with zero application setup."
-                      : "Ubah naskah modul ajar menjadi kartu 3D taktil dan ruang kuis formatif interaktif dalam hitungan detik. Pantau pemahaman siswa secara langsung tanpa instalasi aplikasi."}
+                      ? "Transform lesson manuscripts into tactile 3d cards and synchronous quiz rooms in seconds. Experience deep student comprehension with zero application setup."
+                      : "Ubah naskah materi ajar menjadi kartu 3d taktil dan ruang kuis formatif interaktif dalam hitungan detik. Pantau pemahaman siswa secara langsung tanpa instalasi aplikasi."}
                   </p>
                 </div>
 
                 {/* Primary & Secondary Hero Actions */}
-                <div className="flex flex-wrap items-center gap-3 pt-2">
+                <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-3 pt-2 w-full sm:w-auto">
                   <ButtonLink
                     href={studioHref}
                     variant="secondary"
                     size="medium"
                     leadingIcon={RiQuillPenLine}
-                    className="border border-border-button-default font-medium shadow-xs"
+                    className="w-full sm:w-auto min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
                   >
-                    {isEn ? "Open Studio" : "Buka Studio"}
+                    Studio
                   </ButtonLink>
 
                   <Button
@@ -334,7 +522,7 @@ export default function LandingPage() {
                     onClick={handleQuickCreateRoom}
                     disabled={creatingQuickRoom}
                     leadingIcon={creatingQuickRoom ? undefined : RiPlayCircleLine}
-                    className="border border-border-button-default font-medium shadow-xs"
+                    className="w-full sm:w-auto min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
                   >
                     {creatingQuickRoom ? (
                       <span className="inline-flex items-center gap-2">
@@ -342,9 +530,9 @@ export default function LandingPage() {
                         <span>{isEn ? "Preparing room..." : "Menyiapkan ruangan..."}</span>
                       </span>
                     ) : isEn ? (
-                      "Create Quiz Room"
+                      "Ruang kuis"
                     ) : (
-                      "Buat Ruang Kuis"
+                      "Ruang kuis"
                     )}
                   </Button>
 
@@ -354,29 +542,26 @@ export default function LandingPage() {
                     size="medium"
                     onClick={() => setShowStudentJoinPanel((prev) => !prev)}
                     leadingIcon={RiHashtag}
-                    className="border border-border-button-default font-medium shadow-xs"
+                    className="w-full sm:w-auto min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
                   >
                     {showStudentJoinPanel
                       ? isEn
                         ? "Hide pin panel"
                         : "Tutup panel pin"
                       : isEn
-                      ? "Enter room pin"
-                      : "Masukkan pin siswa"}
+                      ? "Masukkan pin"
+                      : "Masukkan pin"}
                   </Button>
                 </div>
 
                 {/* Collapsible Student 6-Digit PIN Drawer */}
                 {showStudentJoinPanel && (
                   <aside className="w-full pt-3 animate-in fade-in-50 duration-200">
-                    <div className="rounded-2xl bg-background-primary-default border border-border-button-default p-5 space-y-3.5 shadow-card">
+                    <div className="rounded-2xl bg-background-primary-default border border-border-button-default p-4 sm:p-5 space-y-3.5 shadow-card">
                       <div className="flex items-center justify-between">
                         <h2 className="text-title-3-semibold text-text-primary">
                           {isEn ? "Join live class arena" : "Masuk arena siswa"}
                         </h2>
-                        <span className="font-mono text-caption-2-medium text-text-tertiary">
-                          PIN 6 digit
-                        </span>
                       </div>
                       <p className="text-caption-1-regular text-text-secondary">
                         {isEn
@@ -386,12 +571,13 @@ export default function LandingPage() {
 
                       <form onSubmit={handleStudentJoin} className="space-y-3">
                         <div className="relative rounded-xl border border-border-button-default bg-background-secondary-default transition-colors outline-none focus-within:border-border-button-hover focus-within:ring-2 focus-within:ring-border-focus-ring">
-                          <div className="flex items-center px-3.5 py-2.5 gap-2">
+                          <div className="flex items-center px-3.5 py-2.5 min-h-[44px] gap-2">
                             <RiHashtag className="size-4 text-text-tertiary shrink-0" aria-hidden="true" />
                             <input
                               type="text"
                               inputMode="numeric"
                               pattern="[0-9]*"
+                              autoComplete="one-time-code"
                               maxLength={6}
                               value={pinInput}
                               onChange={(e) => setPinInput(normalizeRoomCode(e.target.value))}
@@ -408,7 +594,7 @@ export default function LandingPage() {
                           variant="secondary"
                           size="medium"
                           trailingIcon={RiArrowRightLine}
-                          className="w-full justify-center border border-border-button-default font-medium shadow-xs"
+                          className="w-full min-h-[44px] justify-center border border-border-button-default font-medium shadow-xs"
                         >
                           {isEn ? "Continue to join" : "Lanjut bergabung"}
                         </Button>
@@ -435,20 +621,20 @@ export default function LandingPage() {
             >
               <h2
                 className={cx(
-                  "text-display-3-semibold sm:text-display-2-bold text-text-primary tracking-tight font-display"
+                  "text-display-3-semibold sm:text-display-2-bold text-text-primary tracking-tight font-display break-words"
                 )}
               >
-                {isEn ? "Curriculum concepts & 3D interactive cards" : "Kartu konsep kurikulum & flashcard 3D"}
+                {isEn ? "Curriculum concepts & 3d interactive cards" : "Kartu konsep kurikulum & flashcard 3d"}
               </h2>
-              <p className="text-body-regular sm:text-body-medium text-text-secondary max-w-2xl">
+              <p className="text-body-regular sm:text-body-medium text-text-secondary max-w-2xl break-words">
                 {isEn
-                  ? "Explore essential cross-discipline concepts on heavy cotton-linen cardstock with real 3D inertia."
-                  : "Eksplorasi konsep esensial lintas kurikulum dengan kartu 3D bertekstur katun-linen dan rotasi fisika nyata."}
+                  ? "Explore essential cross-discipline concepts on heavy cotton-linen cardstock with real 3d inertia."
+                  : "Eksplorasi konsep esensial lintas kurikulum dengan kartu 3d bertekstur katun-linen dan rotasi fisika nyata."}
               </p>
             </ScrollReveal>
 
             {/* Curriculum Category Tabs */}
-            <div className="flex flex-wrap items-center justify-center gap-2 max-w-4xl mx-auto">
+            <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-2 max-w-4xl mx-auto">
               {CATEGORY_TABS.map((tab) => {
                 const isActive = selectedCategory === tab.id;
                 return (
@@ -482,18 +668,6 @@ export default function LandingPage() {
             {/* Stacked 3D Flashcard Deck Container */}
             <ScrollReveal variant="scale-up" delay={80} className="max-w-2xl mx-auto w-full pt-4">
               <div className="relative w-full">
-                {/* Physical Deck Background Sheet 2 (Deepest offset) */}
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 translate-y-5 sm:translate-y-6 scale-[0.93] rounded-2xl bg-background-secondary-default border border-border-button-default/80 pointer-events-none -z-20 shadow-xs -rotate-1"
-                />
-
-                {/* Physical Deck Background Sheet 1 (Middle offset) */}
-                <div
-                  aria-hidden="true"
-                  className="absolute inset-0 translate-y-2.5 sm:translate-y-3 scale-[0.965] rounded-2xl bg-background-secondary-default border border-border-button-default pointer-events-none -z-10 shadow-sm rotate-[0.8deg]"
-                />
-
                 {/* Active Top Flashcard */}
                 <div
                   onMouseEnter={() => setIsHovered(true)}
@@ -512,7 +686,7 @@ export default function LandingPage() {
                         isFlipped={isFlipped}
                         onFlipChange={setIsFlipped}
                         minHeightClassName="min-h-[460px] sm:min-h-[420px]"
-                        ariaLabel={isEn ? "Interactive 3D flashcard" : "Kartu flashcard 3D kurikulum"}
+                        ariaLabel={isEn ? "Interactive 3d flashcard" : "Kartu flashcard 3d kurikulum"}
                         frontContent={
                           <div className="flex flex-col justify-between h-full space-y-6">
                             {/* Front Header: Topic Pill on Left, 10s Circular SVG Ring on Right (No Words, No Numbers) */}
@@ -559,7 +733,7 @@ export default function LandingPage() {
                             <div className="my-auto py-4 flex flex-col items-center text-center space-y-5">
                               <p
                                 className={cx(
-                                  "text-title-2-semibold sm:text-title-1-semibold text-text-primary leading-snug max-w-xl font-display"
+                                  "text-title-2-semibold sm:text-title-1-semibold text-text-primary leading-snug max-w-xl font-display break-words"
                                 )}
                               >
                                 {isEn ? currentCard.frontQuestionEn : currentCard.frontQuestion}
@@ -577,7 +751,7 @@ export default function LandingPage() {
                                 >
                                   <RiLightbulbLine
                                     className={cx(
-                                      "size-4 transition-colors",
+                                      "size-4 transition-colors shrink-0",
                                       showHint ? "text-text-primary fill-text-primary" : "text-text-tertiary"
                                     )}
                                     aria-hidden="true"
@@ -596,13 +770,13 @@ export default function LandingPage() {
                                 {showHint && (
                                   <div
                                     onClick={(e) => e.stopPropagation()}
-                                    className="mt-3 p-4 rounded-xl border border-border-button-default bg-background-primary-default text-caption-1-medium text-text-secondary leading-relaxed transition-all space-y-1 text-start max-w-lg w-full"
+                                    className="mt-3 p-3.5 sm:p-4 rounded-xl border border-border-button-default bg-background-primary-default text-caption-1-medium text-text-secondary leading-relaxed transition-all space-y-1 text-start max-w-lg w-full break-words"
                                   >
                                     <div className="flex items-center gap-1.5 text-caption-2-semibold text-text-primary">
-                                      <RiLightbulbLine className="size-3.5 text-text-secondary" aria-hidden="true" />
+                                      <RiLightbulbLine className="size-3.5 text-text-secondary shrink-0" aria-hidden="true" />
                                       <span>{isEn ? "Pedagogical clue:" : "Petunjuk pemahaman:"}</span>
                                     </div>
-                                    <p>{isEn ? currentCard.hintEn : currentCard.hint}</p>
+                                    <p className="break-words">{isEn ? currentCard.hintEn : currentCard.hint}</p>
                                   </div>
                                 )}
                               </div>
@@ -672,27 +846,27 @@ export default function LandingPage() {
                                 </span>
                                 <h4
                                   className={cx(
-                                    "text-title-2-semibold text-text-primary font-display"
+                                    "text-title-2-semibold text-text-primary font-display break-words"
                                   )}
                                 >
                                   {isEn ? currentCard.backCorePrincipleEn : currentCard.backCorePrinciple}
                                 </h4>
                               </div>
 
-                              <div className="p-3.5 rounded-xl border border-border-button-default bg-background-primary-default space-y-1">
+                              <div className="p-3.5 sm:p-4 rounded-xl border border-border-button-default bg-background-primary-default space-y-1">
                                 <span className="text-caption-1-semibold text-text-primary block">
                                   {isEn ? "Mechanism & governing rule:" : "Mekanisme & kaidah ilmiah:"}
                                 </span>
-                                <p className="text-body-2-regular text-text-secondary leading-relaxed">
+                                <p className="text-body-2-regular text-text-secondary leading-relaxed break-words">
                                   {isEn ? currentCard.mechanismExplanationEn : currentCard.mechanismExplanation}
                                 </p>
                               </div>
 
-                              <div className="p-3.5 rounded-xl border border-border-button-default bg-background-primary-default space-y-1">
+                              <div className="p-3.5 sm:p-4 rounded-xl border border-border-button-default bg-background-primary-default space-y-1">
                                 <span className="text-caption-1-semibold text-text-primary block">
                                   {isEn ? "Real-world context & application:" : "Aplikasi di dunia nyata:"}
                                 </span>
-                                <p className="text-body-2-regular text-text-secondary leading-relaxed">
+                                <p className="text-body-2-regular text-text-secondary leading-relaxed break-words">
                                   {isEn ? currentCard.realWorldScenarioEn : currentCard.realWorldScenario}
                                 </p>
                               </div>
@@ -723,7 +897,7 @@ export default function LandingPage() {
             <div className="max-w-3xl space-y-4 pb-12 sm:pb-16">
               <h2
                 className={cx(
-                  "text-display-3-semibold sm:text-display-2-bold text-text-primary leading-tight font-display"
+                  "text-display-3-semibold sm:text-display-2-bold text-text-primary leading-tight font-display break-words"
                 )}
               >
                 {isEn
@@ -731,7 +905,7 @@ export default function LandingPage() {
                   : "Dari lembar dokumen mentah menjadi ruang kuis kelas interaktif"}
               </h2>
 
-              <p className="text-body-regular sm:text-body-medium text-text-secondary leading-relaxed">
+              <p className="text-body-regular sm:text-body-medium text-text-secondary leading-relaxed break-words">
                 {isEn
                   ? "Exile unifies curriculum ingestion, multi-artifact authoring, and synchronous classroom evaluation in one fluid tactile desk experience."
                   : "Exile menyatukan pembacaan berkas ajar, penyusunan artifak terstruktur, dan evaluasi kelas serentak dalam satu alur kerja meja ajar yang mulus."}
@@ -751,10 +925,10 @@ export default function LandingPage() {
                   </span>
                 </div>
 
-                <div className="md:col-span-9 space-y-4">
+                <div className="md:col-span-9 space-y-4 min-w-0">
                   <h3
                     className={cx(
-                      "text-title-2-semibold sm:text-title-1-semibold text-text-primary font-display"
+                      "text-title-2-semibold sm:text-title-1-semibold text-text-primary font-display break-words"
                     )}
                   >
                     {isEn
@@ -762,16 +936,10 @@ export default function LandingPage() {
                       : "Unggah berkas dokumen apa saja tanpa batas kaku"}
                   </h3>
 
-                  <p className="text-body-regular text-text-secondary leading-relaxed max-w-3xl">
+                  <p className="text-body-regular text-text-secondary leading-relaxed max-w-3xl break-words">
                     {isEn
-                      ? "Drop curriculum modules, lesson manuscripts, lecture notes, or study guides. Exile extracts hierarchical knowledge structures without discarding technical terminology or regional cultural nuance."
-                      : "Terima modul kurikulum, naskah materi, catatan kelas, atau lembar evaluasi. Sistem mengekstrak struktur materi secara hierarkis tanpa kehilangan istilah ilmiah dan konteks budaya lokal."}
-                  </p>
-
-                  <p className="text-caption-1-medium text-text-tertiary pt-1">
-                    {isEn
-                      ? "Curriculum modules • Lesson manuscripts • Lecture notes • Slides • Worksheets"
-                      : "Modul kurikulum • Naskah materi • Catatan kelas • Salindia ajar • Lembar evaluasi"}
+                      ? "Drop teaching materials (PDF, Word, text) or camera scans. Exile extracts hierarchical knowledge structures without discarding technical terminology or regional cultural nuance."
+                      : "Terima dokumen materi ajar (PDF, Word, teks) atau pindaian kamera. Sistem mengekstrak struktur materi secara hierarkis tanpa kehilangan istilah ilmiah dan konteks budaya lokal."}
                   </p>
                 </div>
               </div>
@@ -787,10 +955,10 @@ export default function LandingPage() {
                   </span>
                 </div>
 
-                <div className="md:col-span-9 space-y-4">
+                <div className="md:col-span-9 space-y-4 min-w-0">
                   <h3
                     className={cx(
-                      "text-title-2-semibold sm:text-title-1-semibold text-text-primary font-display"
+                      "text-title-2-semibold sm:text-title-1-semibold text-text-primary font-display break-words"
                     )}
                   >
                     {isEn
@@ -798,17 +966,53 @@ export default function LandingPage() {
                       : "Olah menjadi 7 artifak belajar terstruktur"}
                   </h3>
 
-                  <p className="text-body-regular text-text-secondary leading-relaxed max-w-3xl">
+                  <p className="text-body-regular text-text-secondary leading-relaxed max-w-3xl break-words">
                     {isEn
-                      ? "Automatically decomposes content into tactile 3D Cards, Adaptive HOTS Quizzes, Concise Summaries, Relational Concept Maps, Infographics, Data Tables, and Classroom Mastery Reports."
-                      : "Secara otomatis membedah materi menjadi Kartu 3D, Kuis adaptif, Intisari, Peta konsep, Infografik, Tabel data, dan Laporan penguasaan kompetensi."}
+                      ? "Automatically decomposes content into tactile 3d cards, adaptive HOTS quizzes, concise summaries, relational concept maps, infographics, data tables, and classroom mastery reports."
+                      : "Secara otomatis membedah materi menjadi kartu 3d, kuis adaptif, intisari, peta konsep, infografik, tabel data, dan laporan penguasaan kompetensi."}
                   </p>
 
-                  <p className="text-caption-1-medium text-text-tertiary pt-1">
-                    {isEn
-                      ? "3D cards • Adaptive quiz • Summary • Concept map • Infographic • Data table • Mastery report"
-                      : "Kartu 3D • Kuis adaptif • Intisari • Peta konsep • Infografik • Tabel data • Laporan penguasaan"}
-                  </p>
+                  {/* BENTO GRID: 7 Curriculum Artifact Showcase Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 pt-3">
+                    {CURRICULUM_ARTIFACTS_SHOWCASE.map((artifact) => {
+                      const Icon = artifact.icon;
+                      return (
+                        <div
+                          key={artifact.id}
+                          className={cx(
+                            "p-4 sm:p-6 rounded-2xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default transition flex flex-col justify-between space-y-3",
+                            artifact.spanClass
+                          )}
+                        >
+                          <div className="space-y-2.5">
+                            <div className="flex items-center justify-between gap-2 flex-wrap">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="size-8 rounded-lg bg-background-primary-default border border-border-button-default flex items-center justify-center text-text-primary shrink-0">
+                                  <Icon className="size-4" aria-hidden="true" />
+                                </div>
+                                <h4 className="text-body-2-semibold sm:text-title-3-semibold text-text-primary font-display break-words">
+                                  {isEn ? artifact.titleEn : artifact.titleId}
+                                </h4>
+                              </div>
+                              <span className="px-2 py-0.5 rounded-full bg-background-primary-default border border-border-button-default text-caption-2-medium text-text-secondary shrink-0">
+                                {isEn ? artifact.badgeEn : artifact.badgeId}
+                              </span>
+                            </div>
+
+                            <p className="text-caption-1-regular sm:text-body-2-regular text-text-secondary leading-relaxed break-words">
+                              {isEn ? artifact.descEn : artifact.descId}
+                            </p>
+                          </div>
+
+                          <div className="flex flex-wrap gap-1.5 pt-1 border-t border-separator-border/60">
+                            <span className="px-2 py-0.5 rounded-md bg-background-tertiary-default text-caption-2-medium text-text-tertiary">
+                              {isEn ? artifact.tagEn : artifact.tagId}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
 
@@ -823,18 +1027,18 @@ export default function LandingPage() {
                   </span>
                 </div>
 
-                <div className="md:col-span-9 space-y-4">
+                <div className="md:col-span-9 space-y-4 min-w-0">
                   <h3
                     className={cx(
-                      "text-title-2-semibold sm:text-title-1-semibold text-text-primary font-display"
+                      "text-title-2-semibold sm:text-title-1-semibold text-text-primary font-display break-words"
                     )}
                   >
                     {isEn
                       ? "Launch live interactive quiz room with adaptive timers"
-                      : "Buka Ruang Kuis interaktif dengan kendali tempo penuh"}
+                      : "Buka ruang kuis interaktif dengan kendali tempo penuh"}
                   </h3>
 
-                  <p className="text-body-regular text-text-secondary leading-relaxed max-w-3xl">
+                  <p className="text-body-regular text-text-secondary leading-relaxed max-w-3xl break-words">
                     {isEn
                       ? "Students join via a 6-digit PIN with zero app installation required. The educator orchestrates pace and question reveals, while Exile Copilot assists live student inquiry."
                       : "Buka arena interaktif dengan kode PIN 6 digit dalam satu klik. Pengajar memegang kendali tempo soal, sementara Exile Copilot mendampingi diskusi konsep siswa di ruang obrolan."}
@@ -846,14 +1050,81 @@ export default function LandingPage() {
         </section>
       </main>
 
-      {/* CRAFTED EDITORIAL FOOTER */}
-      <footer className="py-8 border-t border-separator-border bg-background-full">
-        <div className="mx-auto max-w-[1160px] px-4 sm:px-6 flex items-center justify-center">
-          <p className="text-caption-1-regular text-text-tertiary">
-            {isEn
-              ? "Copyright © 2026 Exile. All rights reserved."
-              : "Copyright © 2026 Exile. Hak cipta dilindungi."}
-          </p>
+      {/* CRAFTED EDITORIAL FOOTER & TEAM CREDITS */}
+      <footer id="tentang" className="border-t border-separator-border bg-background-full pt-12 pb-8 sm:pt-16 sm:pb-12">
+        <div className="mx-auto max-w-[1160px] px-4 sm:px-6 space-y-8 sm:space-y-12">
+          {/* Team Credits Section */}
+          <div className="space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2 border-b border-separator-border pb-4">
+              <div className="space-y-1">
+                <span className="text-caption-2-medium text-text-tertiary font-mono">
+                  {isEn ? "Crafted by" : "Karya tim"}
+                </span>
+                <h3 className="text-title-3-semibold sm:text-title-2-semibold text-text-primary font-display">
+                  {isEn ? "Credits & team contributors" : "Kredit tim pengembang"}
+                </h3>
+              </div>
+              <p className="text-caption-1-regular text-text-secondary max-w-md">
+                {isEn
+                  ? "Transforming lesson manuscripts into tactile 3d cards and synchronous quiz rooms."
+                  : "Mengubah naskah materi ajar menjadi kartu 3d taktil dan ruang kuis interaktif."}
+              </p>
+            </div>
+
+            {/* Team Profile Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+              {TEAM_PROFILES.map((member) => (
+                <a
+                  key={member.handle}
+                  href={member.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-start gap-3 sm:gap-3.5 p-3.5 sm:p-4 rounded-2xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default hover:border-border-button-hover transition group outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring cursor-pointer"
+                >
+                  <TeamAvatar
+                    src={member.avatar}
+                    alt={member.handle}
+                    initials={member.initials}
+                  />
+
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="flex items-center justify-between gap-2 flex-wrap">
+                      <span className="text-body-2-semibold text-text-primary group-hover:text-text-primary transition">
+                        {member.handle}
+                      </span>
+                      <span className="shrink-0 px-2.5 py-0.5 rounded-full bg-background-tertiary-default text-text-secondary text-caption-2-medium border border-border-button-default">
+                        {member.role}
+                      </span>
+                    </div>
+
+                    <p className="text-caption-1-regular text-text-secondary leading-snug break-words">
+                      {isEn ? member.roleTitleEn : member.roleTitleId}
+                    </p>
+
+                    <div className="flex items-center gap-1.5 text-caption-2-medium text-text-tertiary group-hover:text-text-secondary transition pt-0.5">
+                      <RiInstagramLine className="size-3.5 shrink-0" aria-hidden="true" />
+                      <span>Instagram</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Copyright Bar */}
+          <div className="pt-6 border-t border-separator-border flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-start">
+            <p className="text-caption-1-regular text-text-tertiary leading-relaxed">
+              {isEn
+                ? "Copyright © 2026 Exile. All rights reserved."
+                : "Copyright © 2026 Exile. Hak cipta dilindungi."}
+            </p>
+
+            <span className="text-caption-2-medium text-text-tertiary">
+              {isEn
+                ? "Interactive curriculum evaluation platform"
+                : "Platform evaluasi kurikulum interaktif"}
+            </span>
+          </div>
         </div>
       </footer>
 

@@ -92,6 +92,117 @@ body {
   font-kerning: normal;
 }
 
+/* Mobile touch interactions & tap highlight elimination */
+a,
+button,
+input,
+select,
+textarea,
+summary,
+[role="button"],
+[role="tab"],
+[role="menuitem"],
+[role="checkbox"],
+[role="radio"],
+[role="switch"],
+[data-interactive] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Range slider with accessible 44px touch target on mobile */
+.touch-slider {
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  width: 100%;
+  height: 44px;
+  cursor: pointer;
+  touch-action: pan-x;
+}
+
+.touch-slider:focus-visible {
+  outline: none;
+  border-radius: var(--radius-xl, 0.75rem);
+  box-shadow: 0 0 0 2px var(--color-border-focus-ring);
+}
+
+.touch-slider::-webkit-slider-runnable-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--color-background-tertiary-default);
+}
+
+.touch-slider::-moz-range-track {
+  width: 100%;
+  height: 6px;
+  border-radius: 9999px;
+  background-color: var(--color-background-tertiary-default);
+}
+
+.touch-slider::-webkit-slider-thumb {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background-color: var(--color-text-primary);
+  border: 12px solid transparent;
+  background-clip: padding-box;
+  margin-top: -19px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.touch-slider:active::-webkit-slider-thumb {
+  transform: scale(1.08);
+}
+
+.touch-slider::-moz-range-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 9999px;
+  background-color: var(--color-text-primary);
+  border: 12px solid transparent;
+  background-clip: padding-box;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.touch-slider:active::-moz-range-thumb {
+  transform: scale(1.08);
+}
+
+.touch-slider:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.touch-slider:disabled::-webkit-slider-thumb {
+  cursor: not-allowed;
+}
+
+.touch-slider:disabled::-moz-range-thumb {
+  cursor: not-allowed;
+}
+
+/* Ensure typography elements wrap safely without container blowout */
+p,
+span,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+li,
+dt,
+dd,
+blockquote {
+  overflow-wrap: break-word;
+}
+
 html {
   color-scheme: light;
   background-color: var(--color-background-full);

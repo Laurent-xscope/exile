@@ -55,6 +55,7 @@ import {
   RiSidebarUnfoldLine,
   RiSettings3Line,
   RiEyeLine,
+  RiCameraLine,
 } from "@remixicon/react";
 import Image from "next/image";
 import { Button, ButtonLink } from "@/components/base/buttons/button";
@@ -62,6 +63,9 @@ import { Modal, ModalHeader, ModalBody, ModalFooter } from "@/components/base/mo
 import { Input } from "@/components/base/input/input";
 import { Chip } from "@/components/base/badges/chip";
 import { SettingsModal } from "@/components/settings/settings-modal";
+import { PreScanModal, type PreScanMode } from "@/components/studio/pre-scan-modal";
+import { MobileHomeworkScanner, type ScannedPageItem } from "@/components/studio/mobile-homework-scanner";
+import { DirectAnswerCard, type DirectAnswerItem } from "@/components/studio/direct-answer-card";
 import { MoreMenu, type MoreMenuItem } from "@/components/base/dropdown/more-menu";
 import { UserNav } from "@/components/auth/user-nav";
 import { useAuth } from "@/lib/auth/use-auth";
@@ -80,6 +84,7 @@ import type {
   Quiz,
   StudioCraftableArtifact,
 } from "@/lib/ai/prompts";
+import type { StudioAction } from "@/lib/ai/agent";
 import {
   loadStudioHistory,
   saveStudioHistoryEntry,
@@ -661,7 +666,7 @@ function InstantQuizDialog({
                     onLaunchLive();
                   }}
                 >
-                  {isEn ? "Create quiz room" : "Buat Ruang Kuis"}
+                  {isEn ? "Quiz room" : "Ruang kuis"}
                 </Button>
               </div>
             </div>
@@ -848,11 +853,13 @@ export default function StudioPage() {
   const { lang, t } = useTranslation();
   const isEn = lang === "en";
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const mobileFileInputRef = useRef<HTMLInputElement>(null);
   const copilotImageInputRef = useRef<HTMLInputElement>(null);
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const docTextareaRef = useRef<HTMLTextAreaElement>(null);
 
   const [docText, setDocText] = useState<string>("");
+  const [docTitle, setDocTitle] = useState<string>("");
   const [processing, setProcessing] = useState<boolean>(false);
   const [reasoningElapsedSec, setReasoningElapsedSec] = useState<number>(0);
   const [processedDoc, setProcessedDoc] = useState<
@@ -867,25 +874,35 @@ export default function StudioPage() {
   const [isCopilotDrawerOpen, setIsCopilotDrawerOpen] = useState<boolean>(false);
   const [isQuickQuizOpen, setIsQuickQuizOpen] = useState<boolean>(false);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isMobileSourcesOpen, setIsMobileSourcesOpen] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+
+  // Mobile Homework Scanner states
+  const [isPreScanModalOpen, setIsPreScanModalOpen] = useState<boolean>(false);
+  const [isScannerOpen, setIsScannerOpen] = useState<boolean>(false);
+  const [scannerMode, setScannerMode] = useState<PreScanMode>("direct_answer");
+  const [isDirectAnswerCardOpen, setIsDirectAnswerCardOpen] = useState<boolean>(false);
+  const [directAnswers, setDirectAnswers] = useState<DirectAnswerItem[]>([]);
+  const [scanTranscription, setScanTranscription] = useState<string>("");
+  const [isScanProcessing, setIsScanProcessing] = useState<boolean>(false);
   const copilotScrollFade = useScrollFade();
 
   useEffect(() => {
-    if (!isCopilotDrawerOpen) return;
+    if (!isCopilotDrawerOpen && !isMobileSourcesOpen) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         setIsCopilotDrawerOpen(false);
+        setIsMobileSourcesOpen(false);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isCopilotDrawerOpen]);
+  }, [isCopilotDrawerOpen, isMobileSourcesOpen]);
 
   const toggleArtifactSelection = (artifact: StudioCraftableArtifact) => {
     soundEffects.playClick();
     setSelectedArtifacts((prev) => {
       if (prev.includes(artifact)) {
-        if (prev.length === 1) return prev;
         return prev.filter((item) => item !== artifact);
       }
       return [...prev, artifact];
@@ -990,6 +1007,7 @@ export default function StudioPage() {
     if (!hasMeaningfulContent) return;
 
     const title =
+      docTitle ||
       processedDoc?.title ||
       aiQuiz?.quiz.title ||
       uploadedFileName ||
@@ -1038,6 +1056,7 @@ export default function StudioPage() {
     activeTab,
     testedAnswers,
     masteredCards,
+    docTitle,
   ]);
 
   const handleLoadHistoryEntry = (entry: StudioHistoryEntry) => {
@@ -1101,6 +1120,15 @@ export default function StudioPage() {
       role: "user" | "assistant";
       content: string;
       imagePreview?: string;
+      actionCard?: {
+        type: "create_artifact";
+        artifactType: StudioCraftableArtifact;
+        label: string;
+        topic?: string;
+        count?: number;
+        difficulty?: string;
+        executed?: boolean;
+      };
     }>
   >([
     {
@@ -1132,13 +1160,13 @@ export default function StudioPage() {
     if (quizDifficulty === 1) {
       return (
         processedDoc.difficultyQuizzes?.easy ||
-        processedDoc.quiz.slice(0, 3)
+        processedDoc.quiz
       );
     }
     if (quizDifficulty === 3) {
       return (
         processedDoc.difficultyQuizzes?.hard ||
-        processedDoc.quiz.slice(0, 3)
+        processedDoc.quiz
       );
     }
     return (
@@ -1314,8 +1342,17 @@ export default function StudioPage() {
     return `${String(mins).padStart(2, "0")}:${String(s).padStart(2, "0")}s`;
   };
 
-  const handleProcessDocument = async () => {
-    if (!docText.trim() && !uploadedFileBase64) {
+  const handleProcessDocument = async (overrideText?: string) => {
+    if (selectedArtifacts.length === 0) {
+      toast.error(
+        isEn
+          ? "Please select at least one artifact to craft."
+          : "Pilih minimal satu artifak untuk dibuat."
+      );
+      return;
+    }
+    const textToProcess = typeof overrideText === "string" ? overrideText : docText;
+    if (!textToProcess.trim() && !uploadedFileBase64) {
       toast.error(
         isEn
           ? "Please enter lesson text or upload a document first."
@@ -1325,6 +1362,7 @@ export default function StudioPage() {
       return;
     }
 
+    setIsMobileSourcesOpen(false);
     setProcessing(true);
     setReasoningElapsedSec(0);
     const startTime = Date.now();
@@ -1340,9 +1378,9 @@ export default function StudioPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "analyze",
-          extractedText: docText,
-          text: docText,
-          fileName: uploadedFileName || "materi-ajar.txt",
+          extractedText: textToProcess,
+          text: textToProcess,
+          fileName: uploadedFileName || (isEn ? "Scanned homework" : "Lembar tugas terpindai"),
           fileType: uploadedFileType || "text",
           fileBase64: uploadedFileBase64 || undefined,
           mimeType: uploadedMimeType || "text/plain",
@@ -1360,7 +1398,7 @@ export default function StudioPage() {
         throw new Error("Format hasil analisis dokumen tidak valid.");
       }
 
-      if (data.transcription && (!docText.trim() || docText.startsWith("Lampiran berkas:"))) {
+      if (data.transcription && (!textToProcess.trim() || textToProcess.startsWith("Lampiran berkas:"))) {
         setDocText(data.transcription);
       }
 
@@ -1436,6 +1474,91 @@ export default function StudioPage() {
     }
   };
 
+  const handleSelectScanMode = (mode: PreScanMode) => {
+    setScannerMode(mode);
+    setIsPreScanModalOpen(false);
+    setIsScannerOpen(true);
+  };
+
+  const handleScannerComplete = async (data: {
+    mode: PreScanMode;
+    pages: ScannedPageItem[];
+    combinedSnippet: string;
+  }) => {
+    const { mode, pages } = data;
+    setIsScannerOpen(false);
+    if (typeof (soundEffects as { playScanComplete?: () => void }).playScanComplete === "function") {
+      (soundEffects as { playScanComplete?: () => void }).playScanComplete?.();
+    } else {
+      soundEffects.playClick();
+    }
+    setIsScanProcessing(true);
+
+    try {
+      const res = await fetch("/api/ai/process-document", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scanMode: mode,
+          action: mode === "learning" ? "transcribe" : undefined,
+          images: pages.map((p) => ({
+            base64: p.base64,
+            mimeType: p.mimeType,
+          })),
+        }),
+      });
+
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(
+          json.error ||
+            (isEn ? "Failed to process scan" : "Gagal memproses pindaian")
+        );
+      }
+
+      if (mode === "direct_answer") {
+        const answers: DirectAnswerItem[] = json.directAnswers || [];
+        const transcription: string = json.transcription || "";
+        setDirectAnswers(answers);
+        setScanTranscription(transcription);
+        setIsDirectAnswerCardOpen(true);
+        toast.success(
+          isEn
+            ? "Answer keys scanned successfully"
+            : "Kunci jawaban berhasil dipindai"
+        );
+      } else if (mode === "learning") {
+        const transcription: string = json.transcription || "";
+        const title = isEn ? "Scanned homework" : "Lembar tugas terpindai";
+        setDocText(transcription);
+        setDocTitle(title);
+        setUploadedFileName(title);
+        toast.success(
+          isEn
+            ? "Homework sheet transcribed successfully"
+            : "Lembar tugas berhasil ditranskripsikan"
+        );
+        void handleProcessDocument(transcription);
+      }
+    } catch (err: unknown) {
+      const msg =
+        err instanceof Error
+          ? err.message
+          : isEn
+            ? "Failed to process scan"
+            : "Gagal memproses pindaian";
+      toast.error(msg);
+    } finally {
+      setIsScanProcessing(false);
+    }
+  };
+
+  const handleAskCopilotFromDirectAnswers = (promptText: string) => {
+    setIsDirectAnswerCardOpen(false);
+    setIsCopilotDrawerOpen(true);
+    setChatInput(promptText);
+  };
+
   const handleLaunchRoom = async () => {
     setLaunchingRoom(true);
     soundEffects.playClick();
@@ -1463,6 +1586,26 @@ export default function StudioPage() {
       }
 
       saveHostToken(data.roomCode, data.hostToken);
+
+      if (displayedQuestions.length === 0 && docText.trim().length > 0) {
+        try {
+          await fetch(`/api/rooms/${data.roomCode}/quiz`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-host-token": data.hostToken,
+            },
+            body: JSON.stringify({
+              text: docText,
+              questionCount: 5,
+              difficulty: settings.defaultQuestionTimeSec <= 15 ? 3 : 2,
+            }),
+          });
+        } catch (quizErr) {
+          console.error("Auto quiz generation failed:", quizErr);
+        }
+      }
+
       void triggerConfetti({ particleCount: 60, spread: 70 });
       toast.success(`Ruang kuis aktif! Pin: ${data.roomCode}`);
       router.push(`/buat-ruang-kuis/${data.roomCode}`);
@@ -1669,9 +1812,259 @@ export default function StudioPage() {
         toast.success(isEn ? "Material updated." : "Materi diperbarui.");
       }
 
+      if (Array.isArray(data.studioActions) && data.studioActions.length > 0) {
+        for (const action of data.studioActions) {
+          if (action.type === "create_artifact" && action.artifactType) {
+            const artType = action.artifactType as StudioCraftableArtifact;
+            setActiveTab(artType);
+            setSelectedArtifacts((prev) =>
+              prev.includes(artType) ? prev : [...prev, artType]
+            );
+
+            const artifactLabel = t.studio.tabs[artType] || artType;
+
+            if (artType === "quiz") {
+              const topic =
+                action.topic?.trim() ||
+                docText.trim().split(/\r?\n/)[0]?.slice(0, 80) ||
+                "Kuis";
+              const count = action.count || (action.questions ? action.questions.length : 5);
+              const diffStr =
+                action.difficulty === "Sulit"
+                  ? "sulit"
+                  : action.difficulty === "Mudah"
+                    ? "mudah"
+                    : "sedang";
+
+              if (Array.isArray(action.questions) && action.questions.length > 0) {
+                setProcessedDoc((prev) => {
+                  const base: DocumentAnalysis & { quizId?: string } = prev || {
+                    title: topic,
+                    gradeLevel: "Fase D (SMP)",
+                    subjectArea: "Materi ajar",
+                    flashcards: [],
+                    quiz: [],
+                    summary: {
+                      overview: "",
+                      keyTakeaways: [],
+                      culturalGlossary: [],
+                      expansions: [],
+                    },
+                  };
+                  return {
+                    ...base,
+                    title: topic || base.title,
+                    quiz: action.questions!,
+                    quizId: base.quizId || `quiz-${Date.now()}`,
+                  };
+                });
+                setTestedAnswers({});
+                setExpandedQuestionExplanations({});
+                void triggerConfetti({ particleCount: 40, spread: 60 });
+                toast.success(
+                  isEn
+                    ? `Quiz created: ${action.questions.length} questions.`
+                    : `Kuis berhasil dibuat: ${action.questions.length} butir.`
+                );
+              } else {
+                try {
+                  const contextParts = [
+                    docText.trim(),
+                    action.focusAspect ? `Aspek fokus pembelajaran: ${action.focusAspect}` : "",
+                  ].filter(Boolean);
+                  const combinedContext = contextParts.join("\n\n");
+
+                  const quizRes = await fetch("/api/ai/generate-quiz", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      topic,
+                      contextText: combinedContext.length > 10 ? combinedContext : undefined,
+                      questionCount: count,
+                      difficulty: diffStr,
+                    }),
+                  });
+                  const quizData = await quizRes.json();
+                  if (quizRes.ok && quizData.success && quizData.quiz) {
+                    setProcessedDoc((prev) => {
+                      const base: DocumentAnalysis & { quizId?: string } = prev || {
+                        title: topic,
+                        gradeLevel: "Fase D (SMP)",
+                        subjectArea: "Materi ajar",
+                        flashcards: [],
+                        quiz: [],
+                        summary: {
+                          overview: "",
+                          keyTakeaways: [],
+                          culturalGlossary: [],
+                          expansions: [],
+                        },
+                      };
+                      return {
+                        ...base,
+                        title: topic || base.title,
+                        quiz: quizData.quiz.questions,
+                        quizId: quizData.quizId || base.quizId,
+                      };
+                    });
+                    setTestedAnswers({});
+                    setExpandedQuestionExplanations({});
+                    void triggerConfetti({ particleCount: 40, spread: 60 });
+                    toast.success(
+                      isEn
+                        ? `Quiz created: ${quizData.quiz.questions.length} questions.`
+                        : `Kuis berhasil dibuat: ${quizData.quiz.questions.length} butir.`
+                    );
+                  }
+                } catch (quizErr) {
+                  console.error("Quiz generation failed:", quizErr);
+                }
+              }
+            } else if (artType === "mindmap" && action.mindmap) {
+              setProcessedDoc((prev) => {
+                const base: DocumentAnalysis & { quizId?: string } = prev || {
+                  title: action.topic || "Peta konsep",
+                  gradeLevel: "Fase D (SMP)",
+                  subjectArea: "Materi ajar",
+                  flashcards: [],
+                  quiz: [],
+                  summary: {
+                    overview: "",
+                    keyTakeaways: [],
+                    culturalGlossary: [],
+                    expansions: [],
+                  },
+                };
+                return {
+                  ...base,
+                  mindMap: action.mindmap,
+                };
+              });
+              setCollapsedBranches({});
+              setSelectedMindMapNode(null);
+              void triggerConfetti({ particleCount: 35, spread: 50 });
+              toast.success(
+                isEn
+                  ? `${artifactLabel} ready.`
+                  : `${artifactLabel} berhasil disusun.`
+              );
+            } else {
+              try {
+                const contentText =
+                  docText.trim().length >= 40
+                    ? docText
+                    : [
+                        docText.trim(),
+                        action.topic ? `Materi: ${action.topic}` : "",
+                        action.focusAspect ? `Aspek fokus: ${action.focusAspect}` : "",
+                      ]
+                        .filter(Boolean)
+                        .join(". ")
+                        .trim();
+                const fallbackSource =
+                  contentText.length >= 40
+                    ? contentText
+                    : `Materi pembelajaran: ${action.topic || "Konsep utama"}. Aspek fokus: ${action.focusAspect || "Pemahaman menyeluruh konsep materi"}.`;
+
+                const procRes = await fetch("/api/ai/process-document", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    action: "analyze",
+                    extractedText: fallbackSource,
+                    text: fallbackSource,
+                    fileName: uploadedFileName || "materi-ajar.txt",
+                    fileType: uploadedFileType || "text",
+                    fileBase64: uploadedFileBase64 || undefined,
+                    mimeType: uploadedMimeType || "text/plain",
+                    artifacts: [artType],
+                  }),
+                });
+                const procData = await procRes.json();
+                if (procRes.ok) {
+                  const docPayload: DocumentAnalysis & { quizId?: string } =
+                    procData.document || procData.analysis;
+                  if (docPayload) {
+                    setProcessedDoc((prev) => {
+                      if (!prev) return docPayload;
+                      return {
+                        ...prev,
+                        title: docPayload.title || prev.title,
+                        flashcards:
+                          artType === "flashcards" && docPayload.flashcards?.length
+                            ? docPayload.flashcards
+                            : prev.flashcards,
+                        summary:
+                          artType === "summary" && docPayload.summary?.overview
+                            ? docPayload.summary
+                            : prev.summary,
+                        mindMap:
+                          artType === "mindmap" && docPayload.mindMap
+                            ? docPayload.mindMap
+                            : prev.mindMap,
+                        infographic:
+                          artType === "infographic" && docPayload.infographic
+                            ? docPayload.infographic
+                            : prev.infographic,
+                        dataTable:
+                          artType === "table" && docPayload.dataTable
+                            ? docPayload.dataTable
+                            : prev.dataTable,
+                        report:
+                          artType === "report" && docPayload.report
+                            ? docPayload.report
+                            : prev.report,
+                      };
+                    });
+                    if (artType === "flashcards") {
+                      setFlashcardIndex(0);
+                      setMasteredCards([]);
+                      setIsFlipped(false);
+                    }
+                    if (artType === "mindmap") {
+                      setCollapsedBranches({});
+                      setSelectedMindMapNode(null);
+                    }
+                    void triggerConfetti({ particleCount: 35, spread: 50 });
+                    toast.success(
+                      isEn
+                        ? `${artifactLabel} ready.`
+                        : `${artifactLabel} berhasil disusun.`
+                    );
+                  }
+                }
+              } catch (artErr) {
+                console.error("Artifact generation failed:", artErr);
+              }
+            }
+          }
+        }
+      }
+
+      const primaryAction = Array.isArray(data.studioActions)
+        ? data.studioActions.find((a: StudioAction) => a.type === "create_artifact")
+        : undefined;
+
+      const actionCard = primaryAction
+        ? {
+            type: "create_artifact" as const,
+            artifactType: primaryAction.artifactType as StudioCraftableArtifact,
+            label:
+              t.studio.tabs[primaryAction.artifactType as StudioCraftableArtifact] ||
+              primaryAction.artifactType,
+            topic: primaryAction.topic,
+            count: primaryAction.count,
+            difficulty: primaryAction.difficulty,
+          }
+        : undefined;
+
       setChatMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.reply || "Maaf, respon tidak dapat disusun." },
+        {
+          role: "assistant",
+          content: data.reply || "Maaf, respon tidak dapat disusun.",
+          actionCard,
+        },
       ]);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Gagal mengirim pesan";
@@ -2097,7 +2490,7 @@ export default function StudioPage() {
         activeTab === "flashcards"
           ? cardViewMode === "deck"
             ? (isEn ? "Switch to grid view" : "Beralih ke tampilan kisi")
-            : (isEn ? "Switch to 3D card mode" : "Beralih ke mode kartu 3D")
+            : (isEn ? "Switch to 3d card mode" : "Beralih ke mode kartu 3d")
           : (isEn ? "Toggle view mode" : "Ubah mode tampilan"),
       icon: RiEyeLine,
       onAction: () => {
@@ -2113,19 +2506,405 @@ export default function StudioPage() {
       id: "artifact-regenerate",
       label: isEn ? "Regenerate artifact" : "Buat ulang artifak",
       icon: RiRestartLine,
-      disabled: processing,
+      disabled: processing || selectedArtifacts.length === 0,
       onAction: () => {
         void handleProcessDocument();
       },
     },
   ];
 
+  const renderSourcesRailContent = (isMobileDrawer = false) => {
+    const currentFileInputRef = isMobileDrawer ? mobileFileInputRef : fileInputRef;
+
+    return (
+      <div className="space-y-2.5">
+        {!isMobileDrawer && (
+          <div className="flex items-center justify-between pb-0.5">
+            <span className="text-caption-2-medium text-text-tertiary">
+              {isEn ? "Source material" : "Bahan ajar"}
+            </span>
+            <button
+              type="button"
+              onClick={() => setIsSidebarCollapsed(true)}
+              className="p-1 rounded-lg hover:bg-background-secondary-default text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
+              title={isEn ? "Collapse sidebar" : "Tutup bilah sisi"}
+              aria-label={isEn ? "Collapse sidebar" : "Tutup bilah sisi"}
+            >
+              <RiSidebarFoldLine className="size-4" />
+            </button>
+          </div>
+        )}
+
+        {/* Multimodal Dropzone & Upload Trigger */}
+        <div className="flex items-center gap-2">
+          <input
+            ref={currentFileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp,.rtf,.txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.epub,image/*,text/*,application/*"
+            onChange={handleFileChange}
+            className="hidden"
+          />
+          <button
+            type="button"
+            onClick={() => currentFileInputRef.current?.click()}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDraggingFile(true);
+            }}
+            onDragLeave={() => setIsDraggingFile(false)}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDraggingFile(false);
+              const dropped = e.dataTransfer.files?.[0];
+              if (dropped && currentFileInputRef.current) {
+                const dt = new DataTransfer();
+                dt.items.add(dropped);
+                currentFileInputRef.current.files = dt.files;
+                handleFileChange({
+                  target: currentFileInputRef.current,
+                } as ChangeEvent<HTMLInputElement>);
+              }
+            }}
+            className={cx(
+              "group flex flex-1 min-w-0 flex-col gap-2 rounded-xl p-2.5 text-start transition-all cursor-pointer border-0",
+              isDraggingFile
+                ? "bg-accent-500/10"
+                : uploadedFileName
+                  ? "bg-accent-500/5"
+                  : "bg-background-secondary-default/35 hover:bg-background-secondary-default/65"
+            )}
+          >
+            <div className="flex w-full items-center gap-2.5">
+              <span
+                className={cx(
+                  "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
+                  uploadedFileName
+                    ? "bg-background-tertiary-default text-text-primary"
+                    : "bg-background-full text-text-secondary group-hover:text-text-primary"
+                )}
+              >
+                <RiUploadCloud2Line className="size-4" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-caption-1-semibold text-text-primary">
+                  {docTitle || uploadedFileName || t.studio.uploadTitle}
+                </span>
+                <span className="mt-0.5 block truncate text-caption-2-regular text-text-tertiary">
+                  {uploadedFileName
+                    ? `${docText.trim().length.toLocaleString()} ${isEn ? "characters" : "karakter"}`
+                    : t.studio.uploadHint}
+                </span>
+              </span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            disabled={isScanProcessing}
+            onClick={() => {
+              soundEffects.playClick();
+              setScannerMode("learning");
+              setIsScannerOpen(true);
+            }}
+            title={isEn ? "Scan homework with camera" : "Pindai tugas kamera"}
+            aria-label={isEn ? "Scan homework with camera" : "Pindai tugas kamera"}
+            className="size-11 bg-background-secondary-default/50 hover:bg-background-secondary-default border border-border-button-default text-text-secondary hover:text-text-primary rounded-xl flex items-center justify-center shrink-0 cursor-pointer transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isScanProcessing ? (
+              <span className="size-4 animate-spin rounded-full border-2 border-text-tertiary border-t-accent-500" />
+            ) : (
+              <RiCameraLine className="size-5" />
+            )}
+          </button>
+        </div>
+
+        {/* Multimodal AI Vision Ingestion Status Banner */}
+        {uploadedFileBase64 && (
+          <div className="p-2 rounded-xl bg-emerald-500/10 flex items-center justify-between gap-2 text-caption-2-medium text-state-success-text">
+            <div className="flex items-center gap-2 min-w-0">
+              <span
+                className={cx(
+                  "inline-flex rounded-full size-2 shrink-0",
+                  isTranscribing ? "bg-warning animate-ping" : "bg-emerald-500"
+                )}
+              />
+              <span className="truncate">
+                {isTranscribing
+                  ? isEn
+                    ? "Transcribing file..."
+                    : "Mentranskripsi berkas..."
+                  : isEn
+                    ? "Document ready"
+                    : "Dokumen siap"}
+              </span>
+            </div>
+            {!isTranscribing && (
+              <button
+                type="button"
+                onClick={() =>
+                  transcribeUploadedFile(
+                    uploadedFileBase64,
+                    uploadedFileName || "dokumen.pdf",
+                    uploadedFileType,
+                    uploadedMimeType || "application/pdf"
+                  )
+                }
+                className="text-caption-2-medium hover:underline text-state-success-text flex items-center gap-1 cursor-pointer shrink-0"
+              >
+                <RiRefreshLine className="size-3" />
+                <span>{isEn ? "Retry" : "Ulang"}</span>
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Material Sheet Editor */}
+        <div className="overflow-hidden rounded-xl bg-background-secondary-default/35 transition-all border-0">
+          <div className="flex items-center justify-between gap-2 bg-background-secondary-default/70 px-2.5 py-1.5">
+            <div className="flex items-center gap-1.5 min-w-0">
+              <RiFileTextLine className="size-3.5 shrink-0 text-accent-700" />
+              <span className="truncate text-caption-2-medium text-text-secondary">
+                {t.studio.textEditorLabel}
+              </span>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="rounded-md bg-background-full px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-text-tertiary">
+                {docText.trim().length.toLocaleString()}
+              </span>
+              {(docText || uploadedFileName) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setDocText("");
+                    setUploadedFileName("");
+                    setUploadedFileBase64("");
+                  }}
+                  className="text-caption-2-regular text-text-tertiary hover:text-text-error-primary transition-colors cursor-pointer"
+                >
+                  {t.studio.textEditorClear}
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="relative">
+            <textarea
+              ref={isMobileDrawer ? undefined : docTextareaRef}
+              rows={isMobileDrawer ? 4 : 3}
+              value={docText}
+              onChange={(e) => setDocText(e.target.value)}
+              placeholder={
+                isTranscribing
+                  ? isEn
+                    ? "Transcribing content..."
+                    : "Mentranskripsi konten..."
+                  : t.studio.textEditorPlaceholder
+              }
+              disabled={isTranscribing}
+              className="w-full bg-transparent p-2.5 text-caption-1-regular leading-relaxed text-text-primary placeholder:text-text-tertiary focus:outline-none resize-y min-h-[76px] disabled:opacity-60"
+            />
+            {isTranscribing && (
+              <div className="absolute inset-0 bg-background-secondary-default/60 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
+                <div className="flex items-center gap-2 text-xs font-medium text-state-success-text bg-background-primary-default px-3 py-1.5 rounded-xl shadow-xs">
+                  <RiRefreshLine className="size-3.5 animate-spin text-state-success-text" />
+                  <span>{transcriptionStatus || (isEn ? "Transcribing..." : "Mentranskripsi...")}</span>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Checklist Menu: Choose specific artifacts to create */}
+        <div className="space-y-1.5 pt-0.5">
+          <div className="flex items-center justify-between px-0.5">
+            <span className="text-caption-2-medium text-text-tertiary">
+              {isEn ? "Select artifacts" : "Pilih artifak"}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                soundEffects.playClick();
+                const allIds: StudioCraftableArtifact[] = [
+                  "flashcards",
+                  "quiz",
+                  "summary",
+                  "mindmap",
+                  "infographic",
+                  "table",
+                  "report",
+                ];
+                if (selectedArtifacts.length > 0) {
+                  setSelectedArtifacts([]);
+                } else {
+                  setSelectedArtifacts(allIds);
+                }
+              }}
+              className="text-caption-2-medium text-accent-700 hover:underline cursor-pointer"
+            >
+              {selectedArtifacts.length > 0
+                ? isEn
+                  ? "Deselect all"
+                  : "Batal pilih semua"
+                : isEn
+                  ? "Select all"
+                  : "Pilih semua"}
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 gap-1">
+            {(
+              [
+                {
+                  id: "flashcards" as const,
+                  label: t.studio.tabs.flashcards,
+                  icon: RiFileCopyLine,
+                  built: hasFlashcards,
+                },
+                {
+                  id: "quiz" as const,
+                  label: t.studio.tabs.quiz,
+                  icon: RiQuestionnaireLine,
+                  built: hasQuiz,
+                },
+                {
+                  id: "summary" as const,
+                  label: t.studio.tabs.summary,
+                  icon: RiBookOpenLine,
+                  built: hasSummary,
+                },
+                {
+                  id: "mindmap" as const,
+                  label: t.studio.tabs.mindmap,
+                  icon: RiNodeTree,
+                  built: hasMindMap,
+                },
+                {
+                  id: "infographic" as const,
+                  label: t.studio.tabs.infographic,
+                  icon: RiBarChartBoxLine,
+                  built: hasInfographic,
+                },
+                {
+                  id: "table" as const,
+                  label: t.studio.tabs.table,
+                  icon: RiTableLine,
+                  built: hasTable,
+                },
+                {
+                  id: "report" as const,
+                  label: t.studio.tabs.report,
+                  icon: RiFileList3Line,
+                  built: hasReport,
+                },
+              ] as const
+            ).map((item) => {
+              const Icon = item.icon;
+              const checked = selectedArtifacts.includes(item.id);
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={checked}
+                  onClick={() => toggleArtifactSelection(item.id)}
+                  className={cx(
+                    "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-start transition-all cursor-pointer border-0",
+                    checked
+                      ? "bg-accent-500/10 text-text-primary"
+                      : "bg-background-secondary-default/30 text-text-secondary hover:bg-background-secondary-default/60 hover:text-text-primary"
+                  )}
+                >
+                  <span className="flex items-center gap-2 min-w-0">
+                    <span
+                      className={cx(
+                        "flex size-4 shrink-0 items-center justify-center rounded-md transition-colors",
+                        checked
+                          ? "bg-background-tertiary-default text-text-primary"
+                          : "bg-background-full text-transparent"
+                      )}
+                    >
+                      <RiCheckLine className="size-3" />
+                    </span>
+                    <Icon
+                      className={cx(
+                        "size-3.5 shrink-0",
+                        checked ? "text-accent-700" : "text-text-tertiary"
+                      )}
+                    />
+                    <span className="truncate text-caption-1-medium">
+                      {item.label}
+                    </span>
+                  </span>
+                  {item.built && (
+                    <span className="size-1.5 shrink-0 rounded-full bg-border-button-hover" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Single On-Demand Create Button */}
+        <div className="pt-0.5">
+          <Button
+            type="button"
+            variant="primary"
+            size="small"
+            onClick={() => {
+              if (isMobileDrawer) {
+                setIsMobileSourcesOpen(false);
+              }
+              void handleProcessDocument();
+            }}
+            disabled={processing || selectedArtifacts.length === 0}
+            className={cx(
+              "w-full justify-center font-semibold gap-2 transition-all",
+              (processing || selectedArtifacts.length === 0) &&
+                "opacity-40 text-text-placeholder border-border-button-default cursor-not-allowed disabled:pointer-events-auto"
+            )}
+          >
+            <span
+              className={cx(
+                "inline-flex items-center gap-2",
+                (processing || selectedArtifacts.length === 0) && "text-text-placeholder"
+              )}
+            >
+              <RiCopilotFill className={cx("size-4", processing && "animate-spin")} />
+              <span>
+                {processing
+                  ? `${t.studio.creatingBtn}... (${formatTimer(reasoningElapsedSec)})`
+                  : t.studio.createBtn}
+              </span>
+            </span>
+          </Button>
+
+          {processing && (
+            <div className="mt-2 p-2.5 rounded-xl bg-accent-500/10 flex items-center justify-between gap-2 text-caption-1-medium text-text-primary animate-pulse">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="relative flex size-2 shrink-0">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full size-2 bg-accent-600"></span>
+                </span>
+                <span className="truncate text-xs text-text-secondary">
+                  {isEn ? "Crafting selected artifacts..." : "Menyusun artifak pilihan..."}
+                </span>
+              </div>
+              <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-accent-500/20 text-accent-700 shrink-0">
+                {formatTimer(reasoningElapsedSec)}
+              </span>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen max-w-full overflow-x-clip bg-background-secondary-default/30 pb-12 text-text-primary selection:bg-accent-700 selection:text-text-white">
       {/* Notebook workspace bar */}
       <header className="sticky top-0 z-30 bg-background-full/92 backdrop-blur-xl border-0">
-        <div className="mx-auto flex flex-wrap sm:flex-nowrap min-h-14 py-1.5 sm:py-0 max-w-[1440px] items-center justify-between gap-2 px-3 sm:px-6">
-          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2">
+        <div className="mx-auto flex h-14 max-w-[1440px] items-center justify-between gap-1 sm:gap-2 px-2.5 sm:px-6">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <ButtonLink
               href="/"
               variant="ghost"
@@ -2135,21 +2914,26 @@ export default function StudioPage() {
               aria-label={t.studio.backHome}
               className="text-text-secondary shrink-0"
             />
-            <div className="flex min-w-0 items-center gap-1.5">
+            <div className="flex min-w-0 items-center gap-1 sm:gap-1.5">
               <span className="text-caption-1-medium text-text-tertiary hidden xs:inline">
                 Studio
               </span>
               <span className="text-text-tertiary hidden xs:inline">/</span>
-              <span className="max-w-[110px] sm:max-w-[200px] md:max-w-[30vw] truncate text-caption-1-semibold text-text-primary">
+              <span className="max-w-[76px] xs:max-w-[120px] sm:max-w-[200px] md:max-w-[30vw] truncate text-caption-1-semibold text-text-primary">
                 {processedDoc?.title || (isEn ? "Untitled notebook" : "Notebook baru")}
               </span>
             </div>
           </div>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-3 ms-auto sm:ms-0">
+          <div className="flex shrink-0 items-center gap-1 sm:gap-3 ms-auto">
             <div
-              className="hidden items-center gap-1.5 px-2 py-1 text-caption-2-medium text-text-tertiary md:flex"
+              className="flex items-center gap-1 px-1.5 py-1 text-caption-2-medium text-text-tertiary shrink-0"
               title={
+                user
+                  ? (isEn ? "Auto-saved" : "Tersimpan otomatis")
+                  : (isEn ? "Sign in to sync" : "Masuk untuk sinkronkan ke akun")
+              }
+              aria-label={
                 user
                   ? (isEn ? "Auto-saved" : "Tersimpan otomatis")
                   : (isEn ? "Sign in to sync" : "Masuk untuk sinkronkan ke akun")
@@ -2157,11 +2941,11 @@ export default function StudioPage() {
               aria-live="polite"
             >
               {user ? (
-                <RiCheckLine className="size-3.5 text-foreground-icon-secondary" aria-hidden="true" />
+                <RiCheckLine className="size-3.5 text-foreground-icon-secondary shrink-0" aria-hidden="true" />
               ) : (
-                <span className="size-1.5 rounded-full bg-border-button-default" aria-hidden="true" />
+                <span className="size-1.5 rounded-full bg-border-button-default shrink-0" aria-hidden="true" />
               )}
-              <span className="max-w-[130px] truncate md:max-w-none">
+              <span className="hidden lg:inline max-w-[130px] truncate">
                 {user
                   ? (isEn ? "Auto-saved" : "Tersimpan otomatis")
                   : (isEn ? "Sign in to sync" : "Masuk untuk sinkronkan ke akun")}
@@ -2193,391 +2977,92 @@ export default function StudioPage() {
       </header>
 
       {/* Notebook workspace */}
-      <main className="mx-auto max-w-[1440px] px-4 pt-3 pb-3 sm:px-6 space-y-3 min-w-0">
+      <main className="mx-auto max-w-[1440px] px-3 pt-3 pb-3 sm:px-6 space-y-3 min-w-0">
         <div className="grid grid-cols-1 lg:grid-cols-12 xl:grid-cols-12 gap-5 items-start min-w-0">
           {/* ========================================================================= */}
-          {/* SOURCES RAIL: Redesigned material input + artifact checklist + Create     */}
+          {/* SOURCES RAIL: Desktop Sidebar & Collapsible Rail                          */}
           {/* ========================================================================= */}
-          {isSidebarCollapsed ? (
-            <aside className="shrink-0 min-w-0 lg:col-span-1 xl:col-span-1">
-              <button
-                type="button"
-                onClick={() => setIsSidebarCollapsed(false)}
-                className="flex items-center gap-2 p-2 rounded-xl bg-background-secondary-default/50 hover:bg-background-secondary-default text-text-secondary hover:text-text-primary text-caption-1-medium transition-colors cursor-pointer border-0"
-                title={isEn ? "Expand sidebar" : "Buka bilah sisi"}
-                aria-label={isEn ? "Expand sidebar" : "Buka bilah sisi"}
-              >
-                <RiSidebarUnfoldLine className="size-4" />
-                <span className="hidden xl:inline text-caption-2-medium">{isEn ? "Source material" : "Bahan ajar"}</span>
-              </button>
-            </aside>
-          ) : (
-            <aside className="w-full min-w-0 space-y-2.5 self-start lg:col-span-4 xl:col-span-3">
-              <ScrollReveal
-                variant="slide-up"
-                className="space-y-2.5 rounded-2xl bg-background-secondary-default/45 p-3 shadow-sm border-0"
-              >
-                <div className="flex items-center justify-between pb-0.5">
-                  <span className="text-caption-2-medium text-text-tertiary">
-                    {isEn ? "Source material" : "Bahan ajar"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setIsSidebarCollapsed(true)}
-                    className="p-1 rounded-lg hover:bg-background-secondary-default text-text-tertiary hover:text-text-primary transition-colors cursor-pointer"
-                    title={isEn ? "Collapse sidebar" : "Tutup bilah sisi"}
-                    aria-label={isEn ? "Collapse sidebar" : "Tutup bilah sisi"}
-                  >
-                    <RiSidebarFoldLine className="size-4" />
-                  </button>
-                </div>
-
-                {/* Multimodal Dropzone & Upload Trigger */}
-                <div>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.odt,.ods,.odp,.rtf,.txt,.md,.markdown,.csv,.tsv,.json,.yaml,.yml,.epub,image/*,text/*,application/*"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      setIsDraggingFile(true);
-                    }}
-                    onDragLeave={() => setIsDraggingFile(false)}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      setIsDraggingFile(false);
-                      const dropped = e.dataTransfer.files?.[0];
-                      if (dropped && fileInputRef.current) {
-                        const dt = new DataTransfer();
-                        dt.items.add(dropped);
-                        fileInputRef.current.files = dt.files;
-                        handleFileChange({
-                          target: fileInputRef.current,
-                        } as ChangeEvent<HTMLInputElement>);
-                      }
-                    }}
-                    className={cx(
-                      "group flex w-full flex-col gap-2 rounded-xl p-2.5 text-start transition-all cursor-pointer border-0",
-                      isDraggingFile
-                        ? "bg-accent-500/10"
-                        : uploadedFileName
-                          ? "bg-accent-500/5"
-                          : "bg-background-secondary-default/35 hover:bg-background-secondary-default/65"
-                    )}
-                  >
-                    <div className="flex w-full items-center gap-2.5">
-                      <span
-                        className={cx(
-                          "flex size-8 shrink-0 items-center justify-center rounded-lg transition-colors",
-                          uploadedFileName
-                            ? "bg-background-tertiary-default text-text-primary"
-                            : "bg-background-full text-text-secondary group-hover:text-text-primary"
-                        )}
-                      >
-                        <RiUploadCloud2Line className="size-4" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate text-caption-1-semibold text-text-primary">
-                          {uploadedFileName || t.studio.uploadTitle}
-                        </span>
-                        <span className="mt-0.5 block truncate text-caption-2-regular text-text-tertiary">
-                          {uploadedFileName
-                            ? `${docText.trim().length.toLocaleString()} ${isEn ? "characters" : "karakter"}`
-                            : t.studio.uploadHint}
-                        </span>
-                      </span>
-                    </div>
-                  </button>
-                </div>
-
-                {/* Multimodal AI Vision Ingestion Status Banner */}
-                {uploadedFileBase64 && (
-                  <div className="p-2 rounded-xl bg-emerald-500/10 flex items-center justify-between gap-2 text-caption-2-medium text-state-success-text">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className={cx(
-                          "inline-flex rounded-full size-2 shrink-0",
-                          isTranscribing ? "bg-warning animate-ping" : "bg-emerald-500"
-                        )}
-                      />
-                      <span className="truncate">
-                        {isTranscribing
-                          ? isEn
-                            ? "Transcribing file..."
-                            : "Mentranskripsi berkas..."
-                          : isEn
-                            ? "Document ready"
-                            : "Dokumen siap"}
-                      </span>
-                    </div>
-                    {!isTranscribing && (
-                      <button
-                        type="button"
-                        onClick={() =>
-                          transcribeUploadedFile(
-                            uploadedFileBase64,
-                            uploadedFileName || "dokumen.pdf",
-                            uploadedFileType,
-                            uploadedMimeType || "application/pdf"
-                          )
-                        }
-                        className="text-caption-2-medium hover:underline text-state-success-text flex items-center gap-1 cursor-pointer shrink-0"
-                      >
-                        <RiRefreshLine className="size-3" />
-                        <span>{isEn ? "Retry" : "Ulang"}</span>
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Material Sheet Editor */}
-                <div className="overflow-hidden rounded-xl bg-background-secondary-default/35 transition-all border-0">
-                  <div className="flex items-center justify-between gap-2 bg-background-secondary-default/70 px-2.5 py-1.5">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <RiFileTextLine className="size-3.5 shrink-0 text-accent-700" />
-                      <span className="truncate text-caption-2-medium text-text-secondary">
-                        {t.studio.textEditorLabel}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="rounded-md bg-background-full px-1.5 py-0.5 font-mono text-[10px] tabular-nums text-text-tertiary">
-                        {docText.trim().length.toLocaleString()}
-                      </span>
-                      {(docText || uploadedFileName) && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setDocText("");
-                            setUploadedFileName("");
-                            setUploadedFileBase64("");
-                          }}
-                          className="text-caption-2-regular text-text-tertiary hover:text-text-error-primary transition-colors cursor-pointer"
-                        >
-                          {t.studio.textEditorClear}
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="relative">
-                    <textarea
-                      ref={docTextareaRef}
-                      rows={3}
-                      value={docText}
-                      onChange={(e) => setDocText(e.target.value)}
-                      placeholder={
-                        isTranscribing
-                          ? isEn
-                            ? "Transcribing content..."
-                            : "Mentranskripsi konten..."
-                          : t.studio.textEditorPlaceholder
-                      }
-                      disabled={isTranscribing}
-                      className="w-full bg-transparent p-2.5 text-caption-1-regular leading-relaxed text-text-primary placeholder:text-text-tertiary focus:outline-none resize-y min-h-[76px] disabled:opacity-60"
-                    />
-                    {isTranscribing && (
-                      <div className="absolute inset-0 bg-background-secondary-default/60 backdrop-blur-[1px] flex items-center justify-center pointer-events-none">
-                        <div className="flex items-center gap-2 text-xs font-medium text-state-success-text bg-background-primary-default px-3 py-1.5 rounded-xl shadow-xs">
-                          <RiRefreshLine className="size-3.5 animate-spin text-state-success-text" />
-                          <span>{transcriptionStatus || (isEn ? "Transcribing..." : "Mentranskripsi...")}</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                {/* Checklist Menu: Choose specific artifacts to create */}
-                <div className="space-y-1.5 pt-0.5">
-                  <div className="flex items-center justify-between px-0.5">
-                    <span className="text-caption-2-medium text-text-tertiary">
-                      {isEn ? "Select artifacts" : "Pilih artifak"}
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        soundEffects.playClick();
-                        const allIds: StudioCraftableArtifact[] = [
-                          "flashcards",
-                          "quiz",
-                          "summary",
-                          "mindmap",
-                          "infographic",
-                          "table",
-                          "report",
-                        ];
-                        if (selectedArtifacts.length === allIds.length) {
-                          setSelectedArtifacts(["flashcards"]);
-                        } else {
-                          setSelectedArtifacts(allIds);
-                        }
-                      }}
-                      className="text-caption-2-medium text-accent-700 hover:underline cursor-pointer"
-                    >
-                      {selectedArtifacts.length === 7
-                        ? isEn
-                          ? "Reset"
-                          : "Atur ulang"
-                        : isEn
-                          ? "Select all"
-                          : "Pilih semua"}
-                    </button>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-1">
-                    {(
-                      [
-                        {
-                          id: "flashcards" as const,
-                          label: t.studio.tabs.flashcards,
-                          icon: RiFileCopyLine,
-                          built: hasFlashcards,
-                        },
-                        {
-                          id: "quiz" as const,
-                          label: t.studio.tabs.quiz,
-                          icon: RiQuestionnaireLine,
-                          built: hasQuiz,
-                        },
-                        {
-                          id: "summary" as const,
-                          label: t.studio.tabs.summary,
-                          icon: RiBookOpenLine,
-                          built: hasSummary,
-                        },
-                        {
-                          id: "mindmap" as const,
-                          label: t.studio.tabs.mindmap,
-                          icon: RiNodeTree,
-                          built: hasMindMap,
-                        },
-                        {
-                          id: "infographic" as const,
-                          label: t.studio.tabs.infographic,
-                          icon: RiBarChartBoxLine,
-                          built: hasInfographic,
-                        },
-                        {
-                          id: "table" as const,
-                          label: t.studio.tabs.table,
-                          icon: RiTableLine,
-                          built: hasTable,
-                        },
-                        {
-                          id: "report" as const,
-                          label: t.studio.tabs.report,
-                          icon: RiFileList3Line,
-                          built: hasReport,
-                        },
-                      ] as const
-                    ).map((item) => {
-                      const Icon = item.icon;
-                      const checked = selectedArtifacts.includes(item.id);
-                      return (
-                        <button
-                          key={item.id}
-                          type="button"
-                          role="checkbox"
-                          aria-checked={checked}
-                          onClick={() => toggleArtifactSelection(item.id)}
-                          className={cx(
-                            "flex w-full items-center justify-between gap-2 rounded-lg px-2.5 py-1 text-start transition-all cursor-pointer border-0",
-                            checked
-                              ? "bg-accent-500/10 text-text-primary"
-                              : "bg-background-secondary-default/30 text-text-secondary hover:bg-background-secondary-default/60 hover:text-text-primary"
-                          )}
-                        >
-                          <span className="flex items-center gap-2 min-w-0">
-                            <span
-                              className={cx(
-                                "flex size-4 shrink-0 items-center justify-center rounded-md transition-colors",
-                                checked
-                                  ? "bg-background-tertiary-default text-text-primary"
-                                  : "bg-background-full text-transparent"
-                              )}
-                            >
-                              <RiCheckLine className="size-3" />
-                            </span>
-                            <Icon
-                              className={cx(
-                                "size-3.5 shrink-0",
-                                checked ? "text-accent-700" : "text-text-tertiary"
-                              )}
-                            />
-                            <span className="truncate text-caption-1-medium">
-                              {item.label}
-                            </span>
-                          </span>
-                          {item.built && (
-                            <span className="size-1.5 shrink-0 rounded-full bg-border-button-hover" />
-                          )}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                {/* Single On-Demand Create Button */}
-                <div className="pt-0.5">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="small"
-                    onClick={handleProcessDocument}
-                    disabled={processing}
-                    className="w-full justify-center font-semibold gap-2"
-                  >
-                    <span className="inline-flex items-center gap-2">
-                      <RiCopilotFill className={cx("size-4", processing && "animate-spin")} />
-                      <span>
-                        {processing
-                          ? `${t.studio.creatingBtn}... (${formatTimer(reasoningElapsedSec)})`
-                          : t.studio.createBtn}
-                      </span>
-                    </span>
-                  </Button>
-
-                  {processing && (
-                    <div className="mt-2 p-2.5 rounded-xl bg-accent-500/10 flex items-center justify-between gap-2 text-caption-1-medium text-text-primary animate-pulse">
-                      <div className="flex items-center gap-2 min-w-0">
-                        <span className="relative flex size-2 shrink-0">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-400 opacity-75"></span>
-                          <span className="relative inline-flex rounded-full size-2 bg-accent-600"></span>
-                        </span>
-                        <span className="truncate text-xs text-text-secondary">
-                          {isEn ? "Crafting selected artifacts..." : "Menyusun artifak pilihan..."}
-                        </span>
-                      </div>
-                      <span className="font-mono text-xs font-semibold px-2 py-0.5 rounded-md bg-accent-500/20 text-accent-700 shrink-0">
-                        {formatTimer(reasoningElapsedSec)}
-                      </span>
-                    </div>
-                  )}
-                </div>
-              </ScrollReveal>
-            </aside>
-          )}
+          <div
+            className={cx(
+              "hidden lg:block shrink-0 min-w-0",
+              isSidebarCollapsed
+                ? "lg:col-span-1 xl:col-span-1"
+                : "lg:col-span-4 xl:col-span-3"
+            )}
+          >
+            {isSidebarCollapsed ? (
+              <aside className="shrink-0 min-w-0">
+                <button
+                  type="button"
+                  onClick={() => setIsSidebarCollapsed(false)}
+                  className="flex items-center gap-2 p-2 rounded-xl bg-background-secondary-default/50 hover:bg-background-secondary-default text-text-secondary hover:text-text-primary text-caption-1-medium transition-colors cursor-pointer border-0"
+                  title={isEn ? "Expand sidebar" : "Buka bilah sisi"}
+                  aria-label={isEn ? "Expand sidebar" : "Buka bilah sisi"}
+                >
+                  <RiSidebarUnfoldLine className="size-4" />
+                  <span className="hidden xl:inline text-caption-2-medium">{isEn ? "Source material" : "Bahan ajar"}</span>
+                </button>
+              </aside>
+            ) : (
+              <aside className="w-full min-w-0 space-y-2.5 self-start">
+                <ScrollReveal
+                  variant="slide-up"
+                  className="space-y-2.5 rounded-2xl bg-background-secondary-default/45 p-3 shadow-sm border-0"
+                >
+                  {renderSourcesRailContent(false)}
+                </ScrollReveal>
+              </aside>
+            )}
+          </div>
 
           {/* ========================================================================= */}
           {/* NOTEBOOK CANVAS: Artifact navigation (gated until created) & content      */}
           {/* ========================================================================= */}
-          <section className={cx(
-            "min-w-0 space-y-4",
-            isSidebarCollapsed
-              ? "lg:col-span-11 xl:col-span-11"
-              : "lg:col-span-8 xl:col-span-9"
-          )}>
+          <section
+            className={cx(
+              "min-w-0 space-y-4 col-span-1",
+              isSidebarCollapsed
+                ? "lg:col-span-11 xl:col-span-11"
+                : "lg:col-span-8 xl:col-span-9"
+            )}
+          >
+            {/* Mobile Material Sheet Bar */}
+            <div className="flex lg:hidden items-center justify-between gap-2.5 rounded-2xl bg-background-secondary-default/60 p-2.5 shadow-xs">
+              <button
+                type="button"
+                onClick={() => setIsMobileSourcesOpen(true)}
+                className="flex items-center gap-2.5 min-w-0 text-start flex-1 cursor-pointer border-0 bg-transparent p-0"
+              >
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-xl bg-accent-500/10 text-accent-700">
+                  <RiFileTextLine className="size-4" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <span className="block truncate text-caption-1-semibold text-text-primary">
+                    {uploadedFileName || (docText.trim() ? `${docText.trim().length.toLocaleString()} ${isEn ? "chars" : "karakter"}` : (isEn ? "Source material" : "Bahan ajar"))}
+                  </span>
+                  <span className="block text-caption-2-regular text-text-tertiary truncate">
+                    {isEn ? "Tap to open material & artifact editor" : "Ketuk untuk buka materi & pilihan artifak"}
+                  </span>
+                </div>
+              </button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                onClick={() => setIsMobileSourcesOpen(true)}
+                leadingIcon={RiBookOpenLine}
+                className="shrink-0 font-medium"
+              >
+                {isEn ? "Material" : "Bahan ajar"}
+              </Button>
+            </div>
+
             {/* Artifact Navigation Tab Bar */}
             <ScrollReveal
               variant="slide-up"
               className="sticky top-14 z-20 rounded-2xl bg-background-full/95 p-1.5 shadow-card backdrop-blur"
             >
-              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar">
+              <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar scroll-smooth overscroll-x-contain touch-pan-x">
                 <button
                   type="button"
                   disabled={!hasFlashcards}
@@ -2773,13 +3258,25 @@ export default function StudioPage() {
 
             {/* If no document has been generated yet, show the clean Exile Tools Guide (without duplicate Create button) */}
             {!processedDoc ? (
-              <ScrollReveal variant="scale-up" delay={80} className="rounded-2xl bg-background-full p-5 shadow-card space-y-5 sm:p-6">
-                <div className="pb-4 space-y-1">
-                  <div className="flex items-center gap-2">
-                    <RiCompass3Line className="size-5 text-accent-700" />
-                    <h3 className="text-title-2-semibold text-text-primary tracking-tight">
-                      {t.studio.guideTitle}
-                    </h3>
+              <ScrollReveal variant="scale-up" delay={80} className="rounded-2xl bg-background-full p-4 sm:p-6 shadow-card space-y-4 sm:space-y-5">
+                <div className="pb-2 sm:pb-4 space-y-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <RiCompass3Line className="size-5 text-accent-700 shrink-0" />
+                      <h3 className="text-title-3-semibold sm:text-title-2-semibold text-text-primary tracking-tight">
+                        {t.studio.guideTitle}
+                      </h3>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      size="small"
+                      onClick={() => setIsMobileSourcesOpen(true)}
+                      leadingIcon={RiAddLine}
+                      className="lg:hidden shrink-0 font-medium"
+                    >
+                      {isEn ? "Add material" : "Tambah materi"}
+                    </Button>
                   </div>
                   <p className="text-body-2-regular text-text-secondary">
                     {t.studio.guideSubtitle}
@@ -3002,7 +3499,7 @@ export default function StudioPage() {
                               : "text-text-secondary hover:text-text-primary"
                           )}
                         >
-                          {isEn ? "Kartu 3D" : "Kartu 3D"}
+                          {isEn ? "Kartu 3d" : "Kartu 3d"}
                         </button>
                         <button
                           type="button"
@@ -3182,7 +3679,7 @@ export default function StudioPage() {
                                   }}
                                   className="text-caption-2-semibold text-accent-700 hover:underline cursor-pointer"
                                 >
-                                  {isEn ? "Open in 3D view" : "Buka di kartu 3D"}
+                                  {isEn ? "Open in 3d view" : "Buka di kartu 3d"}
                                 </button>
                               </div>
                             </div>
@@ -3274,7 +3771,7 @@ export default function StudioPage() {
                                     mass: 0.8,
                                   }
                             }
-                            className="w-full max-w-xl min-h-[300px] p-8 rounded-3xl vb-letterpress-surface shadow-card flex flex-col justify-between cursor-pointer select-none relative outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring [transform-style:preserve-3d] transition-shadow duration-300 overflow-hidden"
+                            className="w-full max-w-xl min-h-[260px] sm:min-h-[300px] p-5 sm:p-8 rounded-3xl vb-letterpress-surface shadow-card flex flex-col justify-between cursor-pointer select-none relative outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring [transform-style:preserve-3d] transition-shadow duration-300 overflow-hidden"
                           >
                             {/* Dynamic Specular Sheen Glare */}
                             <div
@@ -3316,7 +3813,7 @@ export default function StudioPage() {
                             {/* Back Side */}
                             <div
                               className={cx(
-                                "space-y-4 flex flex-col justify-between h-full [transform:rotateY(180deg)] absolute inset-8 z-20",
+                                "space-y-4 flex flex-col justify-between h-full [transform:rotateY(180deg)] absolute inset-5 sm:inset-8 z-20",
                                 !isFlipped && "invisible"
                               )}
                             >
@@ -4493,10 +4990,10 @@ export default function StudioPage() {
         }
         title="Exile copilot"
         className={cx(
-          "fixed bottom-5 end-5 z-50 size-12 rounded-full",
+          "fixed bottom-5 end-5 z-40 size-12 rounded-full",
           "bg-background-primary-default hover:bg-background-secondary-default text-text-primary shadow-xl",
           "flex items-center justify-center transition-all cursor-pointer border-0 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
-          isCopilotDrawerOpen && "scale-95"
+          isCopilotDrawerOpen && "hidden sm:flex scale-95"
         )}
       >
         {isCopilotDrawerOpen ? (
@@ -4506,7 +5003,7 @@ export default function StudioPage() {
         )}
       </button>
 
-      {/* Exile Copilot Right-Side Drawer */}
+      {/* Exile Copilot Right-Side Drawer / Mobile Bottom Sheet */}
       <AnimatePresence>
         {isCopilotDrawerOpen && (
           <>
@@ -4517,7 +5014,7 @@ export default function StudioPage() {
               exit={{ opacity: 0 }}
               transition={{ duration: 0.15 }}
               onClick={() => setIsCopilotDrawerOpen(false)}
-              className="fixed inset-0 z-40 bg-black/30 backdrop-blur-xs"
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs"
               aria-hidden="true"
             />
 
@@ -4526,14 +5023,19 @@ export default function StudioPage() {
               role="dialog"
               aria-label="Exile copilot"
               aria-modal="true"
-              initial={{ opacity: 0, x: 40, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, scale: 1 }}
-              exit={{ opacity: 0, x: 40, scale: 0.98 }}
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 24 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="fixed top-3 bottom-20 end-4 z-50 flex w-full max-w-[420px] flex-col rounded-3xl bg-background-primary-default shadow-2xl border-0 overflow-hidden"
+              className="fixed inset-x-0 bottom-0 top-12 z-50 flex w-full sm:w-[420px] max-w-full flex-col rounded-t-3xl bg-background-primary-default shadow-2xl border-0 overflow-hidden sm:top-3 sm:bottom-20 sm:end-4 sm:inset-x-auto sm:rounded-3xl"
             >
+              {/* Phone grab handle */}
+              <div className="flex justify-center pt-2 sm:hidden shrink-0">
+                <div className="h-1 w-10 rounded-full bg-border-button-default" />
+              </div>
+
               {/* Pinned Drawer Header */}
-              <div className="flex shrink-0 items-center justify-between px-5 py-4 bg-background-secondary-default/50">
+              <div className="flex shrink-0 items-center justify-between px-4 py-3 sm:px-5 sm:py-4 bg-background-secondary-default/50 border-b border-separator-border/40">
                 <div className="flex items-center gap-2.5 min-w-0">
                   <div className="size-8 rounded-xl bg-background-tertiary-default text-text-primary flex items-center justify-center shrink-0">
                     <RiCopilotFill className="size-4" />
@@ -4593,6 +5095,31 @@ export default function StudioPage() {
                         </div>
                       )}
                       <FormattedMessage content={msg.content} />
+                      {msg.actionCard && (
+                        <div className="mt-2.5 p-3 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-2 text-start">
+                          <div className="flex items-center gap-2 text-caption-1-semibold text-text-primary">
+                            <RiCheckLine className="size-4 text-accent-700" />
+                            <span>{msg.actionCard.label}</span>
+                          </div>
+                          {msg.actionCard.topic && (
+                            <p className="text-caption-2-regular text-text-secondary">
+                              {isEn ? "Topic:" : "Topik:"} {msg.actionCard.topic} {msg.actionCard.count ? `• ${msg.actionCard.count} ${isEn ? "items" : "butir"}` : ""}
+                            </p>
+                          )}
+                          <Button
+                            type="button"
+                            variant="secondary"
+                            size="xs"
+                            onClick={() => {
+                              soundEffects.playClick();
+                              setActiveTab(msg.actionCard!.artifactType);
+                            }}
+                            className="w-full justify-center min-h-[32px] font-medium"
+                          >
+                            {isEn ? `Open ${msg.actionCard.label} tab` : `Buka tab ${msg.actionCard.label}`}
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   ))}
                   {chatLoading && (
@@ -4636,7 +5163,7 @@ export default function StudioPage() {
               )}
 
               {/* Pinned Input Form */}
-              <div className="shrink-0 p-4 border-t border-separator-border/40 bg-background-primary-default">
+              <div className="shrink-0 p-3 sm:p-4 border-t border-separator-border/40 bg-background-primary-default pb-[max(0.75rem,env(safe-area-inset-bottom))]">
                 <form onSubmit={handleSendChatMessage} className="flex items-center gap-2">
                   <input
                     ref={copilotImageInputRef}
@@ -4658,17 +5185,74 @@ export default function StudioPage() {
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     placeholder={t.studio.copilotInputPlaceholder}
-                    className="flex-1 p-2.5 rounded-xl bg-background-secondary-default text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 text-xs border-0"
+                    className="flex-1 p-2 sm:p-2.5 rounded-xl bg-background-secondary-default text-caption-1-regular text-text-primary placeholder:text-text-tertiary focus:outline-none focus:ring-1 focus:ring-accent-500 text-xs border-0"
                   />
                   <button
                     type="submit"
                     disabled={chatLoading || (!chatInput.trim() && !copilotAttachedImage)}
-                    className="p-2.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover text-text-primary disabled:opacity-50 transition-colors cursor-pointer shrink-0 border-0"
+                    className="p-2 sm:p-2.5 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover text-text-primary disabled:opacity-50 transition-colors cursor-pointer shrink-0 border-0"
                     title="Kirim pesan"
                   >
                     <RiSendPlane2Line className="size-4" />
                   </button>
                 </form>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Mobile Bahan Ajar Drawer / Sheet */}
+      <AnimatePresence>
+        {isMobileSourcesOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              onClick={() => setIsMobileSourcesOpen(false)}
+              className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs lg:hidden"
+              aria-hidden="true"
+            />
+            <motion.aside
+              role="dialog"
+              aria-label={isEn ? "Source material" : "Bahan ajar"}
+              aria-modal="true"
+              initial={{ opacity: 0, y: 30 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 30 }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
+              className="fixed inset-x-0 bottom-0 top-14 z-50 flex flex-col rounded-t-3xl bg-background-primary-default shadow-2xl border-0 overflow-hidden sm:inset-y-0 sm:start-0 sm:end-auto sm:top-0 sm:w-[420px] sm:max-w-full sm:rounded-none sm:rounded-e-3xl lg:hidden"
+            >
+              <div className="flex justify-center pt-2 sm:hidden shrink-0">
+                <div className="h-1 w-10 rounded-full bg-border-button-default" />
+              </div>
+              <div className="flex shrink-0 items-center justify-between px-4 py-3 bg-background-secondary-default/50 border-b border-separator-border/40">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="flex size-7 shrink-0 items-center justify-center rounded-lg bg-accent-500/10 text-accent-700">
+                    <RiBookOpenLine className="size-4" />
+                  </span>
+                  <div>
+                    <h3 className="text-body-2-semibold text-text-primary">
+                      {isEn ? "Source material" : "Bahan ajar"}
+                    </h3>
+                    <p className="text-caption-2-regular text-text-tertiary">
+                      {isEn ? "Edit text, upload files, and pick artifacts" : "Ubah teks, unggah berkas, dan pilih artifak"}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileSourcesOpen(false)}
+                  className="p-1.5 rounded-lg text-text-tertiary hover:text-text-primary hover:bg-background-secondary-default transition-colors cursor-pointer border-0"
+                  aria-label={isEn ? "Close material drawer" : "Tutup panel bahan ajar"}
+                >
+                  <RiCloseLine className="size-5" />
+                </button>
+              </div>
+              <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+                {renderSourcesRailContent(true)}
               </div>
             </motion.aside>
           </>
@@ -4681,7 +5265,7 @@ export default function StudioPage() {
         onOpenChange={setIsQuickQuizOpen}
         size="lg"
         aria-label={isEn ? "Quick quiz" : "Kuis cepat"}
-        className="max-h-[85vh] rounded-3xl overflow-clip flex flex-col border-0"
+        className="max-h-[92vh] sm:max-h-[85vh] rounded-2xl sm:rounded-3xl overflow-clip flex flex-col border-0 my-auto"
       >
         <ModalHeader
           title={isEn ? "Quick quiz" : "Kuis cepat"}
@@ -4691,9 +5275,10 @@ export default function StudioPage() {
               : "Kuis satu kali tanpa materi. Untuk kuis dari materi, pakai artefak Kuis adaptif."
           }
           icon={RiQuestionnaireLine}
+          className="px-4 pt-4 pb-2 sm:px-6 sm:pt-6 sm:pb-3"
         />
 
-        <ModalBody className="space-y-4">
+        <ModalBody className="space-y-3 sm:space-y-4 px-4 sm:px-6 py-2">
           <Input
             label={isEn ? "Quiz topic" : "Topik kuis"}
             placeholder={
@@ -4839,8 +5424,8 @@ export default function StudioPage() {
                         ? "Opening..."
                         : "Membuka..."
                       : isEn
-                        ? "Create quiz room"
-                        : "Buat ruang kuis"}
+                        ? "Quiz room"
+                        : "Ruang kuis"}
                   </Button>
                   <Button
                     type="button"
@@ -4983,7 +5568,7 @@ export default function StudioPage() {
           )}
         </ModalBody>
 
-        <ModalFooter>
+        <ModalFooter className="mt-0 shrink-0 border-t border-separator-border/40 bg-background-full px-4 py-3 sm:px-6 sm:py-3 flex-row items-center justify-end gap-2 sticky bottom-0 z-10 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
           <Button
             type="button"
             variant="ghost"
@@ -5001,7 +5586,7 @@ export default function StudioPage() {
               aiQuizLoading ||
               (aiQuizTopic.trim().length < 2 && docText.trim().length < 20)
             }
-            className="gap-2 font-semibold"
+            className="gap-2 font-semibold flex-1 sm:flex-initial justify-center"
           >
             <span className="inline-flex items-center gap-2">
               <RiCopilotFill
@@ -5198,6 +5783,30 @@ export default function StudioPage() {
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
+      />
+
+      <PreScanModal
+        isOpen={isPreScanModalOpen}
+        onClose={() => setIsPreScanModalOpen(false)}
+        onSelectMode={handleSelectScanMode}
+        isEn={isEn}
+      />
+
+      <MobileHomeworkScanner
+        isOpen={isScannerOpen}
+        mode={scannerMode}
+        onClose={() => setIsScannerOpen(false)}
+        onComplete={handleScannerComplete}
+        isEn={isEn}
+      />
+
+      <DirectAnswerCard
+        isOpen={isDirectAnswerCardOpen}
+        onClose={() => setIsDirectAnswerCardOpen(false)}
+        answers={directAnswers}
+        rawTranscription={scanTranscription}
+        onAskCopilot={handleAskCopilotFromDirectAnswers}
+        isEn={isEn}
       />
     </div>
   );

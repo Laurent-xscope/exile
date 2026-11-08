@@ -20,10 +20,12 @@ interface QuizUploadProps {
   initialDifficulty?: QuizDifficultyLevel;
   initialTimeSec?: number;
   initialStreakBonus?: boolean;
+  initialShuffleQuestions?: boolean;
   onSettingsChange?: (partial: {
     difficulty?: QuizDifficultyLevel;
     timePerQuestionSec?: number;
     streakBonus?: boolean;
+    shuffleQuestions?: boolean;
   }) => void;
   onCreated: () => void;
 }
@@ -93,6 +95,7 @@ export function QuizUpload({
   initialDifficulty = "sedang",
   initialTimeSec = 20,
   initialStreakBonus = true,
+  initialShuffleQuestions = true,
   onSettingsChange,
   onCreated,
 }: QuizUploadProps) {
@@ -102,6 +105,9 @@ export function QuizUpload({
   const [difficulty, setDifficulty] = useState<QuizDifficultyLevel>(initialDifficulty);
   const [timePerQuestionSec, setTimePerQuestionSec] = useState<number>(initialTimeSec);
   const [streakBonus, setStreakBonus] = useState<boolean>(initialStreakBonus);
+  const [shuffleQuestions, setShuffleQuestions] = useState<boolean>(
+    initialShuffleQuestions ?? true
+  );
   const [instructions, setInstructions] = useState("");
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -139,6 +145,7 @@ export function QuizUpload({
           difficulty,
           timePerQuestionSec,
           streakBonus,
+          shuffleQuestions,
           instructions: instructions.trim() || undefined,
         }),
       });
@@ -191,7 +198,7 @@ export function QuizUpload({
           if (!busy) pick(e.dataTransfer.files?.[0]);
         }}
         className={cx(
-          "flex flex-col items-center justify-center gap-2 rounded-2xl px-6 py-7 text-center transition-colors outline-none cursor-pointer",
+          "flex flex-col items-center justify-center gap-2 rounded-2xl p-5 sm:px-6 sm:py-7 min-h-[120px] text-center transition-colors outline-none cursor-pointer",
           "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
           dragging
             ? "bg-background-secondary-hover"
@@ -214,7 +221,7 @@ export function QuizUpload({
             <RiFileTextLine className="size-6 text-text-primary" aria-hidden />
             <div className="text-start">
               <p className="text-body-medium text-text-primary break-all">{file.name}</p>
-              <p className="text-caption-1-regular text-text-secondary">
+              <p className="text-caption-1-regular font-mono tabular-nums text-text-secondary">
                 {(file.size / 1024).toFixed(file.size > 102400 ? 0 : 1)} kb
               </p>
             </div>
@@ -226,7 +233,7 @@ export function QuizUpload({
                   e.stopPropagation();
                   setFile(null);
                 }}
-                className="ms-2 inline-flex size-8 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-background-secondary-default cursor-pointer"
+                className="ms-2 inline-flex size-9 sm:size-8 items-center justify-center rounded-lg text-text-secondary hover:text-text-primary hover:bg-background-secondary-default cursor-pointer min-h-[44px] min-w-[44px]"
               >
                 <RiCloseLine className="size-4" aria-hidden />
               </button>
@@ -236,11 +243,18 @@ export function QuizUpload({
           <>
             <RiUploadCloud2Line className="size-7 text-text-secondary" aria-hidden />
             <p className="text-body-medium text-text-primary">
-              {isEn
-                ? "Drag a learning file here, or click to choose (optional if writing instructions below)"
-                : "Seret berkas sumber belajar ke sini, atau klik untuk memilih"}
+              <span className="sm:hidden">
+                {isEn ? "Tap to choose file" : "Ketuk untuk memilih berkas"}
+              </span>
+              <span className="hidden sm:inline">
+                {isEn
+                  ? "Drag a learning file here, or click to choose"
+                  : "Seret berkas sumber belajar ke sini, atau klik untuk memilih"}
+              </span>
             </p>
-            <p className="text-caption-1-regular text-text-secondary">{isEn ? "Max 20 mb" : "Maks 20 mb"}</p>
+            <p className="text-caption-1-regular text-text-secondary">
+              {isEn ? "Maximum 20 mb" : "Maksimal 20 mb"}
+            </p>
           </>
         )}
       </div>
@@ -260,8 +274,8 @@ export function QuizUpload({
           maxLength={4000}
           placeholder={
             isEn
-              ? "Write the topic, material summary, or specific focus (e.g. Descriptive text describing a person for grade 10, focus on adjectives and simple present tense)..."
-              : "Tuliskan topik, materi pembelajaran, atau instruksi fokus soal (misal: Teks deskriptif bahasa inggris kelas 10, atau hukum newton dan penerapannya)..."
+              ? "Write the topic, material summary, or specific focus (e.g. descriptive text describing a person for grade 10, focus on adjectives and simple present tense)..."
+              : "Tuliskan topik, materi pembelajaran, atau instruksi fokus soal (misal: teks deskriptif bahasa inggris kelas 10, atau hukum newton dan penerapannya)..."
           }
           className="w-full rounded-xl ring-1 ring-inset ring-border-button-default bg-background-primary-default p-3.5 text-body-2-regular text-text-primary placeholder:text-text-placeholder outline-none focus:outline-none resize-y"
         />
@@ -285,7 +299,7 @@ export function QuizUpload({
                   onSettingsChange?.({ difficulty: opt.id });
                 }}
                 className={cx(
-                  "p-3 rounded-2xl text-start transition cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+                  "p-3 rounded-2xl text-start transition cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring min-h-[44px]",
                   active
                     ? "bg-background-tertiary-default text-text-primary ring-1 ring-inset ring-border-button-hover shadow-xs"
                     : "bg-background-secondary-default text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
@@ -294,7 +308,7 @@ export function QuizUpload({
                 <span className="text-body-2-semibold block text-text-primary">
                   {isEn ? opt.labelEn : opt.labelId}
                 </span>
-                <span className="text-[11px] block mt-0.5 text-text-secondary">
+                <span className="text-caption-2-regular block mt-0.5 text-text-secondary">
                   {isEn ? opt.descEn : opt.descId}
                 </span>
               </button>
@@ -303,14 +317,21 @@ export function QuizUpload({
         </div>
       </div>
 
-      {/* Question Count, Duration & Streak Bonus */}
-      <div className="grid gap-4 sm:grid-cols-3 sm:items-end">
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-caption-1-semibold text-text-primary">
-              {isEn ? "Question count" : "Jumlah soal"}
-            </span>
-            <span className="rounded-lg bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+      {/* Quiz Configuration Settings */}
+      <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-body-medium text-text-primary">
+                {isEn ? "Question count" : "Jumlah soal"}
+              </span>
+              <span className="text-caption-1-regular text-text-secondary">
+                {isEn
+                  ? "Total questions generated for the quiz session"
+                  : "Total butir pertanyaan yang disusun untuk sesi kuis"}
+              </span>
+            </div>
+            <span className="text-caption-1-semibold font-mono tabular-nums text-text-primary bg-background-primary-default border border-border-button-default px-2.5 py-1 rounded-lg shrink-0">
               {count} {isEn ? "questions" : "soal"}
             </span>
           </div>
@@ -320,19 +341,26 @@ export function QuizUpload({
             max={15}
             step={1}
             disabled={busy}
-            aria-label={isEn ? "Questions" : "Jumlah soal"}
+            aria-label={isEn ? "Question count" : "Jumlah soal"}
             value={count}
             onChange={(e) => setCount(Number(e.target.value))}
-            className="w-full h-2 rounded-lg bg-background-secondary-default accent-text-primary cursor-pointer disabled:opacity-50"
+            className="touch-slider w-full"
           />
         </div>
 
-        <div className="space-y-2">
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-caption-1-semibold text-text-primary">
-              {isEn ? "Time per question" : "Durasi per soal"}
-            </span>
-            <span className="rounded-lg bg-background-secondary-default px-2.5 py-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+        <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+              <span className="text-body-medium text-text-primary">
+                {isEn ? "Standard question time" : "Durasi standar soal"}
+              </span>
+              <span className="text-caption-1-regular text-text-secondary">
+                {isEn
+                  ? "Standard time limit for answering each question in class"
+                  : "Waktu standar untuk menjawab setiap butir soal di arena kelas"}
+              </span>
+            </div>
+            <span className="text-caption-1-semibold font-mono tabular-nums text-text-primary bg-background-primary-default border border-border-button-default px-2.5 py-1 rounded-lg shrink-0">
               {formatDuration(timePerQuestionSec, isEn)}
             </span>
           </div>
@@ -342,32 +370,61 @@ export function QuizUpload({
             max={90}
             step={5}
             disabled={busy}
-            aria-label={isEn ? "Time per question" : "Durasi per soal"}
+            aria-label={isEn ? "Standard question time" : "Durasi standar soal"}
             value={timePerQuestionSec}
             onChange={(e) => {
               const val = Number(e.target.value);
               setTimePerQuestionSec(val);
               onSettingsChange?.({ timePerQuestionSec: val });
             }}
-            className="w-full h-2 rounded-lg bg-background-secondary-default accent-text-primary cursor-pointer disabled:opacity-50"
+            className="touch-slider w-full"
           />
         </div>
 
-        <div className="space-y-2">
-          <span className="text-caption-1-semibold text-text-primary block">
-            {isEn ? "Streak bonus" : "Bonus beruntun"}
-          </span>
-          <div className="flex h-10 items-center justify-between px-3 rounded-xl bg-background-secondary-default">
-            <span className="text-caption-1-medium text-text-secondary select-none">
-              {streakBonus ? (isEn ? "Active" : "Aktif") : isEn ? "Off" : "Nonaktif"}
-            </span>
+        <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-2xl bg-background-secondary-default p-3.5 sm:p-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="text-body-medium text-text-primary break-words">
+              {isEn ? "Streak bonus points" : "Bonus poin beruntun (streak)"}
+            </p>
+            <p className="text-caption-1-regular text-text-secondary break-words">
+              {isEn
+                ? "Additional score when students answer correctly consecutively"
+                : "Tambahan skor bila siswa menjawab benar secara berturut-turut"}
+            </p>
+          </div>
+          <div className="shrink-0 ms-2 sm:ms-3 flex items-center justify-end">
             <MacOSToggle
               checked={streakBonus}
               onChange={(next) => {
                 setStreakBonus(next);
                 onSettingsChange?.({ streakBonus: next });
               }}
-              label={isEn ? "Streak bonus" : "Bonus beruntun"}
+              label={isEn ? "Streak bonus points" : "Bonus poin beruntun (streak)"}
+              color="green"
+              disabled={busy}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-2xl bg-background-secondary-default p-3.5 sm:p-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <p className="text-body-medium text-text-primary break-words">
+              {isEn ? "Shuffle question order" : "Acak urutan soal"}
+            </p>
+            <p className="text-caption-1-regular text-text-secondary break-words">
+              {isEn
+                ? "Randomize question order for each new quiz session"
+                : "Variasikan urutan soal untuk setiap sesi kuis baru"}
+            </p>
+          </div>
+          <div className="shrink-0 ms-2 sm:ms-3 flex items-center justify-end">
+            <MacOSToggle
+              checked={shuffleQuestions}
+              onChange={(next) => {
+                setShuffleQuestions(next);
+                onSettingsChange?.({ shuffleQuestions: next });
+              }}
+              label={isEn ? "Shuffle question order" : "Acak urutan soal"}
               color="green"
               disabled={busy}
             />
@@ -390,7 +447,7 @@ export function QuizUpload({
         </div>
       )}
 
-      <Button variant="primary" onClick={submit} disabled={!canSubmit} className="w-full">
+      <Button variant="primary" onClick={submit} disabled={!canSubmit} className="w-full h-12">
         {busy ? (
           <span className="inline-flex items-center gap-2">
             <Spinner size="xs" aria-hidden />

@@ -37,7 +37,7 @@ export function LetterpressCard3D({
   className,
   minHeightClassName = "min-h-[460px] sm:min-h-[420px]",
   enablePointerSweep = true,
-  ariaLabel = "Kartu belajar interaktif 3D",
+  ariaLabel = "Kartu belajar interaktif 3d",
 }: LetterpressCard3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const shouldReduceMotion = useReducedMotion();
@@ -140,7 +140,7 @@ export function LetterpressCard3D({
       onPointerMove={handlePointerMove}
       onPointerLeave={handlePointerLeave}
       className={cx(
-        "relative w-full cursor-pointer select-none outline-none group rounded-3xl",
+        "relative w-full cursor-pointer select-none outline-none group rounded-2xl overflow-hidden",
         "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
         className
       )}
@@ -153,17 +153,10 @@ export function LetterpressCard3D({
           rotateX,
         }}
         className={cx(
-          "relative w-full rounded-2xl will-change-transform",
+          "relative w-full rounded-2xl overflow-hidden will-change-transform",
           minHeightClassName
         )}
       >
-        {/* Core physical cardstock thickness edge layer in 3D space */}
-        <div
-          aria-hidden="true"
-          className="absolute inset-0 pointer-events-none rounded-2xl bg-background-tertiary-default shadow-sm [clip-path:inset(0_round_1rem)]"
-          style={{ transform: "translateZ(0px)" }}
-        />
-
         {/* FRONT FACE (translateZ 1.5px) */}
         <div
           style={{
@@ -179,15 +172,15 @@ export function LetterpressCard3D({
           className={cx(
             "absolute inset-0 rounded-2xl overflow-hidden [clip-path:inset(0_round_1rem)] [isolation:isolate] vb-letterpress-surface",
             "bg-background-secondary-default border border-border-button-default",
-            "p-6 sm:p-8 flex flex-col justify-between text-start",
+            "p-4 sm:p-6 md:p-8 flex flex-col justify-between text-start",
             "shadow-[0_1px_1px_rgba(0,0,0,0.04),0_2.5px_0_var(--color-background-tertiary-default),0_16px_32px_-6px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)]",
-            "after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-[1px] after:bg-background-primary-default/40"
+            "after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-[1px] after:rounded-t-2xl after:bg-background-primary-default/40"
           )}
         >
           {/* Visible woven cotton-and-linen cross-hatch fiber texture */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay"
+            className="pointer-events-none absolute inset-0 rounded-2xl overflow-hidden opacity-[0.08] mix-blend-overlay"
             style={{
               backgroundImage: `
                 repeating-linear-gradient(0deg, rgba(90, 60, 30, 0.4) 0px, rgba(90, 60, 30, 0.4) 1px, transparent 1px, transparent 4px),
@@ -199,7 +192,7 @@ export function LetterpressCard3D({
           {/* SVG micro-grain texture */}
           <svg
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 size-full opacity-[0.05] mix-blend-overlay"
+            className="pointer-events-none absolute inset-0 size-full rounded-2xl overflow-hidden opacity-[0.05] mix-blend-overlay"
           >
             <filter id={frontFilterId}>
               <feTurbulence
@@ -210,7 +203,7 @@ export function LetterpressCard3D({
               />
               <feColorMatrix type="saturate" values="0" />
             </filter>
-            <rect width="100%" height="100%" filter={`url(#${frontFilterId})`} />
+            <rect width="100%" height="100%" rx="16" ry="16" filter={`url(#${frontFilterId})`} />
           </svg>
 
           {/* Dynamic diagonal specular light sheen moving across rough linen grain */}
@@ -245,15 +238,15 @@ export function LetterpressCard3D({
           className={cx(
             "absolute inset-0 rounded-2xl overflow-hidden [clip-path:inset(0_round_1rem)] [isolation:isolate] vb-letterpress-surface",
             "bg-background-secondary-default border border-border-button-default",
-            "p-6 sm:p-8 flex flex-col justify-between text-start",
+            "p-4 sm:p-6 md:p-8 flex flex-col justify-between text-start",
             "shadow-[0_1px_1px_rgba(0,0,0,0.04),0_2.5px_0_var(--color-background-tertiary-default),0_16px_32px_-6px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)]",
-            "after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-[1px] after:bg-background-primary-default/40"
+            "after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-[1px] after:rounded-t-2xl after:bg-background-primary-default/40"
           )}
         >
           {/* Visible woven cotton-and-linen cross-hatch fiber texture */}
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 opacity-[0.08] mix-blend-overlay"
+            className="pointer-events-none absolute inset-0 rounded-2xl overflow-hidden opacity-[0.08] mix-blend-overlay"
             style={{
               backgroundImage: `
                 repeating-linear-gradient(0deg, rgba(90, 60, 30, 0.4) 0px, rgba(90, 60, 30, 0.4) 1px, transparent 1px, transparent 4px),
@@ -265,7 +258,7 @@ export function LetterpressCard3D({
           {/* SVG micro-grain texture */}
           <svg
             aria-hidden="true"
-            className="pointer-events-none absolute inset-0 size-full opacity-[0.05] mix-blend-overlay"
+            className="pointer-events-none absolute inset-0 size-full rounded-2xl overflow-hidden opacity-[0.05] mix-blend-overlay"
           >
             <filter id={backFilterId}>
               <feTurbulence
@@ -276,7 +269,7 @@ export function LetterpressCard3D({
               />
               <feColorMatrix type="saturate" values="0" />
             </filter>
-            <rect width="100%" height="100%" filter={`url(#${backFilterId})`} />
+            <rect width="100%" height="100%" rx="16" ry="16" filter={`url(#${backFilterId})`} />
           </svg>
 
           {/* Dynamic diagonal specular light sheen */}

@@ -1,14 +1,29 @@
 import { extractText, type UploadedFile } from "./documents";
 import { runAgent, type ChatMessage, type ToolDef } from "./llm";
+import type { Question } from "@/types/assessment";
+import type { MindMapNode } from "./prompts";
+import { applyStudioFallback } from "./studio-fallback";
 
 export interface AgentDocument {
   name: string;
   text: string;
 }
 
+export interface StudioAction {
+  type: "create_artifact";
+  artifactType: "flashcards" | "quiz" | "summary" | "mindmap" | "infographic" | "table" | "report";
+  topic?: string;
+  focusAspect?: string;
+  count?: number;
+  difficulty?: "Mudah" | "Sedang" | "Sulit";
+  questions?: Question[];
+  mindmap?: MindMapNode;
+  summaryText?: string;
+}
+
 const EXILE_GUIDE = `Exile — ringkasan fitur yang benar-benar ada:
 - Studio (/studio): tempel teks atau unggah PDF/DOCX/TXT/gambar, lalu buat ringkasan, kartu belajar, kuis, slide, mind map.
-- Ruang kuis: dari beranda pilih "Buat ruang kuis instan". Di halaman ruang guru, unggah materi (PDF/DOCX/TXT/MD) dan AI menyusun soal pilihan ganda.
+- Ruang kuis: dari beranda pilih "Ruang kuis". Di halaman ruang guru, unggah materi (PDF/DOCX/TXT/MD) dan AI menyusun soal pilihan ganda.
 - PIN: ruang punya PIN 6 digit. Siswa masuk lewat /play atau tautan yang dibagikan, tanpa akun.
 - Kontrol guru: mulai kuis, lanjut ke soal berikutnya, tampilkan papan skor, akhiri sesi. Daftar siswa bisa disetujui manual atau otomatis.
 - Pengaturan (ikon gigi): bahasa, tema terang/gelap/sistem, suara, durasi soal, kontras tinggi, kepadatan tampilan.`;
@@ -27,8 +42,54 @@ function findDoc(docs: Map<string, string>, name: unknown): { key: string; text:
   throw new Error(`Dokumen "${wanted}" tidak ditemukan. Panggil list_documents.`);
 }
 
-function buildTools(docs: Map<string, string>, changed: Set<string>): ToolDef[] {
+function buildTools(docs: Map<string, string>, changed: Set<string>, studioActions: StudioAction[] = []): ToolDef[] {
   return [
+    {
+      name: "create_studio_artifact",
+      description:
+        "Buat atau regenerasi artifak langsung di Studio (kuis adaptif, peta konsep/mindmap, intisari/ringkasan, kartu 3d, infografik, tabel, atau laporan). JANGAN PERNAH menempelkan butir soal kuis atau teks panjang peta konsep ke dalam pesan chat. Selalu panggil tool ini untuk menyuntikkan artifak langsung ke studio.",
+      parameters: {
+        type: "object",
+        properties: {
+          artifactType: {
+            type: "string",
+            enum: ["flashcards", "quiz", "summary", "mindmap", "infographic", "table", "report"],
+            description: "Jenis artifak studio yang ingin dibuat",
+          },
+          topic: { type: "string", description: "Topik spesifik artifak" },
+          focusAspect: { type: "string", description: "Aspek fokus materi atau kompetensi yang ditekankan" },
+          count: { type: "number", description: "Jumlah soal (jika kuis, default 5)" },
+          difficulty: { type: "string", enum: ["Mudah", "Sedang", "Sulit"], description: "Tingkat kesulitan" },
+        },
+        required: ["artifactType"],
+      },
+      run: (args) => {
+        const artifactType = String(args.artifactType || "quiz") as StudioAction["artifactType"];
+        const topic = args.topic ? String(args.topic) : undefined;
+        const focusAspect = args.focusAspect ? String(args.focusAspect) : undefined;
+        const count = args.count ? Number(args.count) : 5;
+        const difficulty = (args.difficulty as StudioAction["difficulty"]) || "Sedang";
+        studioActions.push({
+          type: "create_artifact",
+          artifactType,
+          topic,
+          focusAspect,
+          count,
+          difficulty,
+        });
+        const targetTabName =
+          artifactType === "quiz"
+            ? "Kuis adaptif"
+            : artifactType === "mindmap"
+              ? "Mind map"
+              : artifactType === "summary"
+                ? "Ringkasan"
+                : artifactType === "flashcards"
+                  ? "Kartu 3d"
+                  : artifactType;
+        return `Artifak ${artifactType} berhasil disusun dan dimasukkan langsung ke tab ${targetTabName} di Studio. Berikan konfirmasi singkat dan ramah kepada guru di chat bahwa artifak telah siap di tab terkait. JANGAN MENULIS BUTIR SOAL ATAU MATERI MENTAH DI PESAN CHAT.`;
+      },
+    },
     {
       name: "list_documents",
       description: "Daftar dokumen yang tersedia beserta panjang karakternya.",
@@ -138,15 +199,30 @@ function buildTools(docs: Map<string, string>, changed: Set<string>): ToolDef[] 
   ];
 }
 
-const SYSTEM = `Kamu asisten di Exile, aplikasi kuis kelas untuk guru. Tugasmu: membantu guru mengerjakan materi mereka dan menjelaskan cara memakai Exile.
+const SYSTEM = `Kamu asisten di Exile, aplikasi kuis kelas untuk guru. Tugasmu: membantu guru mengolah materi ajar mereka, menyusun artifak studio secara interaktif, dan menjelaskan cara memakai Exile.
 
-Cara kerja:
+Cara kerja dokumen:
 - Kalau ada dokumen, baca dulu dengan read_document sebelum menjawab soal isinya. Jangan menebak isi dokumen.
 - Untuk memperbaiki salah ketik atau ejaan: baca, lalu pakai replace_in_document untuk tiap perbaikan. Jangan menulis ulang seluruh dokumen kecuali diminta. Setelah selesai, sebutkan perubahan yang kamu buat.
 - Kalau pengguna bingung soal Exile, panggil exile_guide dan jelaskan langkah yang relevan saja. Jangan mengarang fitur yang tidak ada di panduan.
 - Kalau tidak ada dokumen dan pengguna tidak memintanya, jangan berpura-pura ada.
 
-Gaya: bahasa Indonesia sehari-hari, singkat dan langsung. Tanpa pembuka seperti "Tentu!" atau "Berikut adalah", tanpa penutup menawarkan bantuan lagi, tanpa emoji. Pakai daftar hanya kalau memang berurutan.`;
+ATURAN MUTLAK KONTROL STUDIO & ARTIFAK (SMART UI INTERAKTIF):
+- Kamu memiliki kontrol penuh atas Studio materi ajar guru di Exile. Kamu dapat membuat atau memperluas kuis adaptif, peta konsep (mind map), intisari materi, kartu 3d, infografik, tabel, dan laporan pedagogis.
+- LARANGAN KERAS: JANGAN PERNAH menempelkan butir soal kuis (soal nomor 1, 2, 3... pilihan ganda a, b, c, d), kunci jawaban, atau struktur artifak mentah ke dalam pesan chat. Balasan chat BUKAN tempat menampung artifak. Seluruh artifak wajib dimasukkan langsung ke Studio menggunakan tool create_studio_artifact.
+- PERMINTAAN UMUM / AMBIGU (WAJIB TANYA BALIK):
+  Jika permintaan guru masih umum, ambigu, atau singkat (misalnya 'buatkan kuis', 'kusi latihan', 'perluas materi', 'buatkan mind map', 'tolong ringkas'):
+  JANGAN langsung membuat artifak dan JANGAN mengetik butir soal di chat. Tanyakan balik terlebih dahulu dengan ramah dan terstruktur (maksimal 2-3 poin pertanyaan singkat):
+  1. Aspek spesifik materi apa yang ingin difokuskan (misalnya: apakah fokus ke norma hukum, norma sosial, atau sanksinya).
+  2. Capaian pembelajaran atau fungsi kompetensi apa yang ingin ditekankan untuk siswa.
+  3. Tingkat kesulitan yang diinginkan (Mudah, Sedang, atau Sulit) serta perkiraan jumlah soal jika membuat kuis.
+- PERMINTAAN SPESIFIK / SUDAH DIKONFIRMASI:
+  Jika guru sudah memberikan instruksi yang spesifik ATAU telah menjawab pertanyaan klarifikasi:
+  Segera panggil tool create_studio_artifact agar artifak langsung dimasukkan ke tab Studio.
+  Setelah tool selesai, berikan konfirmasi singkat bahwa artifak telah siap di tab Studio terkait dan siap diuji atau diedit di sana. Jangan mengetik butir soal lagi di chat.
+- PERFORMA & TAMPILAN: Jaga balasan chat tetap ringkas, terstruktur rapi, tanpa dinding teks berlebih, tidak menyebabkan crash/hang, dan tidak menyebabkan glitch tampilan atau overflow.
+
+Gaya: bahasa Indonesia sehari-hari, singkat dan langsung. Tanpa pembuka klise seperti "Tentu!" atau "Berikut adalah", tanpa penutup menawarkan bantuan lagi, tanpa emoji. Pakai daftar hanya kalau memang berurutan.`;
 
 export async function runExileAgent(params: {
   messages: Array<{ role: "user" | "assistant"; content: string }>;
@@ -158,6 +234,7 @@ export async function runExileAgent(params: {
   steps: Array<{ tool: string; summary: string }>;
   changedDocuments: AgentDocument[];
   attachmentErrors: string[];
+  studioActions: StudioAction[];
 }> {
   const docs = new Map<string, string>();
   for (const d of params.documents ?? []) {
@@ -178,7 +255,8 @@ export async function runExileAgent(params: {
   }
 
   const changed = new Set<string>();
-  const tools = buildTools(docs, changed);
+  const studioActions: StudioAction[] = [];
+  const tools = buildTools(docs, changed, studioActions);
 
   const system = [
     SYSTEM,
@@ -196,10 +274,17 @@ export async function runExileAgent(params: {
   ];
 
   const result = await runAgent(messages, tools);
+  const fallback = applyStudioFallback(
+    result.reply,
+    studioActions,
+    params.documents?.[0]?.name
+  );
+
   return {
-    reply: result.reply,
+    reply: fallback.reply,
     steps: result.steps,
     changedDocuments: [...changed].map((name) => ({ name, text: docs.get(name) ?? "" })),
     attachmentErrors,
+    studioActions: fallback.studioActions,
   };
 }

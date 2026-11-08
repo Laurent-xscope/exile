@@ -5,6 +5,7 @@ import * as THREE from "three";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
 import { RoomEnvironment } from "three/examples/jsm/environments/RoomEnvironment.js";
 import { cx } from "@/utils/cx";
+import { RiRepeatLine } from "@remixicon/react";
 import { soundEffects } from "@/lib/audio/sounds";
 
 export interface TactileSubject {
@@ -321,7 +322,7 @@ function drawSolarEfficiencyGraph(
   ctx.textAlign = "start";
   ctx.font = "600 13px monospace";
   ctx.fillStyle = isDark ? "#94a3b8" : "#3c4043";
-  ctx.fillText("ANALISIS ENERGI • SPEKTRUM FOTOVOLTAIK", px + 32, py + 36);
+  ctx.fillText("Analisis energi • spektrum fotovoltaik", px + 32, py + 36);
 
   ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
   ctx.fillStyle = isDark ? "#f8fafc" : "#111317";
@@ -515,7 +516,7 @@ function drawProtonGradientGraph(
   ctx.textAlign = "start";
   ctx.font = "600 13px monospace";
   ctx.fillStyle = isDark ? "#94a3b8" : "#3c4043";
-  ctx.fillText("KINETIKA BIOENERGETIKA • MITOKONDRIA", px + 32, py + 36);
+  ctx.fillText("Kinetika bioenergetika • mitokondria", px + 32, py + 36);
 
   ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
   ctx.fillStyle = isDark ? "#f8fafc" : "#111317";
@@ -690,7 +691,7 @@ function drawCognitiveRetentionGraph(
   ctx.textAlign = "start";
   ctx.font = "600 13px monospace";
   ctx.fillStyle = isDark ? "#94a3b8" : "#3c4043";
-  ctx.fillText("PSIKOLOGI KOGNITIF • RETENSI MEMORI", px + 32, py + 36);
+  ctx.fillText("Psikologi kognitif • retensi memori", px + 32, py + 36);
 
   ctx.font = "bold 20px system-ui, -apple-system, sans-serif";
   ctx.fillStyle = isDark ? "#f8fafc" : "#111317";
@@ -1057,9 +1058,101 @@ function renderSubjectFaceCanvas(
   }
 }
 
-export function TactileArtifact3D({ className }: { className?: string }) {
+export function isWebGLAvailable(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const canvas = document.createElement("canvas");
+    return Boolean(
+      window.WebGLRenderingContext &&
+        (canvas.getContext("webgl") || canvas.getContext("experimental-webgl"))
+    );
+  } catch {
+    return false;
+  }
+}
+
+export function TactileFallbackCard({
+  subject,
+  isDark,
+  isFlipped,
+  onToggleFlip,
+  className,
+}: {
+  subject: TactileSubject;
+  isDark: boolean;
+  isFlipped: boolean;
+  onToggleFlip: () => void;
+  className?: string;
+}) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const baseCanvas = generateOffscreenPaperCanvas(isDark);
+    renderSubjectFaceCanvas(canvas, baseCanvas, subject, !isFlipped, isDark);
+  }, [subject, isDark, isFlipped]);
+
+  return (
+    <div
+      className={cx(
+        "flex flex-col items-center w-full max-w-[285px] sm:max-w-[360px] mx-auto gap-3",
+        className
+      )}
+    >
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={onToggleFlip}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onToggleFlip();
+          }
+        }}
+        aria-label={
+          isFlipped
+            ? "Kartu tampak belakang: prinsip ilmiah. Klik untuk membalik."
+            : "Kartu tampak depan: grafik analisis. Klik untuk membalik."
+        }
+        className="w-full relative cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-3xl overflow-hidden shadow-xs border border-border-button-default bg-background-primary-default transition-transform active:scale-[0.99]"
+      >
+        <canvas
+          ref={canvasRef}
+          width={CANVAS_W}
+          height={CANVAS_H}
+          className="w-full h-auto aspect-[3/4] block pointer-events-none select-none"
+        />
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onToggleFlip}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption-1-medium text-text-secondary hover:text-text-primary bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring transition-colors shadow-2xs"
+        >
+          <RiRepeatLine className="size-3.5 text-foreground-icon-secondary" aria-hidden="true" />
+          <span>{isFlipped ? "Lihat kurva analisis" : "Balik kartu (prinsip)"}</span>
+        </button>
+      </div>
+    </div>
+  );
+}
+
+export interface TactileArtifact3DProps {
+  className?: string;
+  forceFallback?: boolean;
+}
+
+export function TactileArtifact3D({ className, forceFallback }: TactileArtifact3DProps = {}) {
   const mountRef = useRef<HTMLDivElement>(null);
   const [activeSubjectId, setActiveSubjectId] = useState<string>("sains");
+  const [webGlSupported, setWebGlSupported] = useState<boolean>(() => isWebGLAvailable());
+  const [isFlippedFallback, setIsFlippedFallback] = useState<boolean>(false);
+  const [isDarkState, setIsDarkState] = useState<boolean>(() => {
+    if (typeof document === "undefined") return false;
+    return document.documentElement.classList.contains("dark");
+  });
 
   const activeSubjectIdRef = useRef<string>("sains");
   const scrollProgressRef = useRef<number>(0);
@@ -1069,7 +1162,19 @@ export function TactileArtifact3D({ className }: { className?: string }) {
   const texturesMapRef = useRef<{ [key: string]: THREE.CanvasTexture }>({});
   const basePaperCanvasRef = useRef<{ dark: HTMLCanvasElement; light: HTMLCanvasElement } | null>(null);
 
-  // Damped physics state
+  // Sync theme changes for fallback rendering
+  useEffect(() => {
+    const obs = new MutationObserver(() => {
+      setIsDarkState(document.documentElement.classList.contains("dark"));
+    });
+    obs.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
+    return () => obs.disconnect();
+  }, []);
+
+  // Damped physics state with touch gesture discriminator
   const physicsRef = useRef({
     currentRotY: 0.34,
     currentRotX: -0.06,
@@ -1087,6 +1192,10 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     dragStartOffsetY: 0,
     dragStartOffsetX: 0,
     liftImpulse: 0,
+    isTouch: false,
+    hasCaptured: false,
+    containerWidth: 340,
+    containerHeight: 480,
   });
 
   // Texture generator with caching
@@ -1146,6 +1255,10 @@ export function TactileArtifact3D({ className }: { className?: string }) {
   );
 
   useEffect(() => {
+    if (forceFallback || !webGlSupported) {
+      return;
+    }
+
     const container = mountRef.current;
     if (!container) return;
     const texturesMap = texturesMapRef.current;
@@ -1162,18 +1275,25 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     camera.position.set(0, initialCamY, initialCamZ);
     camera.lookAt(0, -0.32, 0);
 
-    // 2. WebGL Renderer with device-based pixel ratio cap (Instruction 11)
+    // 2. WebGL Renderer with device-based pixel ratio cap (clamped to 1.5 on mobile to avoid heating)
     const getTargetPixelRatio = () => {
-      const isMobile = window.innerWidth < 768;
-      const maxPR = isMobile ? 1.35 : 2.0;
+      const isMobile = (typeof window !== "undefined" ? window.innerWidth : width) < 768;
+      const maxPR = isMobile ? 1.5 : 2.0;
       return Math.min(window.devicePixelRatio || 1, maxPR);
     };
 
-    const renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: true,
-      powerPreference: "high-performance",
-    });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true,
+        powerPreference: "high-performance",
+      });
+    } catch {
+      requestAnimationFrame(() => setWebGlSupported(false));
+      return;
+    }
+
     renderer.setSize(width, height);
     renderer.setPixelRatio(getTargetPixelRatio());
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -1183,6 +1303,13 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     container.appendChild(renderer.domElement);
 
+    const handleContextLost = (e: Event) => {
+      e.preventDefault();
+      requestAnimationFrame(() => setWebGlSupported(false));
+    };
+    const glDom = renderer.domElement;
+    glDom.addEventListener("webglcontextlost", handleContextLost);
+
     // 3. Environment Map
     const pmremGenerator = new THREE.PMREMGenerator(renderer);
     pmremGenerator.compileEquirectangularShader();
@@ -1190,13 +1317,14 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     const envMap = pmremGenerator.fromScene(roomEnv).texture;
     scene.environment = envMap;
 
-    // 4. Lights with Soft Shadows
+    // 4. Lights with Soft Shadows (512x512 on mobile to prevent GPU throttling)
+    const isMobileDevice = (typeof window !== "undefined" ? window.innerWidth : width) < 768;
     const isDarkInitial = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
     const keyLight = new THREE.DirectionalLight(0xffffff, isDarkInitial ? 2.5 : 1.95);
     keyLight.position.set(4.5, 6.5, 5);
     keyLight.castShadow = true;
-    keyLight.shadow.mapSize.width = 1024;
-    keyLight.shadow.mapSize.height = 1024;
+    keyLight.shadow.mapSize.width = isMobileDevice ? 512 : 1024;
+    keyLight.shadow.mapSize.height = isMobileDevice ? 512 : 1024;
     keyLight.shadow.camera.near = 0.5;
     keyLight.shadow.camera.far = 20;
     keyLight.shadow.bias = -0.0003;
@@ -1398,7 +1526,7 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     coverMesh.receiveShadow = true;
     folioGroup.add(coverMesh);
 
-    const paperEdgeGeom = new THREE.BoxGeometry(3.08, 4.08, 0.118);
+    const paperEdgeGeom = new RoundedBoxGeometry(3.08, 4.08, 0.118, 4, 0.04);
     const paperEdgeMat = new THREE.MeshStandardMaterial({
       color: 0xf3f5f8,
       roughness: 0.88,
@@ -1473,7 +1601,7 @@ export function TactileArtifact3D({ className }: { className?: string }) {
 
     scene.add(folioGroup);
 
-    // 8. Passive Window Scroll Tracking
+    // 8. Passive Window Scroll Tracking (Hero Runway)
     const handleScroll = () => {
       const heroEl = document.querySelector("section");
       if (heroEl) {
@@ -1486,7 +1614,7 @@ export function TactileArtifact3D({ className }: { className?: string }) {
           return;
         }
       }
-      const scrollY = window.scrollY || 0;
+      const scrollY = typeof window !== "undefined" ? window.scrollY || window.pageYOffset || 0 : 0;
       scrollProgressRef.current = Math.min(1, Math.max(0, scrollY / 450));
     };
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -1653,6 +1781,7 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     // Cleanup
     return () => {
       stopLoop();
+      glDom.removeEventListener("webglcontextlost", handleContextLost);
       window.removeEventListener("scroll", handleScroll);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
       intersectionObserver.disconnect();
@@ -1712,13 +1841,16 @@ export function TactileArtifact3D({ className }: { className?: string }) {
       envMap.dispose();
       renderer.dispose();
     };
-  }, [getOrCreateSubjectTexture]);
+  }, [getOrCreateSubjectTexture, forceFallback, webGlSupported]);
 
-  // Pointer interactions: Rotate ONLY when held down and dragged
+  // Pointer interactions: Rotate ONLY when dragged, non-interfering with mobile page scroll
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     if (e.button !== 0) return;
     const p = physicsRef.current;
+    const isTouch = e.pointerType === "touch";
     p.isDragging = true;
+    p.isTouch = isTouch;
+    p.hasCaptured = false;
     p.dragStartX = e.clientX;
     p.dragStartY = e.clientY;
     p.dragStartRotY = p.currentRotY;
@@ -1726,33 +1858,67 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     p.dragStartOffsetY = p.userOffsetY;
     p.dragStartOffsetX = p.userOffsetX;
 
-    try {
-      e.currentTarget.setPointerCapture(e.pointerId);
-    } catch {
-      // In case pointer capture is not supported
+    const container = mountRef.current;
+    p.containerWidth = container?.clientWidth || 340;
+    p.containerHeight = container?.clientHeight || 480;
+
+    // For mouse, immediately capture pointer for responsive rotation
+    if (!isTouch) {
+      p.hasCaptured = true;
+      try {
+        e.currentTarget.setPointerCapture(e.pointerId);
+      } catch {
+        // In case pointer capture is not supported
+      }
     }
+    // For touch, defer pointer capture so vertical scrolling is not blocked
   };
 
   const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
     const p = physicsRef.current;
     if (!p.isDragging) return;
 
-    const container = mountRef.current;
-    const width = container?.clientWidth || 600;
-    const height = container?.clientHeight || 560;
-
     const deltaX = e.clientX - p.dragStartX;
     const deltaY = e.clientY - p.dragStartY;
 
+    if (p.isTouch && !p.hasCaptured) {
+      const absX = Math.abs(deltaX);
+      const absY = Math.abs(deltaY);
+
+      // Dominant vertical movement: let page scroll vertically, cancel card drag
+      if (absY > absX && absY > 8) {
+        p.isDragging = false;
+        return;
+      }
+
+      // Dominant horizontal movement: user is intentionally rotating the card
+      if (absX > 8) {
+        p.hasCaptured = true;
+        try {
+          e.currentTarget.setPointerCapture(e.pointerId);
+        } catch {
+          // Ignore
+        }
+      } else {
+        return;
+      }
+    }
+
+    const width = p.containerWidth || 340;
+    const height = p.containerHeight || 480;
+
     const rotDeltaY = (deltaX / width) * Math.PI;
-    const rotDeltaX = -(deltaY / height) * 0.44;
+    const rotDeltaX = p.isTouch ? 0 : -(deltaY / height) * 0.44;
 
     p.userOffsetY = p.dragStartOffsetY + rotDeltaY;
     p.userOffsetX = Math.max(-0.32, Math.min(0.32, p.dragStartOffsetX + rotDeltaX));
   };
 
   const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
-    physicsRef.current.isDragging = false;
+    const p = physicsRef.current;
+    p.isDragging = false;
+    p.hasCaptured = false;
+    p.isTouch = false;
     try {
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId);
@@ -1762,19 +1928,93 @@ export function TactileArtifact3D({ className }: { className?: string }) {
     }
   };
 
-  const handlePointerCancel = () => {
-    physicsRef.current.isDragging = false;
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    const p = physicsRef.current;
+    p.isDragging = false;
+    p.hasCaptured = false;
+    p.isTouch = false;
+    try {
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId);
+      }
+    } catch {
+      // Ignore
+    }
   };
 
   const handleLostPointerCapture = () => {
-    physicsRef.current.isDragging = false;
+    const p = physicsRef.current;
+    p.isDragging = false;
+    p.hasCaptured = false;
+    p.isTouch = false;
   };
 
+  // Fallback 2D card view if WebGL is unavailable or forced
+  if (!webGlSupported || forceFallback) {
+    const activeSubj =
+      TACTILE_SUBJECTS.find((s) => s.id === activeSubjectId) || TACTILE_SUBJECTS[0];
+    return (
+      <div
+        className={cx(
+          "flex flex-col items-center w-full select-none gap-2 sm:gap-3 max-w-[340px] sm:max-w-[440px] lg:max-w-[480px] mx-auto",
+          className
+        )}
+      >
+        {/* Subject switcher pill bar */}
+        <div className="flex justify-center px-2 sm:px-4 w-full">
+          <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full">
+            {TACTILE_SUBJECTS.map((subj) => {
+              const isActive = subj.id === activeSubjectId;
+              return (
+                <button
+                  key={subj.id}
+                  type="button"
+                  onClick={() => handleSelectSubject(subj.id)}
+                  className={cx(
+                    "px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-caption-2-medium sm:text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring flex items-center gap-1.5 shrink-0",
+                    isActive
+                      ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-medium shadow-xs"
+                      : "border border-transparent text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
+                  )}
+                >
+                  <span
+                    className={cx(
+                      "size-1.5 rounded-full",
+                      isActive ? "bg-text-primary" : "bg-text-tertiary"
+                    )}
+                    aria-hidden="true"
+                  />
+                  <span>{subj.pillLabel}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Fallback 2D Graph Card */}
+        <TactileFallbackCard
+          subject={activeSubj}
+          isDark={isDarkState}
+          isFlipped={isFlippedFallback}
+          onToggleFlip={() => {
+            soundEffects.playClick();
+            setIsFlippedFallback((prev) => !prev);
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className={cx("flex flex-col items-center w-full select-none gap-2 sm:gap-3", className)}>
+    <div
+      className={cx(
+        "flex flex-col items-center w-full select-none gap-2 sm:gap-3 max-w-[340px] sm:max-w-none mx-auto",
+        className
+      )}
+    >
       {/* Subject switcher pill bar */}
       <div className="flex justify-center px-2 sm:px-4 w-full">
-        <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-[94%] sm:max-w-none">
+        <div className="flex flex-wrap items-center justify-center gap-1 sm:gap-1.5 p-1 rounded-full bg-background-primary-default/90 backdrop-blur-md border border-border-button-default shadow-xs max-w-full">
           {TACTILE_SUBJECTS.map((subj) => {
             const isActive = subj.id === activeSubjectId;
             return (
@@ -1785,14 +2025,14 @@ export function TactileArtifact3D({ className }: { className?: string }) {
                 className={cx(
                   "px-2.5 py-1 sm:px-3.5 sm:py-1.5 rounded-full text-caption-2-medium sm:text-caption-1-medium transition-all cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring flex items-center gap-1.5 shrink-0",
                   isActive
-                    ? "bg-accent-600 text-text-white shadow-xs font-medium"
-                    : "text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
+                    ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-medium shadow-xs"
+                    : "border border-transparent text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
                 )}
               >
                 <span
                   className={cx(
                     "size-1.5 rounded-full",
-                    isActive ? "bg-text-white" : "bg-text-tertiary"
+                    isActive ? "bg-text-primary" : "bg-text-tertiary"
                   )}
                   aria-hidden="true"
                 />
@@ -1813,7 +2053,7 @@ export function TactileArtifact3D({ className }: { className?: string }) {
         onLostPointerCapture={handleLostPointerCapture}
         role="img"
         aria-label="Artifak 3d interaktif kurikulum"
-        className="relative w-full h-[480px] sm:h-[560px] cursor-grab active:cursor-grabbing select-none flex items-center justify-center touch-none outline-none"
+        className="relative w-full max-w-[340px] sm:max-w-none h-[480px] sm:h-[560px] cursor-grab active:cursor-grabbing select-none flex items-center justify-center touch-pan-y outline-none mx-auto"
       />
     </div>
   );

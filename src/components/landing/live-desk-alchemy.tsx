@@ -450,10 +450,10 @@ export function LiveDeskAlchemy({
                 onClick={() => handleLessonChange(key)}
                 className={cx(
                   "px-3 py-1 rounded-lg text-caption-2-medium transition-all cursor-pointer outline-none",
-                  "focus-visible:ring-2 focus-visible:ring-accent-600",
+                  "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                   isActive
-                    ? "bg-accent-600 text-text-white shadow-xs font-medium"
-                    : "text-text-secondary hover:text-text-primary hover:bg-background-tertiary-default"
+                    ? "bg-background-tertiary-default text-text-primary border border-border-button-default font-medium shadow-xs"
+                    : "border border-transparent text-text-secondary hover:text-text-primary hover:bg-background-secondary-hover"
                 )}
               >
                 {isEn ? item.tabLabelEn : item.tabLabel}
@@ -466,7 +466,7 @@ export function LiveDeskAlchemy({
         <button
           type="button"
           onClick={handleToggleUnfold}
-          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-border-button-default bg-background-primary-default hover:bg-background-secondary-hover text-caption-2-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-accent-600"
+          className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg border border-border-button-default bg-background-primary-default hover:bg-background-secondary-hover text-caption-2-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
         >
           <RiRefreshLine
             className={cx(
@@ -502,7 +502,7 @@ export function LiveDeskAlchemy({
             >
               <div
                 className={cx(
-                  "relative rounded-2xl bg-background-primary-default border border-border-button-default p-6 sm:p-8 space-y-6",
+                  "relative rounded-2xl bg-background-primary-default border border-border-button-default p-4 sm:p-6 md:p-8 space-y-6",
                   "shadow-[0_1px_2px_rgba(0,0,0,0.06),0_8px_24px_-4px_rgba(0,0,0,0.12),0_2px_0_var(--color-border-button-default)]",
                   "after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-[1px] after:bg-background-primary-default/40"
                 )}
@@ -569,15 +569,14 @@ export function LiveDeskAlchemy({
                     onClick={handleToggleUnfold}
                     className={cx(
                       "relative group px-5 py-2.5 rounded-full cursor-pointer select-none outline-none",
-                      "bg-accent-600 hover:bg-accent-700 active:bg-accent-800 text-text-white font-medium text-caption-1-semibold",
-                      "shadow-[0_2px_8px_rgba(201,64,48,0.35),0_1px_2px_rgba(0,0,0,0.1),inset_0_1px_0_rgba(255,255,255,0.25)]",
+                      "bg-background-secondary-default hover:bg-background-secondary-hover active:bg-background-tertiary-default text-text-primary border border-border-button-default font-medium text-caption-1-semibold shadow-xs",
                       "transition-all duration-200 transform hover:-translate-y-0.5 active:translate-y-0",
                       "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                       "flex items-center gap-2.5 shrink-0"
                     )}
                   >
-                    <div className="size-5 rounded-full bg-background-primary-default/20 flex items-center justify-center shrink-0">
-                      <RiQuillPenLine className="size-3 text-text-white" aria-hidden="true" />
+                    <div className="size-5 rounded-full bg-background-tertiary-default flex items-center justify-center shrink-0">
+                      <RiQuillPenLine className="size-3 text-text-primary" aria-hidden="true" />
                     </div>
                     <span>
                       {isEn ? "Tap to unfold into artifacts" : "Sentuh untuk mengolah materi"}
@@ -599,13 +598,13 @@ export function LiveDeskAlchemy({
                 damping: 26,
                 mass: 1.1,
               }}
-              className="w-full grid grid-cols-1 lg:grid-cols-3 gap-6 items-stretch"
+              className="w-full grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 items-stretch"
             >
               {/* ARTIFACT A: PLAYABLE "KARTU 3D" (LETTERPRESS COTTON LINEN) */}
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center justify-between px-1">
                   <span className="text-caption-2-semibold text-text-tertiary tracking-wider">
-                    {isEn ? "Artifact A • 3D card" : "Artifak A • Kartu 3D"}
+                    {isEn ? "Artifact A • 3d card" : "Artifak A • Kartu 3d"}
                   </span>
                   <span className="text-caption-2-medium text-accent-700">
                     {isEn ? "Hover/tap to flip" : "Kursor / sentuh balik"}
@@ -614,7 +613,7 @@ export function LiveDeskAlchemy({
 
                 <LetterpressCard3D
                   minHeightClassName="min-h-[380px]"
-                  ariaLabel={isEn ? "Artifact A 3D flashcard" : "Artifak A kartu flashcard 3D"}
+                  ariaLabel={isEn ? "Artifact A 3d flashcard" : "Artifak A kartu flashcard 3d"}
                   frontContent={
                     <div className="flex flex-col justify-between h-full space-y-4">
                       <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-separator-border">
@@ -703,7 +702,7 @@ export function LiveDeskAlchemy({
 
                 <div
                   className={cx(
-                    "relative flex-1 rounded-2xl bg-background-primary-default border border-border-button-default p-5 sm:p-6 flex flex-col justify-between text-start",
+                    "relative flex-1 rounded-2xl bg-background-primary-default border border-border-button-default p-4 sm:p-6 flex flex-col justify-between text-start",
                     "shadow-[0_1px_1px_rgba(0,0,0,0.04),0_2.5px_0_var(--color-border-button-default),0_16px_32px_-6px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)]",
                     "after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-[1px] after:bg-background-primary-default/40"
                   )}
@@ -816,7 +815,7 @@ export function LiveDeskAlchemy({
 
                 <div
                   className={cx(
-                    "relative flex-1 rounded-2xl bg-background-primary-default border border-border-button-default p-5 sm:p-6 flex flex-col justify-between text-start",
+                    "relative flex-1 rounded-2xl bg-background-primary-default border border-border-button-default p-4 sm:p-6 flex flex-col justify-between text-start",
                     "shadow-[0_1px_1px_rgba(0,0,0,0.04),0_2.5px_0_var(--color-border-button-default),0_16px_32px_-6px_rgba(0,0,0,0.1),0_4px_8px_-2px_rgba(0,0,0,0.05)]",
                     "after:pointer-events-none after:absolute after:inset-x-0 after:top-0 after:h-[1px] after:bg-background-primary-default/40"
                   )}
@@ -895,7 +894,7 @@ export function LiveDeskAlchemy({
                       leadingIcon={RiPlayCircleLine}
                       className="w-full justify-center shadow-xs"
                     >
-                      {isEn ? "Buat Ruang Kuis" : "Buat Ruang Kuis"}
+                      {isEn ? "Ruang kuis" : "Ruang kuis"}
                     </Button>
                   </div>
                 </div>
@@ -913,7 +912,7 @@ export function LiveDeskAlchemy({
             : "Konsep: naskah belajar fisik terurai menjadi artifak interaktif taktil di atas meja ajar."}
         </span>
         <span className="hidden sm:inline-block">
-          {isEn ? "3D cardstock & letterpress textures" : "Tekstur letterpress & karton berserat"}
+          {isEn ? "3d cardstock & letterpress textures" : "Tekstur letterpress & karton berserat"}
         </span>
       </div>
     </section>

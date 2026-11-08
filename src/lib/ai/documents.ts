@@ -1,4 +1,5 @@
 import zlib from "node:zlib";
+import { transcribeImagesWithVision } from "./vision";
 
 /** Server-side text extraction for uploaded study material. */
 
@@ -251,7 +252,39 @@ export async function extractText(file: UploadedFile): Promise<string> {
   const mime = (file.mimeType || "").toLowerCase();
   let text = "";
 
-  if (ext === "pdf" || mime === "application/pdf") {
+  const isImage =
+    mime === "image/jpeg" ||
+    mime === "image/png" ||
+    mime === "image/webp" ||
+    mime.startsWith("image/") ||
+    ["jpg", "jpeg", "png", "webp"].includes(ext);
+
+  if (isImage) {
+    const effectiveMime =
+      mime && mime.startsWith("image/")
+        ? mime
+        : ext === "png"
+        ? "image/png"
+        : ext === "webp"
+        ? "image/webp"
+        : "image/jpeg";
+
+    try {
+      text = await transcribeImagesWithVision([
+        {
+          base64: base64Data,
+          mimeType: effectiveMime,
+        },
+      ]);
+    } catch (err) {
+      if (err instanceof UnsupportedFileError) throw err;
+      throw new UnsupportedFileError(
+        err instanceof Error
+          ? `Gagal membaca gambar materi: ${err.message}`
+          : "Gagal membaca teks dari gambar."
+      );
+    }
+  } else if (ext === "pdf" || mime === "application/pdf") {
     try {
       const { extractText: pdfText, getDocumentProxy } = await import("unpdf");
       const pdf = await getDocumentProxy(new Uint8Array(bytes));
@@ -400,12 +433,18 @@ export async function extractText(file: UploadedFile): Promise<string> {
     }
   } else {
     throw new UnsupportedFileError(
-      "Format belum didukung. Gunakan PDF, DOCX, PPTX, XLSX, ODT, EPUB, TXT, atau dokumen teks lainnya."
+      "Format belum didukung. Gunakan PDF, DOCX, PPTX, XLSX, ODT, EPUB, TXT, gambar (JPEG, PNG, WebP), atau dokumen teks lainnya."
     );
   }
 
   const cleaned = cleanText(text);
-  if (cleaned.length < 40) {
+  if (isImage) {
+    if (cleaned.length === 0) {
+      throw new UnsupportedFileError(
+        "Tidak ada teks yang dapat dibaca dari gambar materi ini."
+      );
+    }
+  } else if (cleaned.length < 40) {
     throw new UnsupportedFileError(
       "Tidak ada teks yang bisa dibaca di berkas ini (mungkin PDF hasil scan atau berkas kosong)."
     );

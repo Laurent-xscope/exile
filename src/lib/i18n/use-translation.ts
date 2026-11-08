@@ -11,11 +11,14 @@ export const DICTIONARY = {
       tagline: "Pembelajaran tertutup & evaluasi budaya",
       hostBtn: "Dasbor guru",
       studentBtn: "Gabung siswa",
+      studioBtn: "Studio",
+      createRoomBtn: "Ruang kuis",
+      joinPinBtn: "Masukkan pin",
     },
     hero: {
       categoryPill: "Platform asesmen & bahan ajar interaktif",
       headingLine1: "Foto modul, buku ajar, atau lembar kerja.",
-      headingLine2: "Ubah jadi kuis interaktif, kartu 3D, & ringkasan.",
+      headingLine2: "Ubah jadi kuis interaktif, kartu 3d, & ringkasan.",
       subheading:
         "Dukungan untuk semua mata pelajaran — dari sains, bahasa indonesia, hingga muatan lokal & budaya daerah. Unggah materi apa pun, sistem langsung menghasilkan materi ajar interaktif dan menutup siklus belajar siswa.",
       inputTitle: "Pilih materi atau tempel dokumen",
@@ -78,7 +81,7 @@ export const DICTIONARY = {
     },
     tabs: {
       summary: "Intisari & glosarium",
-      flashcards: "Kartu 3D",
+      flashcards: "Kartu 3d",
       quiz: "Latihan soal & kuis",
     },
     metrics: {
@@ -110,7 +113,7 @@ export const DICTIONARY = {
       backHome: "Beranda",
       studentPovLabel: "Sudut pandang siswa",
       teacherPovLabel: "Sudut pandang pengajar",
-      launchRoomBtn: "Buat Ruang Kuis",
+      launchRoomBtn: "Ruang kuis",
       launchingRoomBtn: "Membuka...",
       studentPovBannerTitle: "Mode simulasi sudut pandang siswa",
       studentPovBannerDesc:
@@ -133,7 +136,7 @@ export const DICTIONARY = {
       copilotInputPlaceholder: "Tanyakan fitur, konsep, atau lampirkan foto...",
       tabs: {
         summary: "Intisari",
-        flashcards: "Kartu 3D",
+        flashcards: "Kartu 3d",
         quiz: "Kuis adaptif",
         slides: "Slide deck",
         mindmap: "Peta konsep",
@@ -152,7 +155,7 @@ export const DICTIONARY = {
         {
           num: 2,
           title: "Pilih artifak & tekan create",
-          desc: "Centang artifak yang ingin dibuat (kartu 3D, kuis adaptif, intisari, peta konsep, infografik, tabel data, atau laporan) lalu tekan create.",
+          desc: "Centang artifak yang ingin dibuat (kartu 3d, kuis adaptif, intisari, peta konsep, infografik, tabel data, atau laporan) lalu tekan create.",
         },
         {
           num: 3,
@@ -161,8 +164,8 @@ export const DICTIONARY = {
         },
         {
           num: 4,
-          title: "Buat ruang kuis kelas",
-          desc: "Tekan tombol Buat Ruang Kuis di kanan atas untuk mendapatkan kode pin 6 digit agar siswa dapat bergabung secara langsung.",
+          title: "Buka ruang kuis kelas",
+          desc: "Tekan tombol Ruang kuis di kanan atas untuk mendapatkan kode pin 6 digit agar siswa dapat bergabung secara langsung.",
         },
       ],
       calloutReady: "Siap membuat artifak pembelajaran pertama anda?",
@@ -199,7 +202,7 @@ export const DICTIONARY = {
       avatarSubtitle: "Pilih 1 karakter",
       joinBtn: "Masuk ke ruang kuis",
       connecting: "Menghubungkan...",
-      teacherStudioLink: "Pengajar? Buka Studio",
+      teacherStudioLink: "Pengajar? Studio",
     },
   },
   en: {
@@ -208,11 +211,14 @@ export const DICTIONARY = {
       tagline: "Exile & cultural evaluation",
       hostBtn: "Teacher cockpit",
       studentBtn: "Join as student",
+      studioBtn: "Studio",
+      createRoomBtn: "Quiz room",
+      joinPinBtn: "Enter pin",
     },
     hero: {
       categoryPill: "Interactive courseware & assessment engine",
       headingLine1: "Upload any textbook, pdf, or handout.",
-      headingLine2: "Turn them into live quizzes, 3D flashcards, & summaries.",
+      headingLine2: "Turn them into live quizzes, 3d flashcards, & summaries.",
       subheading:
         "Built for any subject — from stem and general science to world languages, indonesian literature, and local heritage. Upload any material to instantly generate interactive courseware and close student learning gaps.",
       inputTitle: "Select subject sample or paste content",
@@ -275,7 +281,7 @@ export const DICTIONARY = {
     },
     tabs: {
       summary: "Summary & glossary",
-      flashcards: "3D flashcards",
+      flashcards: "3d flashcards",
       quiz: "Practice quiz",
     },
     metrics: {
@@ -307,7 +313,7 @@ export const DICTIONARY = {
       backHome: "Home",
       studentPovLabel: "Student perspective",
       teacherPovLabel: "Teacher perspective",
-      launchRoomBtn: "Create Quiz Room",
+      launchRoomBtn: "Quiz room",
       launchingRoomBtn: "Launching...",
       studentPovBannerTitle: "Student perspective simulation active",
       studentPovBannerDesc:
@@ -330,7 +336,7 @@ export const DICTIONARY = {
       copilotInputPlaceholder: "Ask about features, concepts, or attach a photo...",
       tabs: {
         summary: "Summary",
-        flashcards: "3D cards",
+        flashcards: "3d cards",
         quiz: "Adaptive quiz",
         slides: "Slide deck",
         mindmap: "Mind map",
@@ -349,7 +355,7 @@ export const DICTIONARY = {
         {
           num: 2,
           title: "Select artifact & click create",
-          desc: "Check which artifacts to craft (3D cards, adaptive quiz, summary, mind map, infographic, data table, or reports) and click create.",
+          desc: "Check which artifacts to craft (3d cards, adaptive quiz, summary, mind map, infographic, data table, or reports) and click create.",
         },
         {
           num: 3,
@@ -359,7 +365,7 @@ export const DICTIONARY = {
         {
           num: 4,
           title: "Create live classroom session",
-          desc: "Click Create Quiz Room at the top right to generate a 6-digit pin so students can join in real time.",
+          desc: "Click Quiz room at the top right to generate a 6-digit pin so students can join in real time.",
         },
       ],
       calloutReady: "Ready to create your first learning artifact?",
@@ -396,7 +402,7 @@ export const DICTIONARY = {
       avatarSubtitle: "Select 1 avatar",
       joinBtn: "Enter quiz arena",
       connecting: "Connecting...",
-      teacherStudioLink: "Educator? Open Studio",
+      teacherStudioLink: "Educator? Studio",
     },
   },
 } as const;

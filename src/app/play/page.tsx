@@ -64,7 +64,7 @@ export default function PlayJoinPage() {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.25, ease: "easeOut" }}
-        className="w-full max-w-md mx-auto rounded-2xl bg-background-primary-default p-6 shadow-lg sm:p-8"
+        className="w-full max-w-md mx-auto rounded-2xl bg-background-primary-default p-5 shadow-lg sm:p-8"
       >
         <div className="pb-6">
           <h1 className="text-title-2-semibold tracking-tight text-text-primary">

@@ -41,7 +41,8 @@ export function TelegramSpoilerPin({
   label,
 }: TelegramSpoilerPinProps) {
   const [isHovered, setIsHovered] = useState(false);
-  const isRevealed = isHovered;
+  const [isTapped, setIsTapped] = useState(false);
+  const isRevealed = isHovered || isTapped;
 
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
@@ -193,8 +194,11 @@ export function TelegramSpoilerPin({
 
   const handleClick = useCallback(() => {
     soundEffects.playClick();
+    setIsTapped((prev) => !prev);
     if (copyable) {
-      navigator.clipboard.writeText(pin);
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        navigator.clipboard.writeText(pin).catch(() => {});
+      }
       toast.success(
         isEn
           ? `Room pin ${pin} copied to clipboard`
@@ -212,9 +216,9 @@ export function TelegramSpoilerPin({
   }, []);
 
   const containerSizes = {
-    sm: "px-2.5 py-1 gap-1.5 rounded-lg",
-    md: "px-3 py-1.5 gap-2 rounded-xl",
-    lg: "px-4 py-2 gap-3 rounded-2xl",
+    sm: "px-2.5 py-1 gap-1.5 rounded-lg min-h-[32px] sm:min-h-[28px]",
+    md: "px-3 py-1.5 gap-2 rounded-xl min-h-[36px]",
+    lg: "px-4 py-2 gap-3 rounded-2xl min-h-[44px]",
   };
 
   const fontSizes = {
@@ -238,16 +242,16 @@ export function TelegramSpoilerPin({
       }}
       aria-label={
         isEn
-          ? `Room pin ${isRevealed ? pin : "obscured"}. Click to copy.`
-          : `Pin ruang ${isRevealed ? pin : "tersembunyi"}. Klik untuk menyalin.`
+          ? `Room pin ${isRevealed ? pin : "obscured"}. Tap to reveal or copy.`
+          : `Pin ruang ${isRevealed ? pin : "tersembunyi"}. Ketuk untuk melihat atau menyalin.`
       }
       title={
         isEn
-          ? "Hover to reveal, click to copy"
-          : "Arahkan kursor untuk melihat, klik untuk menyalin"
+          ? "Tap or hover to reveal, click to copy"
+          : "Ketuk atau arahkan untuk melihat, klik untuk menyalin"
       }
       className={cx(
-        "group relative inline-flex items-center select-none cursor-pointer transition-colors",
+        "group relative inline-flex items-center select-none cursor-pointer transition-colors touch-manipulation",
         "bg-background-secondary-default hover:bg-background-secondary-hover",
         "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
         containerSizes[size],

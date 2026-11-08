@@ -7,12 +7,22 @@ import {
 } from "@/lib/ai/prompts";
 import { chatJSON, AIUnavailableError } from "@/lib/ai/llm";
 import { extractText, UnsupportedFileError } from "@/lib/ai/documents";
+import {
+  solveHomeworkFromImages,
+  transcribeImagesWithVision,
+  type ImageInput,
+} from "@/lib/ai/vision";
 import { storeQuiz } from "@/lib/rooms/store";
 import { shuffleQuestionOptions } from "@/lib/quiz/options";
 
 export const maxDuration = 120;
 
-const RequestSchema = z.object({
+export const ImagePartSchema = z.object({
+  base64: z.string(),
+  mimeType: z.string().optional(),
+});
+
+export const BodySchema = z.object({
   fileName: z.string().optional().default("dokumen-materi.pdf"),
   fileType: z.enum(["image", "pdf", "text"]).optional().default("text"),
   fileBase64: z.string().optional(),
@@ -22,6 +32,8 @@ const RequestSchema = z.object({
   userContext: z.string().optional(),
   customPrompt: z.string().optional(),
   action: z.enum(["analyze", "transcribe"]).optional().default("analyze"),
+  scanMode: z.enum(["direct_answer", "learning"]).optional(),
+  images: z.array(ImagePartSchema).optional(),
   artifacts: z
     .array(
       z.enum([
@@ -38,11 +50,13 @@ const RequestSchema = z.object({
     .optional(),
 });
 
+export const RequestSchema = BodySchema;
+
 export async function POST(req: Request) {
   const rateLimit = await checkRateLimit(req, 20, 60_000);
   if (!rateLimit.allowed && rateLimit.errorResponse) return rateLimit.errorResponse;
 
-  const parsed = RequestSchema.safeParse(await req.json().catch(() => null));
+  const parsed = BodySchema.safeParse(await req.json().catch(() => null));
   if (!parsed.success) {
     return NextResponse.json({ error: "Format permintaan tidak valid" }, { status: 400 });
   }
@@ -56,29 +70,101 @@ export async function POST(req: Request) {
     userContext,
     customPrompt,
     action,
+    scanMode,
+    images,
     artifacts,
   } = parsed.data;
 
   try {
     let source = (extractedText || text || "").trim();
 
-    if (fileBase64 && (action === "transcribe" || source.length < 40)) {
-      if (fileType === "image") {
-        return NextResponse.json(
-          { error: "Gambar belum bisa dibaca. Tempel teksnya ke kolom materi." },
-          { status: 422 }
+    // Collect all input images from images array or fileBase64
+    const imageList: ImageInput[] = [];
+    if (images && images.length > 0) {
+      imageList.push(...images);
+    } else if (
+      fileBase64 &&
+      (fileType === "image" ||
+        mimeType?.startsWith("image/") ||
+        /\.(jpe?g|png|webp)$/i.test(fileName))
+    ) {
+      imageList.push({ base64: fileBase64, mimeType });
+    }
+
+    // 1. Direct answer mode: extract questions and provide verified answers
+    if (scanMode === "direct_answer") {
+      if (imageList.length > 0) {
+        const solution = await solveHomeworkFromImages(
+          imageList,
+          userContext || customPrompt
         );
+        return NextResponse.json({
+          success: true,
+          scanMode: "direct_answer",
+          transcription: solution.transcription,
+          directAnswers: solution.directAnswers,
+        });
       }
+
+      if (source.length > 0) {
+        const textResult = await chatJSON(
+          [
+            {
+              role: "system",
+              content:
+                "You are an expert tutor solving homework problems. Provide markdown transcription and direct verified answers with key explanations.",
+            },
+            {
+              role: "user",
+              content: `Solve all questions in this homework text:\n\n${source}\n\nReturn JSON with keys: transcription (string) and directAnswers (array of {number, questionSnippet, answer, keyExplanation}).`,
+            },
+          ],
+          z.object({
+            transcription: z.string().optional().default(source),
+            directAnswers: z.array(
+              z.object({
+                number: z.number(),
+                questionSnippet: z.string(),
+                answer: z.string(),
+                keyExplanation: z.string(),
+              })
+            ),
+          })
+        );
+        return NextResponse.json({
+          success: true,
+          scanMode: "direct_answer",
+          transcription: textResult.transcription || source,
+          directAnswers: textResult.directAnswers,
+        });
+      }
+
+      return NextResponse.json(
+        { error: "Tidak ada gambar atau teks soal yang diberikan." },
+        { status: 400 }
+      );
+    }
+
+    // 2. Learning or default mode: transcribe images via Gemini Vision
+    if (imageList.length > 0 && (action === "transcribe" || source.length < 40)) {
+      source = await transcribeImagesWithVision(
+        imageList,
+        userContext || customPrompt
+      );
+    } else if (fileBase64 && (action === "transcribe" || source.length < 40)) {
       source = await extractText({ name: fileName, mimeType, base64: fileBase64 });
     }
 
-    if (action === "transcribe") {
+    const effectiveFileType = imageList.length > 0 ? "image" : fileType;
+
+    if (action === "transcribe" || scanMode === "learning") {
       return NextResponse.json({
         success: true,
         action: "transcribe",
+        scanMode: "learning",
         transcription: source,
         fileName,
-        fileType,
+        fileType: effectiveFileType,
       });
     }
 
@@ -95,7 +181,7 @@ export async function POST(req: Request) {
 
     const { systemPrompt, prompt } = buildDocumentAnalysisPrompt(
       source.slice(0, 40_000),
-      fileType,
+      effectiveFileType,
       userContext || customPrompt,
       [...requestedArtifacts]
     );
@@ -163,11 +249,17 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
+      scanMode: scanMode || (imageList.length > 0 ? "learning" : undefined),
       quizId,
       transcription: source,
       analysis: result,
       document: { quizId, ...result },
-      metadata: { fileName, fileType, timestamp: new Date().toISOString() },
+      metadata: {
+        fileName,
+        fileType: effectiveFileType,
+        scanMode: scanMode || (imageList.length > 0 ? "learning" : undefined),
+        timestamp: new Date().toISOString(),
+      },
     });
   } catch (error) {
     if (error instanceof UnsupportedFileError) {

@@ -1,4 +1,9 @@
 import { beforeAll, beforeEach, describe, expect, test } from "bun:test";
+import {
+  mergeChatMessages,
+  formatChatTime,
+  type RoomChatMessage,
+} from "@/components/rooms/room-chat-drawer";
 
 let store!: typeof import("@/lib/rooms/store");
 
@@ -143,5 +148,139 @@ describe("Room chat store functions", () => {
     // Oldest 5 messages (1 to 5) should be trimmed; first message should be Pesan 6
     expect(messages[0].text).toBe("Pesan 6");
     expect(messages[messages.length - 1].text).toBe("Pesan 105");
+  });
+});
+
+describe("Room chat client helpers (mergeChatMessages and formatChatTime)", () => {
+  test("formatChatTime handles valid ISO strings and invalid input gracefully", () => {
+    expect(formatChatTime("invalid-date")).toBe("");
+    expect(formatChatTime("")).toBe("");
+
+    const formatted = formatChatTime("2026-11-08T10:30:00Z");
+    expect(typeof formatted).toBe("string");
+    expect(formatted.length).toBeGreaterThan(0);
+  });
+
+  test("mergeChatMessages merges disjoint lists and deduplicates by ID", () => {
+    const list1: RoomChatMessage[] = [
+      {
+        id: "msg-1",
+        roomCode: "123456",
+        senderId: "user-1",
+        senderName: "User 1",
+        senderRole: "student",
+        text: "Hello",
+        createdAt: "2026-11-08T10:00:00Z",
+      },
+    ];
+
+    const list2: RoomChatMessage[] = [
+      {
+        id: "msg-1",
+        roomCode: "123456",
+        senderId: "user-1",
+        senderName: "User 1",
+        senderRole: "student",
+        text: "Hello",
+        createdAt: "2026-11-08T10:00:00Z",
+      },
+      {
+        id: "msg-2",
+        roomCode: "123456",
+        senderId: "user-2",
+        senderName: "User 2",
+        senderRole: "student",
+        text: "Hi there",
+        createdAt: "2026-11-08T10:01:00Z",
+      },
+    ];
+
+    const merged = mergeChatMessages(list1, list2);
+    expect(merged.length).toBe(2);
+    expect(merged[0].id).toBe("msg-1");
+    expect(merged[1].id).toBe("msg-2");
+  });
+
+  test("mergeChatMessages preserves optimistic messages when new messages arrive", () => {
+    const existingWithOptimistic: RoomChatMessage[] = [
+      {
+        id: "msg-1",
+        roomCode: "123456",
+        senderId: "host",
+        senderName: "Guru",
+        senderRole: "teacher",
+        text: "Pertanyaan pertama",
+        createdAt: "2026-11-08T10:00:00Z",
+      },
+      {
+        id: "temp-999999",
+        roomCode: "123456",
+        senderId: "student-1",
+        senderName: "Budi",
+        senderRole: "student",
+        text: "Pesan optimistik saya",
+        createdAt: "2026-11-08T10:02:00Z",
+      },
+    ];
+
+    const incomingFromServer: RoomChatMessage[] = [
+      {
+        id: "msg-1",
+        roomCode: "123456",
+        senderId: "host",
+        senderName: "Guru",
+        senderRole: "teacher",
+        text: "Pertanyaan pertama",
+        createdAt: "2026-11-08T10:00:00Z",
+      },
+      {
+        id: "msg-2",
+        roomCode: "123456",
+        senderId: "student-2",
+        senderName: "Siti",
+        senderRole: "student",
+        text: "Siap pak!",
+        createdAt: "2026-11-08T10:01:00Z",
+      },
+    ];
+
+    const merged = mergeChatMessages(existingWithOptimistic, incomingFromServer);
+    // Should have msg-1, msg-2, and temp-999999 preserved
+    expect(merged.length).toBe(3);
+    expect(merged.some((m) => m.id === "temp-999999")).toBe(true);
+    expect(merged.some((m) => m.id === "msg-2")).toBe(true);
+    // Chronological order
+    expect(merged[0].id).toBe("msg-1");
+    expect(merged[1].id).toBe("msg-2");
+    expect(merged[2].id).toBe("temp-999999");
+  });
+
+  test("mergeChatMessages returns identical reference if incoming has no new or changed messages", () => {
+    const original: RoomChatMessage[] = [
+      {
+        id: "msg-1",
+        roomCode: "123456",
+        senderId: "user-1",
+        senderName: "User 1",
+        senderRole: "student",
+        text: "Same content",
+        createdAt: "2026-11-08T10:00:00Z",
+      },
+    ];
+
+    const duplicateIncoming: RoomChatMessage[] = [
+      {
+        id: "msg-1",
+        roomCode: "123456",
+        senderId: "user-1",
+        senderName: "User 1",
+        senderRole: "student",
+        text: "Same content",
+        createdAt: "2026-11-08T10:00:00Z",
+      },
+    ];
+
+    const result = mergeChatMessages(original, duplicateIncoming);
+    expect(result).toBe(original); // Strict reference equality!
   });
 });

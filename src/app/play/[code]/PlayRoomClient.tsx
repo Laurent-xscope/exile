@@ -307,7 +307,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
         <motion.div
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="w-full max-w-md rounded-2xl bg-background-primary-default p-7 text-center shadow-lg"
+          className="w-full max-w-md rounded-2xl bg-background-primary-default p-5 sm:p-7 text-center shadow-lg"
         >
           <div className="mx-auto flex size-12 items-center justify-center rounded-xl bg-background-tertiary-error text-text-error-primary">
             <RiTimeLine className="size-6" aria-hidden />
@@ -339,7 +339,7 @@ export default function PlayRoomClient({ roomCode }: { roomCode: string }) {
           animate={{ opacity: 1, y: 0 }}
           className="w-full max-w-lg space-y-4"
         >
-          <div className="rounded-2xl bg-background-primary-default p-6 shadow-lg sm:p-8">
+          <div className="rounded-2xl bg-background-primary-default p-5 sm:p-8 shadow-lg">
             <div className="flex items-start gap-3 pb-5">
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">

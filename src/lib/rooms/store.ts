@@ -1410,16 +1410,26 @@ export async function setRoomQuestions(
     difficulty?: QuizDifficultyLevel;
     timePerQuestionSec?: number;
     streakBonus?: boolean;
+    shuffleQuestions?: boolean;
   }
 ): Promise<Question[] | null> {
   const room = await ensureRoomLoaded(roomCode);
   if (!room || room.status !== "waiting") return null;
 
+  let questions = input.questions;
+  if (input.shuffleQuestions && questions.length > 0) {
+    questions = [...questions];
+    for (let i = questions.length - 1; i > 0; i--) {
+      const j = randomInt(i + 1);
+      [questions[i], questions[j]] = [questions[j], questions[i]];
+    }
+  }
+
   const stored = await storeQuiz({
     id: crypto.randomUUID(),
     title: input.title,
     description: input.description ?? "",
-    questions: input.questions,
+    questions: questions,
   });
 
   room.questions = stored.questions;
@@ -1433,6 +1443,9 @@ export async function setRoomQuestions(
   }
   if (typeof input.streakBonus === "boolean") {
     room.settings.streakBonus = input.streakBonus;
+  }
+  if (typeof input.shuffleQuestions === "boolean") {
+    room.settings.shuffleQuestions = input.shuffleQuestions;
   }
   room.settings.questionsSnapshot = stored.questions;
   room.updatedAt = new Date().toISOString();

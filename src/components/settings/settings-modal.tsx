@@ -1,11 +1,10 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useTheme } from "next-themes";
 import {
   RiSettings3Line,
   RiVolumeUpLine,
-  RiTimeLine,
   RiContrastDropLine,
   RiUser3Line,
   RiRefreshLine,
@@ -43,18 +42,6 @@ interface SettingsModalProps {
   onClose: () => void;
 }
 
-function formatDurationSec(sec: number): string {
-  if (sec < 60) {
-    return `${sec} detik`;
-  }
-  const mins = Math.floor(sec / 60);
-  const remainingSec = sec % 60;
-  if (remainingSec === 0) {
-    return `${mins} menit`;
-  }
-  return `${mins} menit ${remainingSec} detik`;
-}
-
 interface SettingToggleRowProps {
   title: string;
   description: string;
@@ -71,14 +58,14 @@ function SettingToggleRow({
   onChange,
 }: SettingToggleRowProps) {
   return (
-    <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-2xl bg-background-secondary-default p-3 sm:p-3.5">
+    <div className="flex items-center justify-between gap-3 sm:gap-4 rounded-2xl bg-background-secondary-default p-3.5 sm:p-4">
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <p className="text-body-medium text-text-primary">{title}</p>
-        <p className="text-caption-1-regular text-text-secondary">
+        <p className="text-body-medium text-text-primary break-words">{title}</p>
+        <p className="text-caption-1-regular text-text-secondary break-words leading-relaxed">
           {description}
         </p>
       </div>
-      <div className="shrink-0">
+      <div className="shrink-0 ms-2 sm:ms-3 flex items-center justify-end">
         <MacOSToggle
           checked={checked}
           onChange={(val) => {
@@ -98,15 +85,8 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const { settings, updateSetting, mounted } = useExileSettings();
   const { theme, setTheme } = useTheme();
   const [activeTab, setActiveTab] = useState<
-    "audio" | "quiz" | "display" | "profile"
+    "audio" | "display" | "profile"
   >("audio");
-
-  useEffect(() => {
-    if (!mounted || typeof document === "undefined") return;
-    const root = document.documentElement;
-    root.classList.toggle("high-contrast", Boolean(settings.highContrast));
-    root.classList.toggle("compact-density", Boolean(settings.compactDensity));
-  }, [mounted, settings.highContrast, settings.compactDensity]);
 
   if (!mounted) return null;
 
@@ -126,7 +106,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
   const NAV_ITEMS = [
     { id: "audio", label: "Suara", icon: RiVolumeUpLine },
-    { id: "quiz", label: "Kuis", icon: RiTimeLine },
     { id: "display", label: "Tampilan", icon: RiContrastDropLine },
     { id: "profile", label: "Profil", icon: RiUser3Line },
   ] as const;
@@ -141,7 +120,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     >
       <ModalHeader
         title="Pengaturan"
-        description="Preferensi audio, durasi kuis, tampilan, dan profil."
+        description="Preferensi audio, tampilan, dan profil."
         icon={RiSettings3Line}
         closeLabel="Tutup pengaturan"
       />
@@ -149,7 +128,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       <ModalBody className="py-2 px-3 sm:px-6">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 min-h-[360px]">
           {/* Side navigation */}
-          <nav className="md:col-span-4 flex md:flex-col gap-1 pb-2 md:pb-0 md:pr-4 overflow-x-auto no-scrollbar">
+          <nav className="md:col-span-4 flex md:flex-col gap-1.5 md:gap-1 pb-2 md:pb-0 md:pe-4 overflow-x-auto no-scrollbar">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -159,7 +138,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   type="button"
                   onClick={() => setActiveTab(item.id)}
                   className={cx(
-                    "flex shrink-0 items-center gap-2 px-3 py-2 sm:px-3.5 sm:py-2.5 rounded-xl text-body-2-medium transition-colors cursor-pointer text-start select-none md:w-full",
+                    "flex shrink-0 items-center gap-2 px-3.5 py-2.5 md:px-3 md:py-2 rounded-full md:rounded-xl min-h-[44px] md:min-h-0 text-body-2-medium transition-colors cursor-pointer text-start select-none md:w-full",
                     "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                     isActive
                       ? "bg-background-secondary-hover text-text-primary font-semibold"
@@ -189,7 +168,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     <span className="text-body-medium text-text-primary">
                       Volume suara
                     </span>
-                    <span className="text-caption-1-medium font-mono text-text-secondary">
+                    <span className="text-caption-1-semibold font-mono tabular-nums text-text-primary bg-background-primary-default border border-border-button-default px-2.5 py-1 rounded-lg shrink-0">
                       {settings.soundVolume}%
                     </span>
                   </div>
@@ -203,15 +182,16 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       updateSetting("soundVolume", Number(e.target.value))
                     }
                     disabled={!settings.soundEnabled}
-                    className="w-full h-1.5 rounded-full bg-background-tertiary-default accent-[var(--color-text-primary)] cursor-pointer disabled:opacity-40"
+                    className="touch-slider w-full"
                   />
-                  <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     <Button
                       variant="secondary"
                       size="small"
                       leadingIcon={RiPlayFill}
                       disabled={!settings.soundEnabled}
                       onClick={() => handleTestSound("click")}
+                      className="min-h-[44px] flex-1 sm:flex-initial"
                     >
                       Tes klik
                     </Button>
@@ -221,6 +201,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       leadingIcon={RiPlayFill}
                       disabled={!settings.soundEnabled}
                       onClick={() => handleTestSound("correct")}
+                      className="min-h-[44px] flex-1 sm:flex-initial"
                     >
                       Tes gamelan
                     </Button>
@@ -230,6 +211,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       leadingIcon={RiPlayFill}
                       disabled={!settings.soundEnabled}
                       onClick={() => handleTestSound("fanfare")}
+                      className="min-h-[44px] flex-1 sm:flex-initial"
                     >
                       Tes fanfare
                     </Button>
@@ -242,52 +224,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   checked={settings.countdownTicks && settings.soundEnabled}
                   disabled={!settings.soundEnabled}
                   onChange={(val) => updateSetting("countdownTicks", val)}
-                />
-              </div>
-            )}
-
-            {activeTab === "quiz" && (
-              <div className="space-y-4">
-                <div className="rounded-2xl bg-background-secondary-default p-3.5 sm:p-4 space-y-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="text-body-medium text-text-primary">
-                        Durasi standar soal
-                      </span>
-                      <span className="text-caption-1-regular text-text-secondary">
-                        Waktu standar untuk menjawab setiap butir soal di arena kelas
-                      </span>
-                    </div>
-                    <span className="text-caption-1-semibold font-mono text-text-primary bg-background-primary-default border border-border-button-default px-2.5 py-1 rounded-lg shrink-0">
-                      {formatDurationSec(settings.defaultQuestionTimeSec)}
-                    </span>
-                  </div>
-                  <input
-                    type="range"
-                    min={15}
-                    max={90}
-                    step={5}
-                    aria-label="Durasi standar soal"
-                    value={settings.defaultQuestionTimeSec}
-                    onChange={(e) =>
-                      updateSetting("defaultQuestionTimeSec", Number(e.target.value))
-                    }
-                    className="w-full h-1.5 rounded-full bg-background-tertiary-default accent-[var(--color-text-primary)] cursor-pointer"
-                  />
-                </div>
-
-                <SettingToggleRow
-                  title="Bonus poin beruntun (streak)"
-                  description="Tambahan skor bila siswa menjawab benar secara berturut-turut"
-                  checked={settings.streakBonusEnabled}
-                  onChange={(val) => updateSetting("streakBonusEnabled", val)}
-                />
-
-                <SettingToggleRow
-                  title="Acak urutan soal"
-                  description="Variasikan urutan soal untuk setiap sesi kuis baru"
-                  checked={settings.shuffleQuestions}
-                  onChange={(val) => updateSetting("shuffleQuestions", val)}
                 />
               </div>
             )}
@@ -364,20 +300,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </SegmentedControlItem>
                   </SegmentedControl>
                 </div>
-
-                <SettingToggleRow
-                  title="Mode kontras tinggi"
-                  description="Tingkatkan ketajaman garis pembatas dan rasio kontras elemen"
-                  checked={settings.highContrast}
-                  onChange={(val) => updateSetting("highContrast", val)}
-                />
-
-                <SettingToggleRow
-                  title="Kepadatan tampilan ringkas"
-                  description="Optimalkan ruang layar untuk menampilkan lebih banyak data sekaligus"
-                  checked={settings.compactDensity}
-                  onChange={(val) => updateSetting("compactDensity", val)}
-                />
               </div>
             )}
 
@@ -400,16 +322,22 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
       </ModalBody>
 
-      <ModalFooter className="sm:justify-between pt-4">
+      <ModalFooter className="sm:justify-between pt-4 gap-2">
         <Button
           variant="secondary"
           size="small"
           leadingIcon={RiRefreshLine}
           onClick={handleResetDefaults}
+          className="min-h-[44px] sm:min-h-0"
         >
           Reset standar
         </Button>
-        <Button variant="secondary" size="small" onClick={onClose}>
+        <Button
+          variant="secondary"
+          size="small"
+          onClick={onClose}
+          className="min-h-[44px] sm:min-h-0"
+        >
           Selesai
         </Button>
       </ModalFooter>

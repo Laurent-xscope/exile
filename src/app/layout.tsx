@@ -32,13 +32,15 @@ const fraunces = Fraunces({
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
 };
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://www.exile.web.id"),
   title: "Exile",
   description:
-    "Platform evaluasi formatif terstruktur untuk guru dan siswa. Menyusun bahan ajar, kartu latihan 3D, dan kuis kelas real-time dengan penguatan pemahaman konsep.",
+    "Platform evaluasi formatif terstruktur untuk guru dan siswa. Menyusun bahan ajar, kartu latihan 3d, dan kuis kelas real-time dengan penguatan pemahaman konsep.",
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

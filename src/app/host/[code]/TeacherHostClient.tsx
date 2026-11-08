@@ -208,7 +208,20 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   const leaderboardFade = useScrollFade();
   const playersFade = useScrollFade();
   const dockCopilotFade = useScrollFade();
+  const mobileCopilotFade = useScrollFade();
+  const [showCopilotMobileSheet, setShowCopilotMobileSheet] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    if (!showCopilotMobileSheet) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setShowCopilotMobileSheet(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showCopilotMobileSheet]);
 
   const toggleFullscreen = () => {
     soundEffects.playClick();
@@ -309,6 +322,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
     difficulty?: QuizDifficultyLevel;
     timePerQuestionSec?: number;
     streakBonus?: boolean;
+    shuffleQuestions?: boolean;
   }) => {
     soundEffects.playClick();
     try {
@@ -661,12 +675,12 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
   return (
     <main className="min-h-screen bg-background-secondary-default text-text-primary flex flex-col transition-colors overflow-x-hidden">
       <header className="bg-background-primary-default/95 sticky top-0 z-40 backdrop-blur-md border-b border-separator-border">
-        <div className="mx-auto max-w-[960px] px-3 sm:px-6 py-2 min-h-16 flex flex-wrap items-center justify-between gap-2.5">
-          <div className="flex items-center gap-2.5 min-w-0 flex-wrap">
+        <div className="mx-auto max-w-[960px] px-3 sm:px-6 py-2 min-h-14 sm:min-h-16 flex items-center justify-between gap-1.5 sm:gap-2.5">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 min-w-0 shrink">
             <button
               type="button"
               onClick={() => setShowLeaveModal(true)}
-              className="flex min-h-10 min-w-10 items-center justify-center gap-2 outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              className="flex min-h-11 min-w-11 items-center justify-center outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring rounded-xl p-1 text-text-secondary hover:text-text-primary transition-colors cursor-pointer shrink-0"
               aria-label={isEn ? "Leave classroom" : "Tinggalkan ruang kelas"}
               title={isEn ? "Leave classroom" : "Tinggalkan ruang kelas"}
             >
@@ -674,34 +688,34 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             </button>
 
             <div className="min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-2">
                 {/* Status badge shown once the quiz is running or finished */}
                 {state?.status === "waiting" ? null : state?.status === "finished" ? (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-tertiary">
-                    <RiCheckboxCircleLine className="size-3.5" aria-hidden />
-                    <span>{isEn ? "Quiz finished" : "Kuis selesai"}</span>
+                  <span className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-tertiary truncate">
+                    <RiCheckboxCircleLine className="size-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{isEn ? "Quiz finished" : "Kuis selesai"}</span>
                   </span>
                 ) : (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-primary border border-border-button-default">
-                    <span className="relative flex size-2">
+                  <span className="inline-flex items-center gap-1.5 px-2 sm:px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-primary border border-border-button-default truncate">
+                    <span className="relative flex size-2 shrink-0">
                       <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-text-secondary opacity-50" />
                       <span className="relative inline-flex rounded-full size-2 bg-text-primary" />
                     </span>
-                    <RiCheckLine className="size-3.5" aria-hidden />
-                    <span>{isEn ? "Quiz active" : "Kuis aktif"}</span>
+                    <RiCheckLine className="size-3.5 shrink-0" aria-hidden />
+                    <span className="truncate">{isEn ? "Quiz active" : "Kuis aktif"}</span>
                   </span>
                 )}
               </div>
             </div>
           </div>
 
-          <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap justify-end min-w-0">
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
             <TelegramSpoilerPin
               pin={roomCode}
               size="sm"
               isEn={isEn}
               label={isEn ? "Room pin" : "Pin ruang"}
-              className="shrink-0"
+              className="shrink-0 min-h-11 sm:min-h-9 flex items-center"
             />
 
             <RoomChatWidget
@@ -712,7 +726,23 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               hostToken={hostToken}
               messages={state?.chatMessages}
               isEn={isEn}
+              className="shrink-0"
             />
+
+            {/* Mobile Copilot toggle button */}
+            <button
+              type="button"
+              onClick={() => setShowCopilotMobileSheet(true)}
+              aria-label={isEn ? "Open room copilot" : "Buka copilot ruang"}
+              className={cx(
+                "relative inline-flex lg:hidden items-center justify-center gap-1.5 min-h-11 sm:min-h-9 px-2.5 sm:px-3 py-1.5 rounded-xl text-caption-1-medium transition outline-none cursor-pointer shrink-0",
+                "focus-visible:ring-2 focus-visible:ring-border-focus-ring",
+                "bg-background-secondary-default hover:bg-background-secondary-hover text-text-primary border border-border-button-default"
+              )}
+            >
+              <RiCopilotFill className="size-4 shrink-0 text-text-primary" aria-hidden="true" />
+              <span className="hidden sm:inline font-medium">Copilot</span>
+            </button>
 
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-background-primary-default border border-border-button-default">
               <RiGroupLine className="size-4 text-foreground-icon-secondary" aria-hidden />
@@ -721,10 +751,11 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               </span>
             </div>
 
-            <ThemeToggle />
+            <ThemeToggle className="min-h-11 min-w-11 sm:size-9 shrink-0" />
             <MoreMenu
               items={headerMoreMenuItems}
               aria-label={isEn ? "More options" : "Opsi lanjutan"}
+              className="shrink-0"
             />
           </div>
         </div>
@@ -741,6 +772,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 initialDifficulty={currentDifficulty}
                 initialTimeSec={currentTimeSec}
                 initialStreakBonus={currentStreakBonus}
+                initialShuffleQuestions={state?.settings?.shuffleQuestions ?? true}
                 onSettingsChange={(partial) => handleUpdateSettings(partial)}
                 onCreated={async () => {
                   setReplacingMaterial(false);
@@ -765,14 +797,14 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="space-y-1.5">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <span className="relative flex size-2.5">
+                    <span className="relative flex size-2.5 shrink-0">
                       <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-text-secondary opacity-50" />
                       <span className="relative inline-flex rounded-full size-2.5 bg-text-primary" />
                     </span>
                     <span className="text-body-semibold text-text-primary">
                       {isEn ? "Classroom lobby waiting for students" : "Lobi ruangan menunggu siswa"}
                     </span>
-                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
+                    <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default shrink-0">
                       {totalApproved} {isEn ? "students ready" : "siswa siap"}
                     </span>
                   </div>
@@ -783,19 +815,20 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   </p>
                 </div>
 
-                <div className="flex shrink-0 items-center gap-2">
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                   <Button
                     variant="primary"
                     leadingIcon={RiPlayCircleLine}
                     onClick={() => handleAction("resume_quiz")}
                     disabled={actionLoading || quizStarted || !hasQuestions}
-                    className="shrink-0"
+                    className="w-full sm:w-auto flex-1 sm:flex-initial justify-center min-h-11"
                   >
                     {isEn ? "Start quiz now (q1)" : "Mulai kuis sekarang (soal 1)"}
                   </Button>
                   <MoreMenu
                     items={lobbyCardMoreMenuItems}
                     aria-label={isEn ? "Lobby card options" : "Opsi kartu lobi"}
+                    className="shrink-0"
                   />
                 </div>
               </div>
@@ -807,17 +840,22 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             <motion.div
               initial={{ opacity: 0, scale: 0.98 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="p-5 rounded-3xl bg-background-secondary-default shadow-card flex flex-col gap-4"
+              className="p-4 sm:p-5 rounded-3xl bg-background-secondary-default shadow-card flex flex-col gap-4"
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
+                <div className="flex items-start sm:items-center gap-3 min-w-0">
                   <div className="size-9 rounded-xl bg-background-primary-default text-foreground-icon-secondary border border-border-button-default flex items-center justify-center shrink-0">
                     <RiTimeLine className="size-5" aria-hidden />
                   </div>
-                  <div>
-                    <h4 className="text-body-semibold text-text-primary">
-                      {totalPending} {isEn ? "students waiting for approval" : "siswa menunggu persetujuan"}
-                    </h4>
+                  <div className="min-w-0 space-y-0.5">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-body-semibold text-text-primary">
+                        {isEn ? "Students waiting for approval" : "Siswa menunggu persetujuan"}
+                      </h4>
+                      <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-primary-default text-text-secondary border border-border-button-default shrink-0 tabular-nums">
+                        {totalPending} {isEn ? "waiting" : "tertunda"}
+                      </span>
+                    </div>
                     <p className="text-caption-1-regular text-text-secondary">
                       {isEn
                         ? "Approve students individually below or admit all at once."
@@ -826,13 +864,14 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center gap-2 w-full sm:w-auto shrink-0">
                   <Button
                     variant="secondary"
                     size="small"
                     leadingIcon={RiCheckDoubleLine}
                     onClick={handleApproveAllPlayers}
                     disabled={actionLoading}
+                    className="w-full sm:w-auto justify-center min-h-11 sm:min-h-9"
                   >
                     {isEn ? `Approve all (${totalPending})` : `Setujui semua (${totalPending})`}
                   </Button>
@@ -840,13 +879,13 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               </div>
 
               {/* Individual pending student approval cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2.5 pt-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
                 {pendingPlayersList.map((p) => (
                   <div
                     key={p.id}
-                    className="p-3 rounded-2xl bg-background-primary-default shadow-2xs flex items-center justify-between gap-2"
+                    className="p-3 sm:p-3.5 rounded-2xl bg-background-primary-default shadow-2xs flex items-center justify-between gap-2.5"
                   >
-                    <div className="flex items-center gap-2 min-w-0">
+                    <div className="flex items-center gap-2.5 min-w-0">
                       <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />
                       <span className="text-body-medium text-text-primary font-medium truncate" title={p.nickname}>
                         {p.nickname}
@@ -855,37 +894,35 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       <Button
+                        variant="ghost"
+                        size="small"
+                        leadingIcon={rejectingPlayerId === p.id ? undefined : RiCloseLine}
+                        onClick={() => handleRejectPlayer(p.id)}
+                        disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
+                        className="min-h-11 px-3 text-caption-1-medium text-text-error-primary hover:text-text-error-primary hover:bg-background-secondary-hover"
+                        aria-label={isEn ? `Reject student ${p.nickname}` : `Tolak siswa ${p.nickname}`}
+                      >
+                        {rejectingPlayerId === p.id ? (
+                          <Spinner size="xs" aria-label={isEn ? "Rejecting" : "Menolak"} />
+                        ) : (
+                          isEn ? "Reject" : "Tolak"
+                        )}
+                      </Button>
+                      <Button
                         variant="secondary"
                         size="small"
                         leadingIcon={approvingPlayerId === p.id ? undefined : RiCheckLine}
                         onClick={() => handleApprovePlayer(p.id)}
                         disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
+                        className="min-h-11 px-3 text-caption-1-medium"
+                        aria-label={isEn ? `Approve student ${p.nickname}` : `Setujui siswa ${p.nickname}`}
                       >
                         {approvingPlayerId === p.id ? (
-                          <Spinner size="xs" aria-label="Menyetujui" />
+                          <Spinner size="xs" aria-label={isEn ? "Approving" : "Menyetujui"} />
                         ) : (
                           isEn ? "Approve" : "Setujui"
                         )}
                       </Button>
-                      <MoreMenu
-                        items={[
-                          {
-                            id: `reject-${p.id}`,
-                            label: isEn ? "Reject student" : "Tolak siswa",
-                            icon: RiCloseLine,
-                            isDestructive: true,
-                            destructiveTitle: isEn ? "Reject student admission" : "Tolak akses siswa",
-                            destructiveDescription: isEn
-                              ? `Are you sure you want to reject admission for ${p.nickname}?`
-                              : `Apakah anda yakin ingin menolak akses untuk ${p.nickname}?`,
-                            confirmLabel: isEn ? "Reject" : "Tolak",
-                            cancelLabel: isEn ? "Cancel" : "Batal",
-                            disabled: actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id,
-                            onAction: () => handleRejectPlayer(p.id),
-                          },
-                        ]}
-                        aria-label={isEn ? "Student options" : "Opsi siswa"}
-                      />
                     </div>
                   </div>
                 ))}
@@ -899,15 +936,33 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
               setActiveTab(String(key) as "question" | "leaderboard" | "players")
             }
           >
-            <TabList className="overflow-x-auto no-scrollbar pb-1 max-w-full" aria-label="Navigasi ruang guru">
-              <Tab id="question" icon={RiBookOpenLine}>
-                Pertanyaan aktif
+            <TabList
+              className="flex items-center gap-1 sm:gap-2 overflow-x-auto no-scrollbar scroll-smooth pb-1 px-0.5 max-w-full touch-pan-x"
+              aria-label={isEn ? "Teacher room navigation" : "Navigasi ruang guru"}
+            >
+              <Tab id="question" icon={RiBookOpenLine} className="shrink-0 px-3 py-2 sm:px-4 sm:py-2.5">
+                {isEn ? "Active question" : "Pertanyaan aktif"}
               </Tab>
-              <Tab id="leaderboard" icon={RiTrophyLine} count={state?.leaderboard?.length ?? 0}>
-                Papan skor
+              <Tab
+                id="leaderboard"
+                icon={RiTrophyLine}
+                count={state?.leaderboard?.length ?? 0}
+                className="shrink-0 px-3 py-2 sm:px-4 sm:py-2.5"
+              >
+                {isEn ? "Leaderboard" : "Papan skor"}
               </Tab>
-              <Tab id="players" icon={RiGroupLine} count={totalApproved}>
-                Daftar siswa {totalPending > 0 ? `(${totalPending} tertunda)` : ""}
+              <Tab
+                id="players"
+                icon={RiGroupLine}
+                count={totalApproved}
+                className="shrink-0 px-3 py-2 sm:px-4 sm:py-2.5"
+              >
+                {isEn ? "Student list" : "Daftar siswa"}
+                {totalPending > 0
+                  ? isEn
+                    ? ` (${totalPending} pending)`
+                    : ` (${totalPending} tertunda)`
+                  : ""}
               </Tab>
             </TabList>
 
@@ -916,26 +971,27 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 <motion.div
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-background-primary-default rounded-3xl p-6 shadow-card space-y-5"
+                  className="bg-background-primary-default rounded-3xl p-4 sm:p-6 shadow-card space-y-4 sm:space-y-5"
                 >
-                  <div className="flex items-center justify-between gap-2 flex-wrap">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-2 flex-wrap min-w-0">
                       <Chip variant="subtle" color="neutral">
-                        Soal {(state?.currentQuestionIndex || 0) + 1} dari{" "}
-                        {state?.totalQuestions || 5}
+                        {isEn
+                          ? `Question ${(state?.currentQuestionIndex || 0) + 1} of ${state?.totalQuestions || 5}`
+                          : `Soal ${(state?.currentQuestionIndex || 0) + 1} dari ${state?.totalQuestions || 5}`}
                       </Chip>
                       {currentQ.conceptTag && (
-                        <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
+                        <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default truncate max-w-[200px]">
                           {currentQ.conceptTag}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-between sm:justify-end gap-2.5 w-full sm:w-auto shrink-0">
                       <span className="text-caption-1-medium text-text-secondary tabular-nums">
-                        Respon masuk:{" "}
+                        {isEn ? "Responses: " : "Respon masuk: "}
                         <strong className="text-text-primary">{submissionsCount}</strong>/
-                        {totalApproved} siswa
+                        {totalApproved} {isEn ? "students" : "siswa"}
                       </span>
                       <MoreMenu
                         items={activeQuizCardMoreMenuItems}
@@ -943,6 +999,39 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                       />
                     </div>
                   </div>
+
+                  {/* Question Stepper */}
+                  {(state?.totalQuestions ?? 0) > 1 && (
+                    <nav
+                      aria-label={isEn ? "Question stepper" : "Urutan pertanyaan"}
+                      className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 -mx-1 px-1 touch-pan-x"
+                    >
+                      {Array.from({ length: state?.totalQuestions || 5 }, (_, idx) => {
+                        const isPast = idx < (state?.currentQuestionIndex || 0);
+                        const isCurrent = idx === (state?.currentQuestionIndex || 0);
+                        return (
+                          <div
+                            key={idx}
+                            className={cx(
+                              "flex items-center gap-1 px-2.5 py-1 rounded-xl text-caption-2-medium shrink-0 transition-colors",
+                              isCurrent
+                                ? "bg-background-secondary-default text-text-primary border border-border-button-hover shadow-2xs font-medium"
+                                : isPast
+                                  ? "bg-background-secondary-default/50 text-text-secondary border border-border-button-default"
+                                  : "bg-background-secondary-default/20 text-text-tertiary border border-transparent"
+                            )}
+                          >
+                            {isPast ? (
+                              <RiCheckLine className="size-3 text-text-secondary shrink-0" aria-hidden="true" />
+                            ) : (
+                              <span className="size-1.5 rounded-full shrink-0 bg-current" aria-hidden="true" />
+                            )}
+                            <span>{isEn ? `Q${idx + 1}` : `Soal ${idx + 1}`}</span>
+                          </div>
+                        );
+                      })}
+                    </nav>
+                  )}
 
                   <ProgressTrack percentage={progressPercent} size="md" />
 
@@ -992,7 +1081,7 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                             }));
                           }}
                           className={cx(
-                            "p-4 rounded-2xl transition relative overflow-hidden space-y-2 text-start cursor-pointer",
+                            "p-3.5 sm:p-4 rounded-2xl transition relative overflow-hidden space-y-2 text-start cursor-pointer w-full",
                             selectedOnHost
                               ? option.isCorrect
                                 ? "bg-background-secondary-default ring-1 ring-inset ring-border-button-hover"
@@ -1003,24 +1092,24 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           {/* Percentage visual bar */}
                           {votePercent > 0 && (
                             <div
-                              aria-hidden
+                              aria-hidden="true"
                               style={{ width: `${votePercent}%` }}
                               className={cx(
                                 "pointer-events-none absolute inset-y-0 start-0 transition-all duration-300",
                                 selectedOnHost
-                              ? option.isCorrect
-                                ? "bg-background-tertiary-default"
-                                : "bg-background-tertiary-error"
-                              : "bg-text-primary/5"
+                                  ? option.isCorrect
+                                    ? "bg-background-tertiary-default opacity-90"
+                                    : "bg-background-tertiary-error opacity-90"
+                                  : "bg-background-tertiary-default opacity-70"
                               )}
                             />
                           )}
 
-                          <div className="flex items-start justify-between gap-2 relative z-10">
-                            <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="flex items-start justify-between gap-3 relative z-10 w-full">
+                            <div className="flex items-start gap-2.5 min-w-0 flex-1">
                               <span
                                 className={cx(
-                                  "size-6 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0",
+                                  "size-6 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0 mt-0.5",
                                   selectedOnHost
                                     ? option.isCorrect
                                       ? "bg-background-tertiary-default text-text-primary border border-border-button-default"
@@ -1030,14 +1119,14 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                               >
                                 {option.label}
                               </span>
-                              <span className="text-body-medium text-text-primary">
+                              <span className="text-body-medium text-text-primary break-words leading-relaxed">
                                 {option.text}
                               </span>
                             </div>
 
                             <span
                               className={cx(
-                                "inline-flex items-center px-2 py-0.5 rounded-md text-caption-2-medium tabular-nums shrink-0",
+                                "inline-flex items-center px-2 py-0.5 rounded-md text-caption-2-medium tabular-nums shrink-0 self-start",
                                 selectedOnHost
                                   ? option.isCorrect
                                     ? "bg-background-tertiary-default text-text-primary border border-border-button-default"
@@ -1050,16 +1139,44 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                           </div>
 
                           {!option.isCorrect && optRationale && (voteCount > 0 || selectedOnHost) && (
-                            <p className="text-caption-2-regular text-text-secondary pt-1.5 ps-8 relative z-10">
-                              <span className="font-semibold text-text-primary">
-                                {isEn ? "Weak point: " : "Titik lemah: "}
-                              </span>
-                              {optRationale}
-                            </p>
+                            <div className="pt-1.5 ps-8.5 relative z-10">
+                              <p className="text-caption-2-regular text-text-primary/90 leading-relaxed break-words bg-background-primary-default/70 p-2 rounded-xl border border-border-button-default">
+                                <span className="text-caption-2-semibold text-text-primary inline-block me-1">
+                                  {isEn ? "Weak point: " : "Titik lemah: "}
+                                </span>
+                                <span>{optRationale}</span>
+                              </p>
+                            </div>
                           )}
                         </button>
                       );
                     })}
+                  </div>
+
+                  {/* Mobile quick classroom action bar */}
+                  <div className="flex sm:hidden items-center gap-2 pt-2 border-t border-separator-border">
+                    {state?.status !== "finished" && (
+                      <Button
+                        variant="primary"
+                        size="small"
+                        leadingIcon={RiArrowRightLine}
+                        onClick={() => handleAction("advance_question")}
+                        disabled={actionLoading || !hasQuestions}
+                        className="flex-1 justify-center"
+                      >
+                        {isEn ? "Next question" : "Soal berikutnya"}
+                      </Button>
+                    )}
+                    <Button
+                      variant="secondary"
+                      size="small"
+                      leadingIcon={RiTrophyLine}
+                      onClick={() => handleAction("show_leaderboard")}
+                      disabled={actionLoading || !hasQuestions}
+                      className="flex-1 justify-center"
+                    >
+                      {isEn ? "Leaderboard" : "Papan skor"}
+                    </Button>
                   </div>
 
                   {selectedHostAnswers[currentQ.questionOrder || 1] && currentQ.explanation && (
@@ -1268,13 +1385,13 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                 {/* Pending Approval Section */}
                 {totalPending > 0 && (
                   <div className="space-y-3">
-                    <div className="flex items-center justify-between">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
                       <div className="flex items-center gap-2">
                         <span className="text-body-semibold text-text-primary">
-                          Menunggu persetujuan
+                          {isEn ? "Waiting for approval" : "Menunggu persetujuan"}
                         </span>
-                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
-                          {totalPending} siswa
+                        <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default tabular-nums">
+                          {totalPending} {isEn ? "students" : "siswa"}
                         </span>
                       </div>
                       <Button
@@ -1282,16 +1399,18 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                         size="small"
                         leadingIcon={RiCheckDoubleLine}
                         onClick={handleApproveAllPlayers}
+                        disabled={actionLoading}
+                        className="w-full sm:w-auto justify-center min-h-11 sm:min-h-9"
                       >
-                        Setujui semua
+                        {isEn ? `Approve all (${totalPending})` : `Setujui semua (${totalPending})`}
                       </Button>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
                       {pendingPlayersList.map((p) => (
                         <div
                           key={p.id}
-                          className="p-3.5 rounded-2xl bg-background-secondary-default flex items-center justify-between gap-3"
+                          className="p-3 sm:p-3.5 rounded-2xl bg-background-secondary-default flex items-center justify-between gap-2.5"
                         >
                           <div className="flex items-center gap-2.5 min-w-0">
                             <Avatar size="xs" color="neutral" initials={getInitials(p.nickname)} />
@@ -1300,44 +1419,42 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
                                 {p.nickname}
                               </span>
                               <span className="text-caption-2-regular text-text-secondary">
-                                Tamu ruangan kuis
+                                {isEn ? "Quiz room guest" : "Tamu ruangan kuis"}
                               </span>
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <Button
+                              variant="ghost"
+                              size="small"
+                              leadingIcon={rejectingPlayerId === p.id ? undefined : RiCloseLine}
+                              onClick={() => handleRejectPlayer(p.id)}
+                              disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
+                              className="min-h-11 px-3 text-caption-1-medium text-text-error-primary hover:text-text-error-primary hover:bg-background-secondary-hover"
+                              aria-label={isEn ? `Reject student ${p.nickname}` : `Tolak siswa ${p.nickname}`}
+                            >
+                              {rejectingPlayerId === p.id ? (
+                                <Spinner size="xs" aria-label={isEn ? "Rejecting" : "Menolak"} />
+                              ) : (
+                                isEn ? "Reject" : "Tolak"
+                              )}
+                            </Button>
                             <Button
                               variant="secondary"
                               size="small"
                               leadingIcon={approvingPlayerId === p.id ? undefined : RiCheckLine}
                               onClick={() => handleApprovePlayer(p.id)}
                               disabled={actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id}
+                              className="min-h-11 px-3 text-caption-1-medium"
+                              aria-label={isEn ? `Approve student ${p.nickname}` : `Setujui siswa ${p.nickname}`}
                             >
                               {approvingPlayerId === p.id ? (
-                                <Spinner size="xs" aria-label="Menyetujui" />
+                                <Spinner size="xs" aria-label={isEn ? "Approving" : "Menyetujui"} />
                               ) : (
                                 isEn ? "Approve" : "Setujui"
                               )}
                             </Button>
-                            <MoreMenu
-                              items={[
-                                {
-                                  id: `reject-${p.id}`,
-                                  label: isEn ? "Reject student" : "Tolak siswa",
-                                  icon: RiCloseLine,
-                                  isDestructive: true,
-                                  destructiveTitle: isEn ? "Reject student admission" : "Tolak akses siswa",
-                                  destructiveDescription: isEn
-                                    ? `Are you sure you want to reject admission for ${p.nickname}?`
-                                    : `Apakah anda yakin ingin menolak akses untuk ${p.nickname}?`,
-                                  confirmLabel: isEn ? "Reject" : "Tolak",
-                                  cancelLabel: isEn ? "Cancel" : "Batal",
-                                  disabled: actionLoading || approvingPlayerId === p.id || rejectingPlayerId === p.id,
-                                  onAction: () => handleRejectPlayer(p.id),
-                                },
-                              ]}
-                              aria-label={isEn ? "Student options" : "Opsi siswa"}
-                            />
                           </div>
                         </div>
                       ))}
@@ -1485,145 +1602,160 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
             </div>
           </div>
 
-          {/* Collapsible Copilot Ruang Card */}
-          {!showCopilotDock ? (
+          {/* Mobile Copilot launcher card */}
+          <div className="lg:hidden">
             <Button
               type="button"
               variant="secondary"
-              size="small"
               leadingIcon={RiCopilotFill}
-              onClick={() => setShowCopilotDock(true)}
-              className="w-full justify-center text-caption-1-medium py-2 rounded-2xl"
+              onClick={() => setShowCopilotMobileSheet(true)}
+              className="w-full justify-center text-caption-1-medium py-2.5 rounded-2xl"
             >
               {isEn ? "Open room copilot" : "Buka copilot ruang"}
             </Button>
-          ) : (
-            <div className="bg-background-primary-default rounded-3xl p-5 shadow-card space-y-4">
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                  <div className="size-8 rounded-xl bg-background-secondary-default text-foreground-icon-secondary border border-border-button-default flex items-center justify-center shrink-0">
-                    <RiCopilotFill className="size-4" aria-hidden />
+          </div>
+
+          {/* Desktop Collapsible Copilot Ruang Card */}
+          <div className="hidden lg:block">
+            {!showCopilotDock ? (
+              <Button
+                type="button"
+                variant="secondary"
+                size="small"
+                leadingIcon={RiCopilotFill}
+                onClick={() => setShowCopilotDock(true)}
+                className="w-full justify-center text-caption-1-medium py-2 rounded-2xl"
+              >
+                {isEn ? "Open room copilot" : "Buka copilot ruang"}
+              </Button>
+            ) : (
+              <div className="bg-background-primary-default rounded-3xl p-5 shadow-card space-y-4">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2.5 min-w-0 flex-1">
+                    <div className="size-8 rounded-xl bg-background-secondary-default text-foreground-icon-secondary border border-border-button-default flex items-center justify-center shrink-0">
+                      <RiCopilotFill className="size-4" aria-hidden />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-body-semibold text-text-primary block">
+                        Copilot ruang
+                      </span>
+                      <span className="text-caption-2-regular text-text-secondary block truncate">
+                        {totalApproved} {isEn ? "students connected" : "siswa terhubung"}
+                      </span>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-body-semibold text-text-primary block">
-                      Copilot ruang
-                    </span>
-                    <span className="text-caption-2-regular text-text-secondary block truncate">
-                      {totalApproved} {isEn ? "students connected" : "siswa terhubung"}
-                    </span>
-                  </div>
-                </div>
 
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="small"
-                  onClick={() => setShowCopilotDock(false)}
-                  className="shrink-0"
-                >
-                  {isEn ? "Hide" : "Sembunyikan"}
-                </Button>
-              </div>
-
-              <div className="space-y-3 pt-1">
-                {/* Quick Action Prompt Chips */}
-                <div className="flex flex-wrap gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => handleAskCopilot("Siapa siswa yang cocok untuk presentasi materi saat ini?")}
-                    className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
-                  >
-                    <RiUserSharedLine className="size-3 text-foreground-icon-secondary" aria-hidden />
-                    <span>Pilih siswa acak</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAskCopilot("Bagaimana ringkasan performa dan pemahaman materi kelas saat ini?")}
-                    className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
-                  >
-                    <RiBarChartBoxLine className="size-3 text-foreground-icon-secondary" aria-hidden />
-                    <span>Evaluasi kelas</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleAskCopilot("Berikan 2 pertanyaan pemantik lisan untuk mendiskusikan soal ini.")}
-                    className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
-                  >
-                    <RiLightbulbLine className="size-3 text-foreground-icon-secondary" aria-hidden />
-                    <span>Pemantik diskusi</span>
-                  </button>
-                </div>
-
-                {/* Copilot Chat Log with ScrollFade */}
-                <div className="relative min-h-0">
-                  <div
-                    onScroll={dockCopilotFade.onScroll}
-                    className="space-y-2.5 max-h-64 overflow-y-auto p-3 rounded-2xl bg-background-secondary-default border border-border-button-default"
-                  >
-                    {copilotMessages.map((msg, i) => (
-                      <div
-                        key={i}
-                        className={cx(
-                          "p-3 rounded-2xl text-body-2-regular whitespace-pre-wrap leading-relaxed",
-                          msg.role === "user"
-                            ? "ms-auto max-w-[90%] bg-background-primary-default text-text-primary"
-                            : "me-auto max-w-[95%] bg-background-primary-default text-text-primary shadow-2xs"
-                        )}
-                      >
-                        {msg.role === "assistant" && (
-                          <span className="text-caption-2-semibold text-text-secondary block mb-1">
-                            Copilot ruang
-                          </span>
-                        )}
-                        <FormattedMessage content={msg.content} />
-                      </div>
-                    ))}
-                    {copilotLoading && (
-                      <div className="p-2.5 rounded-2xl me-auto bg-background-primary-default flex items-center gap-2 text-caption-2-medium text-text-secondary">
-                        <Spinner size="xs" aria-label="Memuat analisis" />
-                        <span>Copilot sedang menganalisis kelas...</span>
-                      </div>
-                    )}
-                  </div>
-                  <ScrollFade
-                    progress={dockCopilotFade.progress}
-                    surfaceClassName="from-background-primary-default"
-                  />
-                </div>
-
-                {/* Compact input form */}
-                <form
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    handleAskCopilot();
-                  }}
-                  className="flex items-center gap-1.5 pt-0.5"
-                >
-                  <InputBase
-                    aria-label={isEn ? "Ask copilot" : "Tanyakan ke copilot"}
-                    value={copilotInput}
-                    onChange={(e) => setCopilotInput(e.target.value)}
-                    placeholder={
-                      isEn
-                        ? "Ask copilot about this room..."
-                        : "Tanyakan ke copilot..."
-                    }
-                    className="flex-1"
-                  />
                   <Button
-                    type="submit"
-                    variant="secondary"
+                    type="button"
+                    variant="ghost"
                     size="small"
-                    disabled={copilotLoading || !copilotInput.trim()}
-                    leadingIcon={RiSendPlaneLine}
+                    onClick={() => setShowCopilotDock(false)}
                     className="shrink-0"
                   >
-                    {isEn ? "Send" : "Kirim"}
+                    {isEn ? "Hide" : "Sembunyikan"}
                   </Button>
-                </form>
+                </div>
+
+                <div className="space-y-3 pt-1">
+                  {/* Quick Action Prompt Chips */}
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => handleAskCopilot("Siapa siswa yang cocok untuk presentasi materi saat ini?")}
+                      className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
+                    >
+                      <RiUserSharedLine className="size-3 text-foreground-icon-secondary" aria-hidden />
+                      <span>{isEn ? "Pick student" : "Pilih siswa acak"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAskCopilot("Bagaimana ringkasan performa dan pemahaman materi kelas saat ini?")}
+                      className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
+                    >
+                      <RiBarChartBoxLine className="size-3 text-foreground-icon-secondary" aria-hidden />
+                      <span>{isEn ? "Evaluate class" : "Evaluasi kelas"}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAskCopilot("Berikan 2 pertanyaan pemantik lisan untuk mendiskusikan soal ini.")}
+                      className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors"
+                    >
+                      <RiLightbulbLine className="size-3 text-foreground-icon-secondary" aria-hidden />
+                      <span>{isEn ? "Discussion spark" : "Pemantik diskusi"}</span>
+                    </button>
+                  </div>
+
+                  {/* Copilot Chat Log with ScrollFade */}
+                  <div className="relative min-h-0">
+                    <div
+                      onScroll={dockCopilotFade.onScroll}
+                      className="space-y-2.5 max-h-64 overflow-y-auto p-3 rounded-2xl bg-background-secondary-default border border-border-button-default"
+                    >
+                      {copilotMessages.map((msg, i) => (
+                        <div
+                          key={i}
+                          className={cx(
+                            "p-3 rounded-2xl text-body-2-regular whitespace-pre-wrap leading-relaxed",
+                            msg.role === "user"
+                              ? "ms-auto max-w-[90%] bg-background-primary-default text-text-primary"
+                              : "me-auto max-w-[95%] bg-background-primary-default text-text-primary shadow-2xs"
+                          )}
+                        >
+                          {msg.role === "assistant" && (
+                            <span className="text-caption-2-semibold text-text-secondary block mb-1">
+                              {isEn ? "Room copilot" : "Copilot ruang"}
+                            </span>
+                          )}
+                          <FormattedMessage content={msg.content} />
+                        </div>
+                      ))}
+                      {copilotLoading && (
+                        <div className="p-2.5 rounded-2xl me-auto bg-background-primary-default flex items-center gap-2 text-caption-2-medium text-text-secondary">
+                          <Spinner size="xs" aria-label={isEn ? "Loading analysis" : "Memuat analisis"} />
+                          <span>{isEn ? "Copilot is analyzing the class..." : "Copilot sedang menganalisis kelas..."}</span>
+                        </div>
+                      )}
+                    </div>
+                    <ScrollFade
+                      progress={dockCopilotFade.progress}
+                      surfaceClassName="from-background-primary-default"
+                    />
+                  </div>
+
+                  {/* Compact input form */}
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      handleAskCopilot();
+                    }}
+                    className="flex items-center gap-1.5 pt-0.5"
+                  >
+                    <InputBase
+                      aria-label={isEn ? "Ask copilot" : "Tanyakan ke copilot"}
+                      value={copilotInput}
+                      onChange={(e) => setCopilotInput(e.target.value)}
+                      placeholder={
+                        isEn
+                          ? "Ask copilot about this room..."
+                          : "Tanyakan ke copilot..."
+                      }
+                      className="flex-1"
+                    />
+                    <Button
+                      type="submit"
+                      variant="secondary"
+                      size="small"
+                      disabled={copilotLoading || !copilotInput.trim()}
+                      leadingIcon={RiSendPlaneLine}
+                      className="shrink-0"
+                    >
+                      {isEn ? "Send" : "Kirim"}
+                    </Button>
+                  </form>
+                </div>
               </div>
-            </div>
-          )}
+            )}
+          </div>
 
           {!showGuideTips ? (
             <Button
@@ -1727,6 +1859,159 @@ export default function TeacherHostClient({ roomCode }: { roomCode: string }) {
           </Button>
         </ModalFooter>
       </Modal>
+
+      {/* Mobile Copilot Full-Width Responsive Sheet */}
+      {showCopilotMobileSheet && (
+        <>
+          {/* Backdrop */}
+          <div
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-50 lg:hidden"
+            onClick={() => setShowCopilotMobileSheet(false)}
+            aria-hidden="true"
+          />
+
+          {/* Sheet dialog with virtual keyboard handling */}
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={isEn ? "Room copilot" : "Copilot ruang"}
+            className="fixed inset-x-0 bottom-0 z-50 flex h-[85dvh] max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-3xl bg-background-primary-default shadow-dropdown border-t border-border-button-default lg:hidden overscroll-contain animate-in slide-in-from-bottom duration-300"
+            style={{
+              paddingBottom: "max(1rem, env(safe-area-inset-bottom, 1rem))",
+            }}
+          >
+            {/* Grab handle */}
+            <div className="flex justify-center pt-2.5 pb-1 shrink-0">
+              <div className="h-1.5 w-12 rounded-full bg-border-button-default" />
+            </div>
+
+            {/* Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-separator-border shrink-0">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="size-8 rounded-xl bg-background-secondary-default text-foreground-icon-secondary border border-border-button-default flex items-center justify-center shrink-0">
+                  <RiCopilotFill className="size-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0">
+                  <span className="text-body-semibold text-text-primary block truncate">
+                    {isEn ? "Room copilot" : "Copilot ruang"}
+                  </span>
+                  <span className="text-caption-2-regular text-text-secondary block truncate">
+                    {totalApproved} {isEn ? "students connected" : "siswa terhubung"}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowCopilotMobileSheet(false)}
+                aria-label={isEn ? "Close copilot" : "Tutup copilot"}
+                className="flex size-8 items-center justify-center rounded-full text-text-secondary hover:bg-background-secondary-default hover:text-text-primary transition cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+              >
+                <RiCloseLine className="size-5" aria-hidden="true" />
+              </button>
+            </div>
+
+            {/* Quick action prompt chips */}
+            <div className="px-4 py-2 flex items-center gap-1.5 overflow-x-auto no-scrollbar shrink-0 touch-pan-x">
+              <button
+                type="button"
+                onClick={() => handleAskCopilot("Siapa siswa yang cocok untuk presentasi materi saat ini?")}
+                className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors shrink-0"
+              >
+                <RiUserSharedLine className="size-3 text-foreground-icon-secondary" aria-hidden="true" />
+                <span>{isEn ? "Pick student" : "Pilih siswa acak"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAskCopilot("Bagaimana ringkasan performa dan pemahaman materi kelas saat ini?")}
+                className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors shrink-0"
+              >
+                <RiBarChartBoxLine className="size-3 text-foreground-icon-secondary" aria-hidden="true" />
+                <span>{isEn ? "Evaluate class" : "Evaluasi kelas"}</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleAskCopilot("Berikan 2 pertanyaan pemantik lisan untuk mendiskusikan soal ini.")}
+                className="cursor-pointer px-2.5 py-1 rounded-xl bg-background-secondary-default hover:bg-background-secondary-hover border border-border-button-default text-caption-2-medium text-text-primary flex items-center gap-1.5 transition-colors shrink-0"
+              >
+                <RiLightbulbLine className="size-3 text-foreground-icon-secondary" aria-hidden="true" />
+                <span>{isEn ? "Discussion spark" : "Pemantik diskusi"}</span>
+              </button>
+            </div>
+
+            {/* Chat messages list */}
+            <div className="relative flex-1 min-h-0">
+              <div
+                onScroll={mobileCopilotFade.onScroll}
+                className="h-full overflow-y-auto px-4 py-2 space-y-2.5 overscroll-contain"
+              >
+                {copilotMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={cx(
+                      "p-3 rounded-2xl text-body-2-regular whitespace-pre-wrap leading-relaxed",
+                      msg.role === "user"
+                        ? "ms-auto max-w-[90%] bg-background-secondary-default text-text-primary"
+                        : "me-auto max-w-[95%] bg-background-secondary-default text-text-primary shadow-2xs border border-border-button-default"
+                    )}
+                  >
+                    {msg.role === "assistant" && (
+                      <span className="text-caption-2-semibold text-text-secondary block mb-1">
+                        {isEn ? "Room copilot" : "Copilot ruang"}
+                      </span>
+                    )}
+                    <FormattedMessage content={msg.content} />
+                  </div>
+                ))}
+                {copilotLoading && (
+                  <div className="p-2.5 rounded-2xl me-auto bg-background-secondary-default flex items-center gap-2 text-caption-2-medium text-text-secondary border border-border-button-default">
+                    <Spinner size="xs" aria-label={isEn ? "Loading analysis" : "Memuat analisis"} />
+                    <span>{isEn ? "Copilot is analyzing the class..." : "Copilot sedang menganalisis kelas..."}</span>
+                  </div>
+                )}
+              </div>
+              <ScrollFade
+                progress={mobileCopilotFade.progress}
+                surfaceClassName="from-background-primary-default"
+              />
+            </div>
+
+            {/* Input Form with virtual keyboard handling */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleAskCopilot();
+              }}
+              className="flex items-center gap-1.5 p-3 border-t border-separator-border bg-background-primary-default shrink-0"
+            >
+              <InputBase
+                aria-label={isEn ? "Ask copilot" : "Tanyakan ke copilot"}
+                value={copilotInput}
+                onChange={(e) => setCopilotInput(e.target.value)}
+                onFocus={(e) => {
+                  e.currentTarget.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                }}
+                placeholder={
+                  isEn
+                    ? "Ask copilot about this room..."
+                    : "Tanyakan ke copilot..."
+                }
+                className="flex-1"
+              />
+              <Button
+                type="submit"
+                variant="secondary"
+                size="small"
+                disabled={copilotLoading || !copilotInput.trim()}
+                leadingIcon={RiSendPlaneLine}
+                className="shrink-0"
+              >
+                {isEn ? "Send" : "Kirim"}
+              </Button>
+            </form>
+          </div>
+        </>
+      )}
 
     </main>
   );

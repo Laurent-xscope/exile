@@ -22,6 +22,7 @@ import {
   RiFlashlightLine,
   RiSnowflakeLine,
   RiAlertLine,
+  RiArrowDownSLine,
 } from "@remixicon/react";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -61,6 +62,15 @@ interface Question {
   culturalContext?: string;
 }
 
+interface ScoreBreakdown {
+  base: number;
+  timer: number;
+  streak: number;
+  total: number;
+  correctAnswers: number;
+  submissions: number;
+}
+
 interface LeaderboardEntry {
   rank: number;
   id: string;
@@ -68,6 +78,25 @@ interface LeaderboardEntry {
   avatar: string;
   score: number;
   streak: number;
+  breakdown?: ScoreBreakdown;
+}
+
+function fireCelebrationConfetti(options?: confetti.Options) {
+  if (typeof window === "undefined") return;
+  const isMobile = window.innerWidth < 640;
+  try {
+    void confetti({
+      particleCount: isMobile ? 25 : (options?.particleCount ?? 55),
+      spread: isMobile ? 45 : (options?.spread ?? 65),
+      origin: options?.origin ?? { y: 0.6 },
+      ticks: isMobile ? 120 : 180,
+      scalar: isMobile ? 0.8 : 1,
+      disableForReducedMotion: true,
+      ...options,
+    });
+  } catch {
+    // Graceful fallback if canvas is unsupported
+  }
 }
 
 interface RoomState {
@@ -181,6 +210,8 @@ export default function PlayArenaClient({
   >([]);
 
   const leaderboardFade = useScrollFade();
+  const finalLeaderboardFade = useScrollFade();
+  const [expandedLeaderboardPlayer, setExpandedLeaderboardPlayer] = useState<string | null>(null);
 
   const toggleSound = () => {
     updateSetting("soundEnabled", !settings.soundEnabled);
@@ -270,11 +301,7 @@ export default function PlayArenaClient({
 
         if (data.status === "finished" && !data.isAbandoned && !finishedCelebrated.current) {
           finishedCelebrated.current = true;
-          confetti({
-            particleCount: 50,
-            spread: 60,
-            origin: { y: 0.6 },
-          });
+          fireCelebrationConfetti();
           soundEffects.playVictory();
         }
       }
@@ -455,9 +482,9 @@ export default function PlayArenaClient({
         } else {
           soundEffects.playCorrect();
         }
-        confetti({
-          particleCount: 40,
-          spread: 60,
+        fireCelebrationConfetti({
+          particleCount: 35,
+          spread: 55,
           origin: { y: 0.7 },
         });
         setLastSubmissionResult({
@@ -595,6 +622,139 @@ export default function PlayArenaClient({
       ? Math.round((correctAnswersCount / answeredHistory.length) * 100)
       : 0;
 
+  const renderLeaderboardList = (
+    scrollFadeHandler: React.UIEventHandler<HTMLDivElement>,
+    scrollFadeProgress: number,
+    surfaceBg = "from-background-primary-default"
+  ) => {
+    if (!roomState?.leaderboard || roomState.leaderboard.length === 0) {
+      return (
+        <p className="text-caption-1-regular text-text-secondary py-3 text-center">
+          {isEn ? "No players registered yet." : "Belum ada peserta terdaftar."}
+        </p>
+      );
+    }
+
+    return (
+      <div className="relative min-h-0">
+        <div
+          onScroll={scrollFadeHandler}
+          className="space-y-2 max-h-72 overflow-y-auto pe-1"
+        >
+          {roomState.leaderboard.map((player) => {
+            const isMe =
+              player.id === playerId ||
+              player.nickname.toLowerCase() === nickname.trim().toLowerCase();
+            const expanded = expandedLeaderboardPlayer === player.id;
+            const breakdown = player.breakdown;
+            const parts = [
+              {
+                label: isEn ? "Base score" : "Dasar soal",
+                value: breakdown?.base ?? 0,
+              },
+              {
+                label: isEn ? "Speed bonus" : "Bonus kecepatan",
+                value: breakdown?.timer ?? 0,
+              },
+              {
+                label: isEn ? "Streak bonus" : "Bonus beruntun",
+                value: breakdown?.streak ?? 0,
+              },
+            ];
+
+            return (
+              <div
+                key={player.id}
+                className={cx(
+                  "rounded-2xl transition border overflow-hidden",
+                  isMe
+                    ? "bg-background-secondary-default border-border-button-hover shadow-xs"
+                    : "bg-background-primary-default border-border-button-default"
+                )}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    soundEffects.playClick();
+                    setExpandedLeaderboardPlayer(expanded ? null : player.id);
+                  }}
+                  aria-expanded={expanded}
+                  aria-controls={`leaderboard-breakdown-${player.id}`}
+                  className="flex w-full cursor-pointer items-center justify-between gap-2.5 p-3 text-start outline-none transition-colors hover:bg-background-secondary-hover focus-visible:ring-2 focus-visible:ring-border-focus-ring"
+                >
+                  <div className="flex min-w-0 items-center gap-2 sm:gap-3 flex-1">
+                    <Badge color={player.rank === 1 ? "primary" : "neutral"} className="shrink-0">
+                      #{player.rank}
+                    </Badge>
+                    <Avatar
+                      size="sm"
+                      color={isMe ? "blue" : "neutral"}
+                      initials={getInitials(player.nickname)}
+                      className="shrink-0"
+                    />
+                    <span className="text-body-medium text-text-primary truncate">
+                      {player.nickname} {isMe && (isEn ? "(you)" : "(kamu)")}
+                    </span>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <span className="px-2 sm:px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums font-mono bg-background-primary-default border border-border-button-default text-text-primary whitespace-nowrap">
+                      {player.score.toLocaleString()} {isEn ? "pts" : "poin"}
+                    </span>
+                    <RiArrowDownSLine
+                      aria-hidden="true"
+                      className={cx(
+                        "size-4 text-text-tertiary transition-transform shrink-0",
+                        expanded && "rotate-180"
+                      )}
+                    />
+                  </div>
+                </button>
+
+                {expanded && (
+                  <div
+                    id={`leaderboard-breakdown-${player.id}`}
+                    className="border-t border-separator-border px-3 pb-3 pt-2.5 bg-background-secondary-default/50"
+                  >
+                    <div className="flex flex-wrap items-center justify-between gap-1 pb-2">
+                      <span className="text-caption-2-semibold text-text-tertiary">
+                        {isEn ? "Score breakdown" : "Rincian skor"}
+                      </span>
+                      <span className="text-caption-2-regular text-text-secondary">
+                        {breakdown?.correctAnswers ?? 0}/
+                        {breakdown?.submissions ?? 0}{" "}
+                        {isEn ? "correct" : "benar"}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      {parts.map((part) => (
+                        <div
+                          key={part.label}
+                          className="rounded-xl bg-background-primary-default border border-border-button-default px-3 py-2 flex sm:flex-col items-center sm:items-start justify-between sm:justify-center text-start"
+                        >
+                          <span className="text-caption-2-regular text-text-secondary">
+                            {part.label}
+                          </span>
+                          <span className="sm:mt-0.5 font-mono text-caption-1-semibold tabular-nums text-text-primary">
+                            +{part.value.toLocaleString()}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+        <ScrollFade
+          progress={scrollFadeProgress}
+          surfaceClassName={surfaceBg}
+        />
+      </div>
+    );
+  };
+
   if (loading && !roomState) {
     return (
       <div className="min-h-screen bg-background-full flex flex-col items-center justify-center text-text-secondary gap-3">
@@ -614,7 +774,7 @@ export default function PlayArenaClient({
           <div className="flex items-center gap-2 sm:gap-3 min-w-0 w-full sm:w-auto sm:flex-1">
             <Link
               href="/"
-              className="shrink-0 size-9 sm:size-10 flex items-center justify-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring text-text-secondary hover:text-text-primary transition-colors"
+              className="shrink-0 size-9 sm:size-10 flex items-center justify-center rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring text-text-secondary hover:text-text-primary transition-colors touch-manipulation"
               aria-label={isEn ? "Back to home" : "Kembali ke beranda"}
             >
               <RiArrowLeftLine className="size-5" />
@@ -625,87 +785,127 @@ export default function PlayArenaClient({
               color="neutral"
               initials={getInitials(nickname)}
               aria-label={nickname}
+              className="shrink-0"
             />
 
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap min-w-0">
-                <span className="text-body-semibold text-text-primary truncate">
+                <span className="text-body-semibold text-text-primary truncate max-w-[130px] sm:max-w-[220px]">
                   {nickname}
                 </span>
 
                 {/* Admission Status Indicator */}
                 {myStatus === "pending" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-secondary">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-secondary shrink-0">
                     <RiTimeLine className="size-3" />
                     <span>{isEn ? "Awaiting approval" : "Menunggu persetujuan"}</span>
                   </span>
                 )}
 
                 {myStatus === "rejected" && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-error text-text-error-primary">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-error text-text-error-primary shrink-0">
                     <RiCloseLine className="size-3" />
                     <span>{isEn ? "Admission denied" : "Akses ditolak"}</span>
                   </span>
                 )}
 
+                {/* Status Indicator (Lobby / Active / Scoreboard) */}
+                {roomState?.status === "waiting" && myStatus === "approved" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default shrink-0">
+                    <span className="relative flex size-1.5">
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite] absolute inline-flex h-full w-full rounded-full bg-text-secondary opacity-60" />
+                      <span className="relative inline-flex rounded-full size-1.5 bg-text-secondary" />
+                    </span>
+                    <span>{isEn ? "Waiting for teacher" : "Menunggu pengajar"}</span>
+                  </span>
+                )}
+
+                {isQuestionActive && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-primary border border-border-button-default shrink-0">
+                    <span className="relative flex size-1.5">
+                      <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_infinite] absolute inline-flex h-full w-full rounded-full bg-text-primary opacity-60" />
+                      <span className="relative inline-flex rounded-full size-1.5 bg-text-primary" />
+                    </span>
+                    <span>{isEn ? "Quiz active" : "Kuis aktif"}</span>
+                  </span>
+                )}
+
+                {roomState?.status === "showing_leaderboard" && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default shrink-0">
+                    <RiBarChartBoxLine className="size-3" aria-hidden />
+                    <span>{isEn ? "Scoreboard" : "Papan skor"}</span>
+                  </span>
+                )}
+
                 {myStreak > 1 && (
-                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-primary border border-border-button-default">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-primary border border-border-button-default shrink-0">
                     <RiFireLine className="size-3 shrink-0" aria-hidden />
                     <span>{isEn ? `${myStreak}x streak` : `${myStreak}x beruntun`}</span>
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-1.5 sm:gap-2 text-caption-1-medium text-text-secondary mt-0.5 truncate">
-                <span>Pin:</span>
-                <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} copyable={false} />
-                <span>•</span>
-                <span>{isEn ? `Rank #${myRank}` : `Peringkat #${myRank}`}</span>
+              {/* Sub-row: PIN spoiler and Rank badge */}
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 text-caption-1-medium text-text-secondary mt-1 min-w-0">
+                <div className="inline-flex items-center gap-1 shrink-0">
+                  <span className="text-caption-2-medium text-text-secondary select-none">Pin:</span>
+                  <TelegramSpoilerPin pin={roomCode} size="sm" isEn={isEn} copyable={true} />
+                </div>
+
+                <span className="text-text-tertiary select-none" aria-hidden="true">•</span>
+
+                <div className="inline-flex items-center gap-1 px-2 py-0.5 rounded-lg text-caption-2-medium bg-background-secondary-default text-text-secondary border border-border-button-default shrink-0">
+                  <RiTrophyLine className="size-3 text-text-secondary shrink-0" aria-hidden="true" />
+                  <span>{isEn ? `Rank #${myRank}` : `Peringkat #${myRank}`}</span>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Row 2 on mobile / Right section on desktop */}
-          <div className="flex items-center justify-end gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0 min-w-0">
-            <RoomChatWidget
-              role="student"
-              roomCode={roomCode}
-              senderId={playerId}
-              senderName={nickname}
-              playerToken={playerToken}
-              messages={roomState?.chatMessages}
-              isEn={isEn}
-            />
+          <div className="flex flex-wrap items-center justify-between sm:justify-end gap-1.5 sm:gap-2 w-full sm:w-auto shrink-0 min-w-0 pt-1.5 sm:pt-0 border-t border-separator-border/40 sm:border-0">
+            <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+              <RoomChatWidget
+                role="student"
+                roomCode={roomCode}
+                senderId={playerId}
+                senderName={nickname}
+                playerToken={playerToken}
+                messages={roomState?.chatMessages}
+                isEn={isEn}
+              />
 
-            <button
-              type="button"
-              onClick={() => setShowCopilot((prev) => !prev)}
-              className="cursor-pointer px-2.5 sm:px-3 py-1.5 rounded-xl text-caption-1-medium flex items-center gap-1.5 transition outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring bg-background-secondary-default hover:bg-background-secondary-hover text-text-primary border border-border-button-default"
-              aria-label={
-                showCopilot
-                  ? (isEn ? "Hide copilot" : "Sembunyikan copilot")
-                  : (isEn ? "Open copilot" : "Buka copilot")
-              }
-            >
-              <RiCopilotFill className="size-4" />
-              <span className="hidden sm:inline">
-                {showCopilot
-                  ? (isEn ? "Hide" : "Sembunyikan")
-                  : (isEn ? "Open copilot" : "Buka copilot")}
-              </span>
-            </button>
+              <button
+                type="button"
+                onClick={() => setShowCopilot((prev) => !prev)}
+                className="cursor-pointer min-h-[36px] sm:min-h-0 px-2.5 sm:px-3 py-1.5 rounded-xl text-caption-1-medium flex items-center justify-center gap-1.5 transition outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring bg-background-secondary-default hover:bg-background-secondary-hover text-text-primary border border-border-button-default touch-manipulation"
+                aria-label={
+                  showCopilot
+                    ? (isEn ? "Hide copilot" : "Sembunyikan copilot")
+                    : (isEn ? "Open copilot" : "Buka copilot")
+                }
+              >
+                <RiCopilotFill className="size-4 shrink-0" />
+                <span className="hidden sm:inline">
+                  {showCopilot
+                    ? (isEn ? "Hide" : "Sembunyikan")
+                    : (isEn ? "Open copilot" : "Buka copilot")}
+                </span>
+              </button>
 
-            <div className="hidden sm:flex items-center gap-2">
-              <LanguageToggle />
-              <ThemeToggle />
+              <div className="hidden sm:flex items-center gap-2">
+                <LanguageToggle />
+                <ThemeToggle />
+              </div>
+              <IconButton
+                icon={isMuted ? RiVolumeMuteLine : RiVolumeUpLine}
+                size="medium"
+                onClick={toggleSound}
+                aria-label={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
+                title={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
+              />
             </div>
-            <IconButton
-              icon={isMuted ? RiVolumeMuteLine : RiVolumeUpLine}
-              size="medium"
-              onClick={toggleSound}
-              aria-label={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
-              title={isMuted ? (isEn ? "Unmute audio" : "Aktifkan suara") : (isEn ? "Mute audio" : "Matikan suara")}
-            />
+
             {/* Redesigned Total Score Stat Badge */}
             <div
               className="flex items-center gap-1.5 sm:gap-2.5 px-2 sm:px-3 py-1.5 rounded-xl bg-background-secondary-default text-text-primary border border-border-button-default select-none transition-colors shrink-0"
@@ -736,7 +936,7 @@ export default function PlayArenaClient({
 
       <div
         className={cx(
-          "mx-auto px-4 py-8 w-full flex-1 flex flex-col justify-center transition-all",
+          "mx-auto px-3 sm:px-4 py-4 sm:py-8 w-full flex-1 flex flex-col justify-center transition-all",
           showCopilot && myStatus === "approved" && !isClassroomAbandoned
             ? "max-w-6xl"
             : "max-w-2xl"
@@ -747,17 +947,19 @@ export default function PlayArenaClient({
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-10 px-6 bg-background-primary-default rounded-2xl shadow-sm border border-border-button-default space-y-5"
+            className="text-center py-8 sm:py-10 px-4 sm:px-6 bg-background-primary-default rounded-2xl shadow-sm border border-border-button-default space-y-4 sm:space-y-5"
           >
             <div className="size-14 mx-auto rounded-2xl bg-background-tertiary-error text-text-error-primary flex items-center justify-center">
               <RiAlertLine className="size-7" aria-hidden />
             </div>
 
             <div className="space-y-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption-1-medium bg-background-tertiary-error text-text-error-primary">
-                <RiAlertLine className="size-3.5" aria-hidden />
-                <span>{isEn ? "Room closed" : "Ruangan ditutup"}</span>
-              </span>
+              <div className="flex items-center justify-center">
+                <span className="inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 px-3 py-1 rounded-full text-caption-1-medium bg-background-tertiary-error text-text-error-primary text-center">
+                  <RiAlertLine className="size-3.5 shrink-0" aria-hidden />
+                  <span>{isEn ? "Room closed" : "Ruangan ditutup"}</span>
+                </span>
+              </div>
 
               <h2 className="text-title-2-semibold text-text-primary">
                 {isEn ? "Classroom was closed by the teacher" : "Ruang kelas telah ditutup oleh pengajar"}
@@ -789,7 +991,7 @@ export default function PlayArenaClient({
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-10 px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-5"
+            className="text-center py-8 sm:py-10 px-4 sm:px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-4 sm:space-y-5"
           >
             <div className="relative size-14 mx-auto flex items-center justify-center">
               <span className="animate-[ping_2s_cubic-bezier(0,0,0.2,1)_infinite] absolute inline-flex h-full w-full rounded-full bg-background-tertiary-default opacity-40" />
@@ -823,9 +1025,11 @@ export default function PlayArenaClient({
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
-              <RiTimeLine className="size-4 shrink-0" />
-              <span>{isEn ? "Status: guest verification queue" : "Status: antrean verifikasi tamu"}</span>
+            <div className="flex items-center justify-center">
+              <span className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-background-secondary-default text-text-secondary border border-border-button-default text-center">
+                <RiTimeLine className="size-4 shrink-0" />
+                <span>{isEn ? "Status: guest verification queue" : "Status: antrean verifikasi tamu"}</span>
+              </span>
             </div>
           </motion.div>
         )}
@@ -835,17 +1039,19 @@ export default function PlayArenaClient({
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-10 px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-5"
+            className="text-center py-8 sm:py-10 px-4 sm:px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-4 sm:space-y-5"
           >
             <div className="size-14 mx-auto rounded-2xl bg-background-tertiary-error text-text-error-primary flex items-center justify-center shadow-card">
               <RiCloseLine className="size-7" aria-hidden="true" />
             </div>
 
             <div className="space-y-2">
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption-1-medium bg-background-tertiary-error text-text-error-primary">
-                <RiCloseLine className="size-3.5" aria-hidden="true" />
-                <span>{isEn ? "Admission denied" : "Akses ditolak"}</span>
-              </span>
+              <div className="flex items-center justify-center">
+                <span className="inline-flex max-w-full flex-wrap items-center justify-center gap-1.5 px-3 py-1 rounded-full text-caption-1-medium bg-background-tertiary-error text-text-error-primary text-center">
+                  <RiCloseLine className="size-3.5 shrink-0" aria-hidden="true" />
+                  <span>{isEn ? "Admission denied" : "Akses ditolak"}</span>
+                </span>
+              </div>
 
               <h2 className="text-title-2-semibold text-text-primary">
                 {isEn ? "Admission denied by teacher" : "Akses masuk ditolak oleh pengajar"}
@@ -881,7 +1087,7 @@ export default function PlayArenaClient({
                 <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-10 px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-5"
+                  className="text-center py-8 sm:py-10 px-4 sm:px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-4 sm:space-y-5"
                 >
                   <div className="size-12 mx-auto rounded-2xl bg-background-secondary-default text-text-primary border border-border-button-default flex items-center justify-center shadow-xs">
                     <RiBookOpenLine className="size-6" aria-hidden />
@@ -913,13 +1119,13 @@ export default function PlayArenaClient({
                   </div>
 
                   <div className="flex items-center justify-center">
-                    <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
-                      <span className="relative flex size-2">
+                    <span className="inline-flex max-w-full flex-wrap items-center justify-center gap-2 px-3.5 py-1.5 rounded-full text-caption-1-medium bg-background-secondary-default text-text-secondary border border-border-button-default text-center">
+                      <span className="relative flex size-2 shrink-0">
                         <span className="animate-[ping_1.5s_cubic-bezier(0,0,0.2,1)_1] absolute inline-flex h-full w-full rounded-full bg-text-secondary opacity-50" />
                         <span className="relative inline-flex rounded-full size-2 bg-text-secondary" />
                       </span>
                       <span>
-                        {isEn ? `Connected to room ` : `Terhubung ke ruangan `}
+                        {isEn ? "Connected to room " : "Terhubung ke ruangan "}
                         <bdi className="font-mono font-semibold">{roomCode}</bdi>
                       </span>
                     </span>
@@ -929,10 +1135,10 @@ export default function PlayArenaClient({
 
               {/* ACTIVE QUESTION SCREEN */}
               {isQuestionActive && roomState?.currentQuestion && (
-                <div className="space-y-5">
-                  <div className="space-y-2.5">
-                    <div className="flex items-center justify-between gap-2">
-                      <Chip variant="subtle" color="gray" className="px-2.5 py-1">
+                <div className="space-y-4 sm:space-y-5">
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Chip variant="subtle" color="gray" className="px-2.5 py-1 max-w-full">
                         {isEn
                           ? `Question ${(roomState.currentQuestionIndex || 0) + 1} of ${roomState.totalQuestions}`
                           : `Pertanyaan ${(roomState.currentQuestionIndex || 0) + 1} dari ${roomState.totalQuestions}`}
@@ -940,10 +1146,10 @@ export default function PlayArenaClient({
 
                       <span
                         className={cx(
-                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums border border-border-button-default",
+                          "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums font-mono border transition-colors shrink-0",
                           timeLeft <= 5
-                            ? "bg-background-tertiary-error text-text-error-primary"
-                            : "bg-background-primary-default text-text-secondary"
+                            ? "bg-background-tertiary-error text-text-error-primary border-border-error-default animate-pulse"
+                            : "bg-background-primary-default text-text-secondary border-border-button-default"
                         )}
                       >
                         <RiTimeLine className="size-4 shrink-0" aria-hidden />
@@ -958,21 +1164,27 @@ export default function PlayArenaClient({
                     />
                   </div>
 
-                  <div className="bg-background-primary-default rounded-3xl p-6 shadow-card border border-border-button-default space-y-3">
-                    <div className="flex items-center gap-2 flex-wrap">
+                  <div className="bg-background-primary-default rounded-3xl p-4 sm:p-6 shadow-card border border-border-button-default space-y-3">
+                    <div className="flex flex-wrap items-center gap-2">
                       {roomState.currentQuestion.conceptTag && (
-                        <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-primary border border-border-button-default">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-secondary-default text-text-primary border border-border-button-default break-words">
                           {roomState.currentQuestion.conceptTag}
                         </span>
                       )}
                       {roomState.currentQuestion.culturalContext && (
-                        <Chip variant="caption" color="soft">
+                        <Chip variant="caption" color="soft" className="max-w-full">
                           {roomState.currentQuestion.culturalContext}
                         </Chip>
                       )}
+                      {myStreak > 1 && (
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-primary border border-border-button-default">
+                          <RiFireLine className="size-3 shrink-0" aria-hidden />
+                          <span>{isEn ? `${myStreak}x streak` : `${myStreak}x beruntun`}</span>
+                        </span>
+                      )}
                     </div>
 
-                    <h2 className="text-title-3-semibold text-text-primary">
+                    <h2 className="text-headline-semibold sm:text-title-3-semibold text-text-primary break-words leading-relaxed">
                       {roomState.currentQuestion.question}
                     </h2>
                   </div>
@@ -998,7 +1210,7 @@ export default function PlayArenaClient({
 
                   {/* STUDENT POWERUPS BAR (One-time use per session) */}
                   {!hasAnsweredCurrentQ && !isTimeUp && (
-                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl bg-background-primary-default p-3 shadow-card border border-border-button-default">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 rounded-2xl bg-background-primary-default p-3 sm:p-3.5 shadow-card border border-border-button-default">
                       <span className="text-caption-2-semibold text-text-secondary">
                         {isEn ? "Powerups (1x per session):" : "Powerup siswa (1x pakai):"}
                       </span>
@@ -1008,13 +1220,13 @@ export default function PlayArenaClient({
                           disabled={usedPowerups.includes("time_freeze")}
                           onClick={() => handleTogglePowerup("time_freeze")}
                           className={cx(
-                            "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40 border border-border-button-default",
+                            "inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-caption-2-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 border border-border-button-default outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                             activePowerup === "time_freeze"
-                              ? "bg-background-tertiary-default text-text-primary font-bold shadow-xs"
+                              ? "bg-background-tertiary-default text-text-primary font-bold shadow-xs border-border-focus-ring ring-1 ring-border-focus-ring"
                               : "bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                           )}
                         >
-                          <RiSnowflakeLine className="size-4" />
+                          <RiSnowflakeLine className="size-4 shrink-0" />
                           <span>{isEn ? "Freeze time" : "Bekukan waktu"}</span>
                         </button>
                         <button
@@ -1022,13 +1234,13 @@ export default function PlayArenaClient({
                           disabled={usedPowerups.includes("double_jeopardy")}
                           onClick={() => handleTogglePowerup("double_jeopardy")}
                           className={cx(
-                            "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40 border border-border-button-default",
+                            "inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-caption-2-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 border border-border-button-default outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                             activePowerup === "double_jeopardy"
-                              ? "bg-background-tertiary-default text-text-primary font-bold shadow-xs"
+                              ? "bg-background-tertiary-default text-text-primary font-bold shadow-xs border-border-focus-ring ring-1 ring-border-focus-ring"
                               : "bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                           )}
                         >
-                          <RiFlashlightLine className="size-4" />
+                          <RiFlashlightLine className="size-4 shrink-0" />
                           <span>{isEn ? "2x score" : "Skor 2x"}</span>
                         </button>
                         <button
@@ -1036,13 +1248,13 @@ export default function PlayArenaClient({
                           disabled={usedPowerups.includes("immunity")}
                           onClick={() => handleTogglePowerup("immunity")}
                           className={cx(
-                            "inline-flex min-h-[44px] cursor-pointer items-center gap-1.5 rounded-xl px-3 py-2.5 text-caption-2-semibold transition disabled:cursor-not-allowed disabled:opacity-40 border border-border-button-default",
+                            "inline-flex min-h-[44px] cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-caption-2-semibold transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 border border-border-button-default outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
                             activePowerup === "immunity"
-                              ? "bg-background-tertiary-default text-text-primary font-bold shadow-xs"
+                              ? "bg-background-tertiary-default text-text-primary font-bold shadow-xs border-border-focus-ring ring-1 ring-border-focus-ring"
                               : "bg-background-secondary-default text-text-primary hover:bg-background-secondary-hover"
                           )}
                         >
-                          <RiShieldFlashLine className="size-4" />
+                          <RiShieldFlashLine className="size-4 shrink-0" />
                           <span>{isEn ? "Streak shield" : "Perisai beruntun"}</span>
                         </button>
                       </div>
@@ -1050,7 +1262,7 @@ export default function PlayArenaClient({
                   )}
 
                   {/* 4 OPTION CARDS */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3">
                     {roomState.currentQuestion.options.map((option) => {
                       const isSelected = selectedOption === option.label;
                       const isRevealed = hasAnsweredCurrentQ && Boolean(lastSubmissionResult);
@@ -1066,43 +1278,48 @@ export default function PlayArenaClient({
                           onClick={() => handleSelectOption(option.label)}
                           disabled={submitting || isTimeUp || hasAnsweredCurrentQ}
                           className={cx(
-                            "group p-4 rounded-2xl text-start transition flex items-start justify-between gap-3 cursor-pointer shadow-card border",
+                            "group relative min-h-[52px] sm:min-h-[56px] w-full p-3.5 sm:p-4 rounded-2xl text-start transition-all duration-150 flex items-center justify-between gap-3 cursor-pointer shadow-card border",
                             "outline-none focus-visible:ring-2 focus-visible:ring-border-focus-ring",
-                            "disabled:cursor-default",
+                            "active:scale-[0.985] sm:hover:scale-[1.005]",
+                            "disabled:cursor-default disabled:active:scale-100",
                             isCorrectCard
-                              ? "bg-background-secondary-default border-border-focus-ring text-text-primary"
+                              ? "bg-background-secondary-default border-border-focus-ring ring-2 ring-border-focus-ring text-text-primary"
                               : isWrongSelectedCard
-                                ? "bg-background-tertiary-error border-border-error-default text-text-error-primary"
+                                ? "bg-background-tertiary-error border-border-error-default ring-1 ring-border-error-default text-text-error-primary"
                                 : isRevealed
-                                  ? "bg-background-primary-default border-border-button-default opacity-65 text-text-secondary"
+                                  ? "bg-background-primary-default border-border-button-default opacity-60 text-text-secondary"
                                   : isSelected
-                                    ? "bg-background-secondary-default border-border-button-hover text-text-primary"
-                                    : "bg-background-primary-default border-border-button-default hover:bg-background-secondary-default text-text-primary"
+                                    ? "bg-background-secondary-default border-border-button-hover ring-1 ring-border-button-hover text-text-primary"
+                                    : "bg-background-primary-default border-border-button-default hover:bg-background-secondary-default active:bg-background-secondary-default text-text-primary"
                           )}
                         >
-                          <span className="flex items-start gap-3 min-w-0">
+                          <span className="flex items-center gap-3 min-w-0 flex-1">
                             <span
                               className={cx(
-                                "size-7 rounded-lg flex items-center justify-center text-caption-1-semibold shrink-0 transition-colors border",
+                                "size-8 rounded-xl flex items-center justify-center text-caption-1-semibold shrink-0 transition-colors border",
                                 isCorrectCard
-                                  ? "bg-background-tertiary-default border-border-focus-ring text-text-primary"
+                                  ? "bg-background-tertiary-default border-border-focus-ring text-text-primary font-bold"
                                   : isWrongSelectedCard
                                     ? "bg-background-tertiary-error border-border-error-default text-text-error-primary"
                                     : isSelected
                                       ? "bg-background-tertiary-default border-border-button-hover text-text-primary font-bold"
-                                      : "bg-background-secondary-default border-border-button-default text-text-secondary"
+                                      : "bg-background-secondary-default border-border-button-default text-text-secondary group-hover:text-text-primary"
                               )}
                             >
                               {option.label}
                             </span>
-                            <span className="text-body-medium text-text-primary pt-0.5">
+                            <span className="text-body-medium text-text-primary break-words flex-1 min-w-0 leading-snug">
                               {option.text}
                             </span>
                           </span>
                           {isCorrectCard ? (
-                            <RiCheckLine className="size-5 shrink-0 text-text-primary mt-1" />
+                            <span className="size-6 rounded-full bg-background-tertiary-default flex items-center justify-center shrink-0 border border-border-focus-ring">
+                              <RiCheckLine className="size-4 text-text-primary" />
+                            </span>
                           ) : isWrongSelectedCard ? (
-                            <RiCloseLine className="size-5 shrink-0 text-text-error-primary mt-1" />
+                            <span className="size-6 rounded-full bg-background-tertiary-error flex items-center justify-center shrink-0 border border-border-error-default">
+                              <RiCloseLine className="size-4 text-text-error-primary" />
+                            </span>
                           ) : null}
                         </button>
                       );
@@ -1116,7 +1333,7 @@ export default function PlayArenaClient({
                       initial={{ opacity: 0, scale: 0.98 }}
                       animate={{ opacity: 1, scale: 1 }}
                       className={cx(
-                        "p-6 rounded-3xl shadow-card border space-y-4",
+                        "p-4 sm:p-6 rounded-3xl shadow-card border space-y-3 sm:space-y-4",
                         lastSubmissionResult?.isCorrect
                           ? "bg-background-secondary-default border-border-button-default"
                           : "bg-background-tertiary-error border-border-error-default text-text-error-primary"
@@ -1138,13 +1355,13 @@ export default function PlayArenaClient({
                           )}
                         </div>
 
-                        <div>
+                        <div className="min-w-0 flex-1">
                           <h3 className="text-headline-semibold text-text-primary flex items-center gap-2">
                             {lastSubmissionResult?.isCorrect
                               ? (isEn ? "Correct" : "Benar")
                               : (isEn ? "Incorrect" : "Salah")}
                           </h3>
-                          <p className="text-caption-1-medium text-text-secondary">
+                          <p className="text-caption-1-medium text-text-secondary truncate sm:overflow-visible sm:whitespace-normal">
                             {lastSubmissionResult?.isCorrect
                               ? (isEn
                                   ? `+${lastSubmissionResult.scoreAwarded} points awarded.`
@@ -1156,22 +1373,22 @@ export default function PlayArenaClient({
                         </div>
                       </div>
 
-                      <div className="p-4 rounded-2xl bg-background-primary-default border border-border-button-default text-body-regular text-text-secondary shadow-xs space-y-1">
+                      <div className="p-3.5 sm:p-4 rounded-2xl bg-background-primary-default border border-border-button-default text-body-regular text-text-secondary shadow-xs space-y-1">
                         <span className="text-caption-1-semibold text-text-primary block">
                           {lastSubmissionResult?.isCorrect
                             ? (isEn ? "Answer key review:" : "Ulasan kunci jawaban:")
                             : (isEn ? "Conceptual understanding review:" : "Ulasan pemahaman konsep:")}
                         </span>
-                        <p className="text-body-regular text-text-primary">
+                        <p className="text-body-regular text-text-primary break-words">
                           {lastSubmissionResult?.microFeedback ||
                             lastSubmissionResult?.explanation ||
                             (isEn ? "Answer recorded in session." : "Jawaban telah tersimpan di sistem.")}
                         </p>
                       </div>
 
-                      <div className="flex items-center justify-center gap-2 text-caption-1-medium text-text-secondary pt-1">
-                        <span className="size-2 rounded-full bg-text-tertiary" />
-                        <span>
+                      <div className="flex items-center justify-center gap-2 text-caption-1-medium text-text-secondary pt-1 text-center">
+                        <span className="size-2 rounded-full bg-text-tertiary shrink-0 animate-pulse" />
+                        <span className="break-words">
                           {isEn
                             ? "Waiting for educator to open next question..."
                             : "Menunggu guru membuka pertanyaan berikutnya..."}
@@ -1187,9 +1404,9 @@ export default function PlayArenaClient({
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="bg-background-primary-default rounded-3xl p-6 shadow-card border border-border-button-default space-y-4"
+                  className="bg-background-primary-default rounded-3xl p-5 sm:p-6 shadow-card border border-border-button-default space-y-4"
                 >
-                  <div className="text-center pb-3 space-y-1">
+                  <div className="text-center pb-2 space-y-1">
                     <h2 className="text-title-3-semibold text-text-primary">
                       {isEn ? "Interim scoreboard" : "Papan skor sementara"}
                     </h2>
@@ -1200,51 +1417,11 @@ export default function PlayArenaClient({
                     </p>
                   </div>
 
-                  <div className="relative min-h-0">
-                    <div
-                      onScroll={leaderboardFade.onScroll}
-                      className="space-y-2 max-h-72 overflow-y-auto pe-1"
-                    >
-                      {roomState.leaderboard.map((player) => {
-                        const isMe =
-                          player.id === playerId ||
-                          player.nickname.toLowerCase() === nickname.trim().toLowerCase();
-                        return (
-                          <div
-                            key={player.id}
-                            className={cx(
-                              "p-3 rounded-2xl flex items-center justify-between transition border border-border-button-default",
-                              isMe
-                                ? "bg-background-secondary-default shadow-xs"
-                                : "bg-background-primary-default"
-                            )}
-                          >
-                            <div className="flex items-center gap-3 min-w-0">
-                              <Badge color={player.rank === 1 ? "primary" : "neutral"}>
-                                #{player.rank}
-                              </Badge>
-                              <Avatar
-                                size="sm"
-                                color={isMe ? "blue" : "neutral"}
-                                initials={getInitials(player.nickname)}
-                              />
-                              <span className="text-body-medium text-text-primary truncate">
-                                {player.nickname} {isMe && (isEn ? "(you)" : "(kamu)")}
-                              </span>
-                            </div>
-
-                            <span className="px-2.5 py-1 rounded-lg text-caption-1-medium tabular-nums bg-background-primary-default border border-border-button-default">
-                              {player.score.toLocaleString()} {isEn ? "pts" : "poin"}
-                            </span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                    <ScrollFade
-                      progress={leaderboardFade.progress}
-                      surfaceClassName="from-background-primary-default"
-                    />
-                  </div>
+                  {renderLeaderboardList(
+                    leaderboardFade.onScroll,
+                    leaderboardFade.progress,
+                    "from-background-primary-default"
+                  )}
                 </motion.div>
               )}
 
@@ -1253,81 +1430,149 @@ export default function PlayArenaClient({
                 <motion.div
                   initial={{ opacity: 0, scale: 0.98 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="text-center py-8 px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-6"
+                  className="text-center py-6 sm:py-8 px-4 sm:px-6 bg-background-primary-default rounded-3xl shadow-card border border-border-button-default space-y-6"
                 >
-                  <div className="size-12 mx-auto rounded-2xl bg-background-secondary-default text-text-primary border border-border-button-default flex items-center justify-center shadow-xs">
-                    <RiTrophyLine className="size-6" aria-hidden />
+                  <div className="size-14 mx-auto rounded-2xl bg-background-secondary-default text-text-primary border border-border-button-default flex items-center justify-center shadow-xs">
+                    <RiTrophyLine className="size-7" aria-hidden="true" />
                   </div>
 
-                  <div className="space-y-1">
+                  <div className="space-y-1.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-caption-1-medium bg-background-secondary-default text-text-secondary border border-border-button-default">
+                      <RiTrophyLine className="size-3.5 text-text-primary" aria-hidden="true" />
+                      <span>{isEn ? "Quiz completed" : "Kuis selesai"}</span>
+                    </span>
                     <h2 className="text-title-2-semibold text-text-primary">
                       {isEn ? "Quiz session completed!" : "Sesi kuis selesai!"}
                     </h2>
-                    <p className="text-body-regular text-text-secondary">
-                      {isEn ? "Your total score: " : "Total perolehan kamu: "}
-                      <strong className="text-body-semibold text-text-primary">
-                        {myScore.toLocaleString()} {isEn ? "pts" : "poin"}
-                      </strong>{" "}
-                      ({isEn ? `rank #${myRank}` : `peringkat #${myRank}`}).
+                    <p className="text-body-regular text-text-secondary max-w-md mx-auto">
+                      {isEn
+                        ? "Great effort! Here is your final performance overview."
+                        : "Usaha yang luar biasa! Berikut rangkuman perolehan akhir belajarmu."}
                     </p>
                   </div>
 
-                  {/* Student Telemetry Breakdown Card */}
-                  <div className="p-4 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-3 text-start">
-                    <div className="flex items-center justify-between">
-                      <span className="text-body-semibold text-text-primary flex items-center gap-1.5">
-                        <RiBarChartBoxLine className="size-4 text-text-primary" />
-                        {isEn ? "Your learning performance summary" : "Rangkuman hasil belajarmu"}
+                  {/* Final rank card and summary statistics: comfortable padding, clear contrast */}
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 sm:gap-3">
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col items-center justify-center text-center shadow-2xs">
+                      <span className="text-caption-2-medium text-text-secondary">
+                        {isEn ? "Final rank" : "Peringkat akhir"}
                       </span>
-                      <span className="px-2 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-primary border border-border-button-default">
+                      <span className="text-title-2-semibold text-text-primary mt-1 font-mono">
+                        #{myRank}
+                      </span>
+                    </div>
+
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col items-center justify-center text-center shadow-2xs">
+                      <span className="text-caption-2-medium text-text-secondary">
+                        {isEn ? "Total score" : "Total skor"}
+                      </span>
+                      <span className="text-title-2-semibold text-text-primary mt-1 font-mono tabular-nums">
+                        {myScore.toLocaleString()}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1 p-3.5 sm:p-4 rounded-2xl bg-background-secondary-default border border-border-button-default flex flex-col items-center justify-center text-center shadow-2xs">
+                      <span className="text-caption-2-medium text-text-secondary">
+                        {isEn ? "Accuracy" : "Akurasi"}
+                      </span>
+                      <span className="text-title-2-semibold text-text-primary mt-1 font-mono tabular-nums">
+                        {accuracyPercent}%
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Student Telemetry Breakdown Card */}
+                  <div className="p-4 sm:p-5 rounded-2xl bg-background-secondary-default border border-border-button-default space-y-3 text-start">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-body-semibold text-text-primary flex items-center gap-1.5">
+                        <RiBarChartBoxLine className="size-4 text-text-primary shrink-0" aria-hidden="true" />
+                        <span>{isEn ? "Learning performance summary" : "Rangkuman hasil belajar"}</span>
+                      </span>
+                      <span className="px-2.5 py-0.5 rounded-full text-caption-2-medium bg-background-tertiary-default text-text-primary border border-border-button-default shrink-0">
                         {isEn ? "Accuracy: " : "Akurasi: "}{accuracyPercent}%
                       </span>
                     </div>
 
-                    <div className="space-y-1.5">
-                      {answeredHistory.map((item, idx) => (
-                        <div
-                          key={idx}
-                          className="p-2.5 rounded-xl bg-background-primary-default border border-border-button-default flex items-center justify-between text-caption-1-medium"
-                        >
-                          <span className="truncate">
-                            {isEn ? `Question #${item.questionOrder}: ` : `Soal #${item.questionOrder}: `}
-                            {item.concept}
-                          </span>
-                          <span
-                            className={cx(
-                              "inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-caption-2-medium shrink-0 border border-border-button-default",
-                              item.isCorrect
-                                ? "bg-background-tertiary-default text-text-primary"
-                                : "bg-background-tertiary-error text-text-error-primary border-border-error-default"
-                            )}
+                    {answeredHistory.length === 0 ? (
+                      <p className="text-caption-1-regular text-text-secondary py-2 text-center">
+                        {isEn ? "No questions recorded for this session." : "Belum ada soal tercatat pada sesi ini."}
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {answeredHistory.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="p-3 rounded-xl bg-background-primary-default border border-border-button-default flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-caption-1-medium"
                           >
-                            {item.isCorrect ? <RiCheckLine className="size-3" /> : <RiRestartLine className="size-3" />}
-                            <span>
-                              {item.isCorrect
-                                ? (isEn ? "Correct" : "Benar")
-                                : (isEn ? "Needs review" : "Perlu diulang")}
+                            <span className="truncate text-text-primary font-medium">
+                              {isEn ? `Question #${item.questionOrder}: ` : `Soal #${item.questionOrder}: `}
+                              {item.concept}
                             </span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
+                            <span
+                              className={cx(
+                                "inline-flex items-center gap-1 self-start sm:self-auto px-2.5 py-0.5 rounded-full text-caption-2-medium shrink-0 border",
+                                item.isCorrect
+                                  ? "bg-background-tertiary-default text-text-primary border-border-button-default"
+                                  : "bg-background-tertiary-error text-text-error-primary border-border-error-default"
+                              )}
+                            >
+                              {item.isCorrect ? (
+                                <RiCheckLine className="size-3 shrink-0" aria-hidden="true" />
+                              ) : (
+                                <RiRestartLine className="size-3 shrink-0" aria-hidden="true" />
+                              )}
+                              <span>
+                                {item.isCorrect
+                                  ? (isEn ? "Correct" : "Benar")
+                                  : (isEn ? "Needs review" : "Perlu diulang")}
+                              </span>
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
+                  {/* Final scoreboard section */}
+                  {roomState?.leaderboard && roomState.leaderboard.length > 0 && (
+                    <div className="space-y-3 text-start">
+                      <div className="flex items-center justify-between">
+                        <span className="text-body-semibold text-text-primary flex items-center gap-1.5">
+                          <RiTrophyLine className="size-4 text-text-primary shrink-0" aria-hidden="true" />
+                          <span>{isEn ? "Final scoreboard" : "Papan skor akhir"}</span>
+                        </span>
+                        <span className="text-caption-2-medium text-text-secondary">
+                          {isEn
+                            ? `${roomState.leaderboard.length} players`
+                            : `${roomState.leaderboard.length} peserta`}
+                        </span>
+                      </div>
+
+                      {renderLeaderboardList(
+                        finalLeaderboardFade.onScroll,
+                        finalLeaderboardFade.progress,
+                        "from-background-primary-default"
+                      )}
+                    </div>
+                  )}
+
+                  {/* Navigation Actions */}
+                  <div className="pt-2 flex flex-col sm:flex-row gap-2.5 w-full">
                     <ButtonLink
                       href="/play"
                       variant="secondary"
+                      size="medium"
                       leadingIcon={RiPlayCircleLine}
-                      className="flex-1 border border-border-button-default"
+                      className="w-full sm:flex-1 h-12 min-h-[48px] border border-border-button-default text-body-medium justify-center"
                     >
                       {isEn ? "Join another room" : "Masuk ke ruang lain"}
                     </ButtonLink>
                     <ButtonLink
                       href="/"
                       variant="secondary"
+                      size="medium"
                       leadingIcon={RiArrowLeftLine}
-                      className="flex-1 border border-border-button-default"
+                      className="w-full sm:flex-1 h-12 min-h-[48px] border border-border-button-default text-body-medium justify-center"
                     >
                       {isEn ? "Back to home" : "Kembali ke beranda"}
                     </ButtonLink>

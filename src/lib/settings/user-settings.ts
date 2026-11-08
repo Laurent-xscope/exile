@@ -46,6 +46,9 @@ export function loadSettings(): ExileSettings {
   }
 }
 
+export const loadExileSettings = loadSettings;
+export const saveExileSettings = saveSettings;
+
 function applySettingsEffects(settings: ExileSettings): void {
   if (typeof window === "undefined") return;
   soundEffects.setMuted(!settings.soundEnabled);
